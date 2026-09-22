@@ -1,0 +1,2211 @@
+{
+	"FormatVersion": 2,
+	"Namespace": "",
+	"Subnamespaces": [
+		{
+			"Namespace": "Contexts",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "UnLua Editor"
+					},
+					"Translation":
+					{
+						"Text": "UnLua 编辑器"
+					},
+					"Key": "UnLuaEditor"
+				}
+			]
+		},
+		{
+			"Namespace": "FUnLuaEditorModule",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Bind"
+					},
+					"Translation":
+					{
+						"Text": "绑定"
+					},
+					"Key": "Bind"
+				},
+				{
+					"Source":
+					{
+						"Text": "Copy as Relative Path"
+					},
+					"Translation":
+					{
+						"Text": "复制相对路径"
+					},
+					"Key": "CopyAsRelativePath"
+				},
+				{
+					"Source":
+					{
+						"Text": "Create Lua Template"
+					},
+					"Translation":
+					{
+						"Text": "创建Lua模版文件"
+					},
+					"Key": "CreateLuaTemplate"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua file ({0}) is already existed!"
+					},
+					"Translation":
+					{
+						"Text": "Lua文件（{0}）已经存在"
+					},
+					"Key": "FileAlreadyExists"
+				},
+				{
+					"Source":
+					{
+						"Text": "Please specify a module name first"
+					},
+					"Translation":
+					{
+						"Text": "请先指定模块名"
+					},
+					"Key": "ModuleNameRequired"
+				},
+				{
+					"Source":
+					{
+						"Text": "Reveal in Explorer"
+					},
+					"Translation":
+					{
+						"Text": "在资源管理器中显示"
+					},
+					"Key": "RevealInExplorer"
+				},
+				{
+					"Source":
+					{
+						"Text": "The file does not exist."
+					},
+					"Translation":
+					{
+						"Text": "文件不存在"
+					},
+					"Key": "FileNotExist"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua"
+					},
+					"Translation":
+					{
+						"Text": "UnLua"
+					},
+					"Key": "UnLua_Label"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua"
+					},
+					"Translation":
+					{
+						"Text": "UnLua"
+					},
+					"Key": "UnLua_ToolTip"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua Editor"
+					},
+					"Translation":
+					{
+						"Text": "UnLua 编辑器"
+					},
+					"Key": "UnLuaEditorSettingsName"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua Editor Settings"
+					},
+					"Translation":
+					{
+						"Text": "UnLua 编辑器设置"
+					},
+					"Key": "UnLuaEditorSettingsDescription"
+				},
+				{
+					"Source":
+					{
+						"Text": "Unbind"
+					},
+					"Translation":
+					{
+						"Text": "解绑"
+					},
+					"Key": "Unbind"
+				}
+			]
+		},
+		{
+			"Namespace": "FUnLuaModule",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "UnLua"
+					},
+					"Translation":
+					{
+						"Text": "UnLua"
+					},
+					"Key": "UnLuaEditorSettingsName"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua Runtime Settings"
+					},
+					"Translation":
+					{
+						"Text": "UnLua 运行时设置"
+					},
+					"Key": "UnLuaEditorSettingsDescription"
+				}
+			]
+		},
+		{
+			"Namespace": "UICommands",
+			"Subnamespaces": [
+				{
+					"Namespace": "FUnLuaEditorCommands",
+					"Children": [
+						{
+							"Source":
+							{
+								"Text": "About"
+							},
+							"Translation":
+							{
+								"Text": "关于"
+							},
+							"Key": "About"
+						},
+						{
+							"Source":
+							{
+								"Text": "About this version"
+							},
+							"Translation":
+							{
+								"Text": "关于当前版本"
+							},
+							"Key": "About_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Bind"
+							},
+							"Translation":
+							{
+								"Text": "绑定"
+							},
+							"Key": "BindToLua"
+						},
+						{
+							"Source":
+							{
+								"Text": "Copy as Relative Path"
+							},
+							"Translation":
+							{
+								"Text": "复制相对路径"
+							},
+							"Key": "CopyAsRelativePath"
+						},
+						{
+							"Source":
+							{
+								"Text": "Copy module name as relative path."
+							},
+							"Translation":
+							{
+								"Text": "复制模块名的相对路径"
+							},
+							"Key": "CopyAsRelativePath_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Create Lua Template"
+							},
+							"Translation":
+							{
+								"Text": "创建Lua模版文件"
+							},
+							"Key": "CreateLuaTemplate"
+						},
+						{
+							"Source":
+							{
+								"Text": "Create an issue on github"
+							},
+							"Translation":
+							{
+								"Text": "在Github上提交问题"
+							},
+							"Key": "ReportIssue_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Create lua template file"
+							},
+							"Translation":
+							{
+								"Text": "创建Lua模版文件"
+							},
+							"Key": "CreateLuaTemplate_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Generate IntelliSense"
+							},
+							"Translation":
+							{
+								"Text": "生成智能提示"
+							},
+							"Key": "GenerateIntelliSense"
+						},
+						{
+							"Source":
+							{
+								"Text": "Generate intelliSense files"
+							},
+							"Translation":
+							{
+								"Text": "生成智能提示文件"
+							},
+							"Key": "GenerateIntelliSense_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Hot Reload"
+							},
+							"Translation":
+							{
+								"Text": "热重载"
+							},
+							"Key": "HotReload"
+						},
+						{
+							"Source":
+							{
+								"Text": "Hot reload all lua states"
+							},
+							"Translation":
+							{
+								"Text": "热重载所有Lua环境"
+							},
+							"Key": "HotReload_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Implement UnLuaInterface"
+							},
+							"Translation":
+							{
+								"Text": "实现UnLuaInterface"
+							},
+							"Key": "BindToLua_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Open Editor Settings"
+							},
+							"Translation":
+							{
+								"Text": "打开UnLua编辑器设置"
+							},
+							"Key": "OpenEditorSettings"
+						},
+						{
+							"Source":
+							{
+								"Text": "Open Runtime Settings"
+							},
+							"Translation":
+							{
+								"Text": "打开UnLua运行时设置"
+							},
+							"Key": "OpenRuntimeSettings"
+						},
+						{
+							"Source":
+							{
+								"Text": "Open UnLua Editor settings"
+							},
+							"Translation":
+							{
+								"Text": "打开UnLua编辑器设置"
+							},
+							"Key": "OpenEditorSettings_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Open UnLua Runtime settings"
+							},
+							"Translation":
+							{
+								"Text": "打开UnLua运行时设置"
+							},
+							"Key": "OpenRuntimeSettings_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Remove the implementation of UnLuaInterface"
+							},
+							"Translation":
+							{
+								"Text": "移除UnLuaInterface"
+							},
+							"Key": "UnbindFromLua_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Report issue"
+							},
+							"Translation":
+							{
+								"Text": "提交问题"
+							},
+							"Key": "ReportIssue"
+						},
+						{
+							"Source":
+							{
+								"Text": "Reveal in Explorer"
+							},
+							"Translation":
+							{
+								"Text": "在资源管理器中显示"
+							},
+							"Key": "RevealInExplorer"
+						},
+						{
+							"Source":
+							{
+								"Text": "Reveal lua file in explorer"
+							},
+							"Translation":
+							{
+								"Text": "在资源管理器中显示Lua文件"
+							},
+							"Key": "RevealInExplorer_ToolTip"
+						},
+						{
+							"Source":
+							{
+								"Text": "Unbind"
+							},
+							"Translation":
+							{
+								"Text": "解除绑定"
+							},
+							"Key": "UnbindFromLua"
+						}
+					]
+				}
+			]
+		},
+		{
+			"Namespace": "UnLuaAboutScreen",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Close"
+					},
+					"Translation":
+					{
+						"Text": "关闭"
+					},
+					"Key": "Close"
+				},
+				{
+					"Source":
+					{
+						"Text": "Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved."
+					},
+					"Translation":
+					{
+						"Text": "Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved."
+					},
+					"Key": "Copyright3"
+				},
+				{
+					"Source":
+					{
+						"Text": "Tencent is pleased to support the open source community by making UnLua available."
+					},
+					"Translation":
+					{
+						"Text": "Tencent is pleased to support the open source community by making UnLua available."
+					},
+					"Key": "Copyright2"
+				},
+				{
+					"Source":
+					{
+						"Text": "Version: {0}"
+					},
+					"Translation":
+					{
+						"Text": "Version: {0}"
+					},
+					"Key": "VersionLabel"
+				},
+				{
+					"Source":
+					{
+						"Text": "https://github.com/Tencent/UnLua"
+					},
+					"Translation":
+					{
+						"Text": "https://github.com/Tencent/UnLua"
+					},
+					"Key": "Copyright1"
+				}
+			]
+		},
+		{
+			"Namespace": "UnLuaConsoleCommands",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Force collect garbage in lua env."
+					},
+					"Translation":
+					{
+						"Text": "在Lua环境中强行执行一次垃圾回收"
+					},
+					"Key": "CommandText_CollectGarbage"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runs the given module path in lua env."
+					},
+					"Translation":
+					{
+						"Text": "在Lua环境中执行指定路径的模块"
+					},
+					"Key": "CommandText_DoFile"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runs the given string in lua env."
+					},
+					"Translation":
+					{
+						"Text": "在Lua环境中执行指定的代码文本"
+					},
+					"Key": "CommandText_Do"
+				}
+			]
+		},
+		{
+			"Namespace": "UnLuaIntelliSenseGenerator",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Generating Blueprints InstelliSense"
+					},
+					"Translation":
+					{
+						"Text": "生成智能提示数据文件"
+					},
+					"Key": "GeneratingBlueprintsIntelliSense"
+				}
+			]
+		},
+		{
+			"Namespace": "UnLuaMainMenuToolbar",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "About"
+					},
+					"Translation":
+					{
+						"Text": "关于"
+					},
+					"Key": "About"
+				},
+				{
+					"Source":
+					{
+						"Text": "About UnLua"
+					},
+					"Translation":
+					{
+						"Text": "关于UnLua"
+					},
+					"Key": "AboutUnLua"
+				},
+				{
+					"Source":
+					{
+						"Text": "Action"
+					},
+					"Translation":
+					{
+						"Text": "动作"
+					},
+					"Key": "Section_Action"
+				},
+				{
+					"Source":
+					{
+						"Text": "Editor"
+					},
+					"Translation":
+					{
+						"Text": "编辑器"
+					},
+					"Key": "OpenEditorSettings"
+				},
+				{
+					"Source":
+					{
+						"Text": "Generate IntelliSense"
+					},
+					"Translation":
+					{
+						"Text": "生成智能提示"
+					},
+					"Key": "GenerateIntelliSense"
+				},
+				{
+					"Source":
+					{
+						"Text": "Help"
+					},
+					"Translation":
+					{
+						"Text": "帮助"
+					},
+					"Key": "Section_Help"
+				},
+				{
+					"Source":
+					{
+						"Text": "Hot Reload"
+					},
+					"Translation":
+					{
+						"Text": "热重载"
+					},
+					"Key": "HotReload"
+				},
+				{
+					"Source":
+					{
+						"Text": "Report Issue"
+					},
+					"Translation":
+					{
+						"Text": "提交问题"
+					},
+					"Key": "ReportIssue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runtime"
+					},
+					"Translation":
+					{
+						"Text": "运行时"
+					},
+					"Key": "OpenRuntimeSettings"
+				},
+				{
+					"Source":
+					{
+						"Text": "Settings"
+					},
+					"Translation":
+					{
+						"Text": "设置"
+					},
+					"Key": "Section_SettingsMenu"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua"
+					},
+					"Translation":
+					{
+						"Text": "UnLua"
+					},
+					"Key": "UnLua_Label"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua"
+					},
+					"Translation":
+					{
+						"Text": "UnLua"
+					},
+					"Key": "UnLua_ToolTip"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua Settings"
+					},
+					"Translation":
+					{
+						"Text": "UnLua设置"
+					},
+					"Key": "Section_SettingsMenu_ToolTip"
+				}
+			]
+		},
+		{
+			"Namespace": "UObjectCategory",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "Build"
+					},
+					"Key": "UnLuaEditorSettings:bAutoStartup"
+				},
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "构建"
+					},
+					"Key": "UnLuaEditorSettings:bEnableCallOverriddenFunction"
+				},
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "构建"
+					},
+					"Key": "UnLuaEditorSettings:bEnableDebug"
+				},
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "构建"
+					},
+					"Key": "UnLuaEditorSettings:bEnablePersistentParamBuffer"
+				},
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "构建"
+					},
+					"Key": "UnLuaEditorSettings:bEnableRPCCall"
+				},
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "构建"
+					},
+					"Key": "UnLuaEditorSettings:bEnableTypeChecking"
+				},
+				{
+					"Source":
+					{
+						"Text": "Build"
+					},
+					"Translation":
+					{
+						"Text": "Build"
+					},
+					"Key": "UnLuaEditorSettings:bLuaCompileAsCpp"
+				},
+				{
+					"Source":
+					{
+						"Text": "Coding"
+					},
+					"Translation":
+					{
+						"Text": "代码"
+					},
+					"Key": "UnLuaEditorSettings:HotReloadMode"
+				},
+				{
+					"Source":
+					{
+						"Text": "Coding"
+					},
+					"Translation":
+					{
+						"Text": "代码"
+					},
+					"Key": "UnLuaEditorSettings:bGenerateIntelliSense"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy"
+					},
+					"Translation":
+					{
+						"Text": "Legacy"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyAllowUTF8WithBOM"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy"
+					},
+					"Translation":
+					{
+						"Text": "旧版支持"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyBlueprintPath"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy"
+					},
+					"Translation":
+					{
+						"Text": "旧版支持"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyReturnOrder"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy"
+					},
+					"Translation":
+					{
+						"Text": "旧版支持"
+					},
+					"Key": "UnLuaEditorSettings:bWithUE4Namespace"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runtime"
+					},
+					"Translation":
+					{
+						"Text": "Runtime"
+					},
+					"Key": "UnLuaSettings:StartupModuleName"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runtime"
+					},
+					"Translation":
+					{
+						"Text": "运行时"
+					},
+					"Key": "UnLuaSettings:DeadLoopCheck"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runtime"
+					},
+					"Translation":
+					{
+						"Text": "运行时"
+					},
+					"Key": "UnLuaSettings:EnvLocatorClass"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runtime"
+					},
+					"Translation":
+					{
+						"Text": "Runtime"
+					},
+					"Key": "UnLuaSettings:ModuleLocatorClass"
+				},
+				{
+					"Source":
+					{
+						"Text": "Runtime"
+					},
+					"Translation":
+					{
+						"Text": "Runtime"
+					},
+					"Key": "UnLuaSettings:PreBindClasses"
+				},
+				{
+					"Source":
+					{
+						"Text": "System"
+					},
+					"Translation":
+					{
+						"Text": "系统"
+					},
+					"Key": "UnLuaEditorSettings:UpdateMode"
+				}
+			]
+		},
+		{
+			"Namespace": "UObjectDisplayNames",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Auto"
+					},
+					"Translation":
+					{
+						"Text": "自动"
+					},
+					"Key": "EHotReloadMode.Auto"
+				},
+				{
+					"Source":
+					{
+						"Text": "Auto Startup"
+					},
+					"Translation":
+					{
+						"Text": "自动启动"
+					},
+					"Key": "UnLuaEditorSettings:bAutoStartup"
+				},
+				{
+					"Source":
+					{
+						"Text": "Axis Value"
+					},
+					"Translation":
+					{
+						"Text": "Axis Value"
+					},
+					"Key": "UnLuaManager:InputAxis:AxisValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Axis Value"
+					},
+					"Translation":
+					{
+						"Text": "Axis Value"
+					},
+					"Key": "UnLuaManager:InputVectorAxis:AxisValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Binding Class"
+					},
+					"Translation":
+					{
+						"Text": "Binding Class"
+					},
+					"Key": "UnLuaManager:GetOrAddBindingObject:BindingClass"
+				},
+				{
+					"Source":
+					{
+						"Text": "Callback"
+					},
+					"Translation":
+					{
+						"Text": "Callback"
+					},
+					"Key": "UnLuaLatentAction:Callback"
+				},
+				{
+					"Source":
+					{
+						"Text": "Class"
+					},
+					"Translation":
+					{
+						"Text": "Class"
+					},
+					"Key": "UnLuaManager:GetOrAddBindingObject:Class"
+				},
+				{
+					"Source":
+					{
+						"Text": "Class"
+					},
+					"Translation":
+					{
+						"Text": "Class"
+					},
+					"Key": "UnLuaManager:Override:Class"
+				},
+				{
+					"Source":
+					{
+						"Text": "Dead Loop Check"
+					},
+					"Translation":
+					{
+						"Text": "无限循环检测"
+					},
+					"Key": "UnLuaSettings:DeadLoopCheck"
+				},
+				{
+					"Source":
+					{
+						"Text": "Dummy"
+					},
+					"Translation":
+					{
+						"Text": "Dummy"
+					},
+					"Key": "LuaDelegateHandler:Dummy"
+				},
+				{
+					"Source":
+					{
+						"Text": "EHot Reload Mode"
+					},
+					"Translation":
+					{
+						"Text": "EHot Reload Mode"
+					},
+					"Key": "EHotReloadMode"
+				},
+				{
+					"Source":
+					{
+						"Text": "EHot Reload Mode MAX"
+					},
+					"Translation":
+					{
+						"Text": "EHot Reload Mode MAX"
+					},
+					"Key": "EHotReloadMode.EHotReloadMode_MAX"
+				},
+				{
+					"Source":
+					{
+						"Text": "EUpdate Mode"
+					},
+					"Translation":
+					{
+						"Text": "EUpdate Mode"
+					},
+					"Key": "EUpdateMode"
+				},
+				{
+					"Source":
+					{
+						"Text": "EUpdate Mode MAX"
+					},
+					"Translation":
+					{
+						"Text": "EUpdate Mode MAX"
+					},
+					"Key": "EUpdateMode.EUpdateMode_MAX"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable Call Overridden Function"
+					},
+					"Translation":
+					{
+						"Text": "启用被覆写函数调用支持"
+					},
+					"Key": "UnLuaEditorSettings:bEnableCallOverriddenFunction"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable Debug"
+					},
+					"Translation":
+					{
+						"Text": "启用UnLua调试代码"
+					},
+					"Key": "UnLuaEditorSettings:bEnableDebug"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable Persistent Param Buffer"
+					},
+					"Translation":
+					{
+						"Text": "启用UFunction调用参数持久化缓存"
+					},
+					"Key": "UnLuaEditorSettings:bEnablePersistentParamBuffer"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable RPCCall"
+					},
+					"Translation":
+					{
+						"Text": "启用RPC调用支持"
+					},
+					"Key": "UnLuaEditorSettings:bEnableRPCCall"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable Type Checking"
+					},
+					"Translation":
+					{
+						"Text": "启用类型检查"
+					},
+					"Key": "UnLuaEditorSettings:bEnableTypeChecking"
+				},
+				{
+					"Source":
+					{
+						"Text": "Env Locator Class"
+					},
+					"Translation":
+					{
+						"Text": "Lua环境分配器"
+					},
+					"Key": "UnLuaSettings:EnvLocatorClass"
+				},
+				{
+					"Source":
+					{
+						"Text": "Finger Index"
+					},
+					"Translation":
+					{
+						"Text": "Finger Index"
+					},
+					"Key": "UnLuaManager:InputTouch:FingerIndex"
+				},
+				{
+					"Source":
+					{
+						"Text": "Function Name"
+					},
+					"Translation":
+					{
+						"Text": "Function Name"
+					},
+					"Key": "UnLuaManager:Override:FunctionName"
+				},
+				{
+					"Source":
+					{
+						"Text": "Generate Intelli Sense"
+					},
+					"Translation":
+					{
+						"Text": "生成智能提示信息"
+					},
+					"Key": "UnLuaEditorSettings:bGenerateIntelliSense"
+				},
+				{
+					"Source":
+					{
+						"Text": "Get File Last Modified Timestamp"
+					},
+					"Translation":
+					{
+						"Text": "Get File Last Modified Timestamp"
+					},
+					"Key": "UnLuaFunctionLibrary:GetFileLastModifiedTimestamp"
+				},
+				{
+					"Source":
+					{
+						"Text": "Get Module Name"
+					},
+					"Translation":
+					{
+						"Text": "Get Module Name"
+					},
+					"Key": "UnLuaInterface:GetModuleName"
+				},
+				{
+					"Source":
+					{
+						"Text": "Get Script Root Path"
+					},
+					"Translation":
+					{
+						"Text": "Get Script Root Path"
+					},
+					"Key": "UnLuaFunctionLibrary:GetScriptRootPath"
+				},
+				{
+					"Source":
+					{
+						"Text": "Get Tickable when Paused"
+					},
+					"Translation":
+					{
+						"Text": "Get Tickable when Paused"
+					},
+					"Key": "UnLuaLatentAction:GetTickableWhenPaused"
+				},
+				{
+					"Source":
+					{
+						"Text": "Get or Add Binding Object"
+					},
+					"Translation":
+					{
+						"Text": "Get or Add Binding Object"
+					},
+					"Key": "UnLuaManager:GetOrAddBindingObject"
+				},
+				{
+					"Source":
+					{
+						"Text": "Help Description"
+					},
+					"Translation":
+					{
+						"Text": "Help Description"
+					},
+					"Key": "Commandlet:HelpDescription"
+				},
+				{
+					"Source":
+					{
+						"Text": "Help Param Descriptions"
+					},
+					"Translation":
+					{
+						"Text": "Help Param Descriptions"
+					},
+					"Key": "Commandlet:HelpParamDescriptions"
+				},
+				{
+					"Source":
+					{
+						"Text": "Help Param Names"
+					},
+					"Translation":
+					{
+						"Text": "Help Param Names"
+					},
+					"Key": "Commandlet:HelpParamNames"
+				},
+				{
+					"Source":
+					{
+						"Text": "Help Usage"
+					},
+					"Translation":
+					{
+						"Text": "Help Usage"
+					},
+					"Key": "Commandlet:HelpUsage"
+				},
+				{
+					"Source":
+					{
+						"Text": "Help Web Link"
+					},
+					"Translation":
+					{
+						"Text": "Help Web Link"
+					},
+					"Key": "Commandlet:HelpWebLink"
+				},
+				{
+					"Source":
+					{
+						"Text": "Hot Reload"
+					},
+					"Translation":
+					{
+						"Text": "Hot Reload"
+					},
+					"Key": "UnLuaFunctionLibrary:HotReload"
+				},
+				{
+					"Source":
+					{
+						"Text": "Hot Reload Mode"
+					},
+					"Translation":
+					{
+						"Text": "热重载模式"
+					},
+					"Key": "UnLuaEditorSettings:HotReloadMode"
+				},
+				{
+					"Source":
+					{
+						"Text": "In Linkage"
+					},
+					"Translation":
+					{
+						"Text": "In Linkage"
+					},
+					"Key": "UnLuaLatentAction:OnCompleted:InLinkage"
+				},
+				{
+					"Source":
+					{
+						"Text": "In Linkage"
+					},
+					"Translation":
+					{
+						"Text": "In Linkage"
+					},
+					"Key": "UnLuaLatentAction:OnLegacyCallback:InLinkage"
+				},
+				{
+					"Source":
+					{
+						"Text": "In Linkage"
+					},
+					"Translation":
+					{
+						"Text": "In Linkage"
+					},
+					"Key": "UnLuaLatentActionCallback__DelegateSignature:InLinkage"
+				},
+				{
+					"Source":
+					{
+						"Text": "Input Action"
+					},
+					"Translation":
+					{
+						"Text": "Input Action"
+					},
+					"Key": "UnLuaManager:InputAction"
+				},
+				{
+					"Source":
+					{
+						"Text": "Input Axis"
+					},
+					"Translation":
+					{
+						"Text": "Input Axis"
+					},
+					"Key": "UnLuaManager:InputAxis"
+				},
+				{
+					"Source":
+					{
+						"Text": "Input Gesture"
+					},
+					"Translation":
+					{
+						"Text": "Input Gesture"
+					},
+					"Key": "UnLuaManager:InputGesture"
+				},
+				{
+					"Source":
+					{
+						"Text": "Input Touch"
+					},
+					"Translation":
+					{
+						"Text": "Input Touch"
+					},
+					"Key": "UnLuaManager:InputTouch"
+				},
+				{
+					"Source":
+					{
+						"Text": "Input Vector Axis"
+					},
+					"Translation":
+					{
+						"Text": "Input Vector Axis"
+					},
+					"Key": "UnLuaManager:InputVectorAxis"
+				},
+				{
+					"Source":
+					{
+						"Text": "Is Client"
+					},
+					"Translation":
+					{
+						"Text": "Is Client"
+					},
+					"Key": "Commandlet:IsClient"
+				},
+				{
+					"Source":
+					{
+						"Text": "Is Editor"
+					},
+					"Translation":
+					{
+						"Text": "Is Editor"
+					},
+					"Key": "Commandlet:IsEditor"
+				},
+				{
+					"Source":
+					{
+						"Text": "Is Server"
+					},
+					"Translation":
+					{
+						"Text": "Is Server"
+					},
+					"Key": "Commandlet:IsServer"
+				},
+				{
+					"Source":
+					{
+						"Text": "Key"
+					},
+					"Translation":
+					{
+						"Text": "Key"
+					},
+					"Key": "UnLuaManager:InputAction:Key"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy Allow UTF8With BOM"
+					},
+					"Translation":
+					{
+						"Text": "兼容Lua文件的UTF-8 BOM文件头"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyAllowUTF8WithBOM"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy Blueprint Path"
+					},
+					"Translation":
+					{
+						"Text": "蓝图资源路径后缀"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyBlueprintPath"
+				},
+				{
+					"Source":
+					{
+						"Text": "Legacy Return Order"
+					},
+					"Translation":
+					{
+						"Text": "返回值顺序"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyReturnOrder"
+				},
+				{
+					"Source":
+					{
+						"Text": "Link ID"
+					},
+					"Translation":
+					{
+						"Text": "Link ID"
+					},
+					"Key": "UnLuaManager:OnLatentActionCompleted:LinkID"
+				},
+				{
+					"Source":
+					{
+						"Text": "List of classes to bind on startup"
+					},
+					"Translation":
+					{
+						"Text": "预绑定类型列表"
+					},
+					"Key": "UnLuaSettings:PreBindClasses"
+				},
+				{
+					"Source":
+					{
+						"Text": "Location"
+					},
+					"Translation":
+					{
+						"Text": "Location"
+					},
+					"Key": "UnLuaManager:InputTouch:Location"
+				},
+				{
+					"Source":
+					{
+						"Text": "Log to Console"
+					},
+					"Translation":
+					{
+						"Text": "Log to Console"
+					},
+					"Key": "Commandlet:LogToConsole"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Compile as Cpp"
+					},
+					"Translation":
+					{
+						"Text": "以C++方式来编译Lua模块源码"
+					},
+					"Key": "UnLuaEditorSettings:bLuaCompileAsCpp"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Delegate Handler"
+					},
+					"Translation":
+					{
+						"Text": "Lua Delegate Handler"
+					},
+					"Key": "LuaDelegateHandler"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Env Locator"
+					},
+					"Translation":
+					{
+						"Text": "Lua Env Locator"
+					},
+					"Key": "LuaEnvLocator"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Env Locator by Game Instance"
+					},
+					"Translation":
+					{
+						"Text": "Lua Env Locator by Game Instance"
+					},
+					"Key": "LuaEnvLocator_ByGameInstance"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Function"
+					},
+					"Translation":
+					{
+						"Text": "Lua Function"
+					},
+					"Key": "LuaFunction"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Function Name"
+					},
+					"Translation":
+					{
+						"Text": "Lua Function Name"
+					},
+					"Key": "UnLuaManager:Override:LuaFunctionName"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Module Locator"
+					},
+					"Translation":
+					{
+						"Text": "Lua Module Locator"
+					},
+					"Key": "LuaModuleLocator"
+				},
+				{
+					"Source":
+					{
+						"Text": "Lua Module Locator by Package"
+					},
+					"Translation":
+					{
+						"Text": "Lua Module Locator by Package"
+					},
+					"Key": "LuaModuleLocator_ByPackage"
+				},
+				{
+					"Source":
+					{
+						"Text": "LuaModuleLocator"
+					},
+					"Translation":
+					{
+						"Text": "Lua模块定位器"
+					},
+					"Key": "UnLuaSettings:ModuleLocatorClass"
+				},
+				{
+					"Source":
+					{
+						"Text": "Manual"
+					},
+					"Translation":
+					{
+						"Text": "手动"
+					},
+					"Key": "EHotReloadMode.Manual"
+				},
+				{
+					"Source":
+					{
+						"Text": "Manual"
+					},
+					"Translation":
+					{
+						"Text": "手动"
+					},
+					"Key": "EUpdateMode.Manual"
+				},
+				{
+					"Source":
+					{
+						"Text": "Never"
+					},
+					"Translation":
+					{
+						"Text": "永不"
+					},
+					"Key": "EHotReloadMode.Never"
+				},
+				{
+					"Source":
+					{
+						"Text": "None"
+					},
+					"Translation":
+					{
+						"Text": "无"
+					},
+					"Key": "EUpdateMode.None"
+				},
+				{
+					"Source":
+					{
+						"Text": "On Completed"
+					},
+					"Translation":
+					{
+						"Text": "On Completed"
+					},
+					"Key": "UnLuaLatentAction:OnCompleted"
+				},
+				{
+					"Source":
+					{
+						"Text": "On Latent Action Completed"
+					},
+					"Translation":
+					{
+						"Text": "On Latent Action Completed"
+					},
+					"Key": "UnLuaManager:OnLatentActionCompleted"
+				},
+				{
+					"Source":
+					{
+						"Text": "On Legacy Callback"
+					},
+					"Translation":
+					{
+						"Text": "On Legacy Callback"
+					},
+					"Key": "UnLuaLatentAction:OnLegacyCallback"
+				},
+				{
+					"Source":
+					{
+						"Text": "Override"
+					},
+					"Translation":
+					{
+						"Text": "Override"
+					},
+					"Key": "UnLuaManager:Override"
+				},
+				{
+					"Source":
+					{
+						"Text": "Path"
+					},
+					"Translation":
+					{
+						"Text": "Path"
+					},
+					"Key": "UnLuaFunctionLibrary:GetFileLastModifiedTimestamp:Path"
+				},
+				{
+					"Source":
+					{
+						"Text": "Property Collector"
+					},
+					"Translation":
+					{
+						"Text": "Property Collector"
+					},
+					"Key": "PropertyCollector"
+				},
+				{
+					"Source":
+					{
+						"Text": "Return Value"
+					},
+					"Translation":
+					{
+						"Text": "Return Value"
+					},
+					"Key": "UnLuaFunctionLibrary:GetFileLastModifiedTimestamp:ReturnValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Return Value"
+					},
+					"Translation":
+					{
+						"Text": "Return Value"
+					},
+					"Key": "UnLuaFunctionLibrary:GetScriptRootPath:ReturnValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Return Value"
+					},
+					"Translation":
+					{
+						"Text": "Return Value"
+					},
+					"Key": "UnLuaInterface:GetModuleName:ReturnValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Return Value"
+					},
+					"Translation":
+					{
+						"Text": "Return Value"
+					},
+					"Key": "UnLuaLatentAction:GetTickableWhenPaused:ReturnValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Return Value"
+					},
+					"Translation":
+					{
+						"Text": "Return Value"
+					},
+					"Key": "UnLuaManager:GetOrAddBindingObject:ReturnValue"
+				},
+				{
+					"Source":
+					{
+						"Text": "Set Tickable when Paused"
+					},
+					"Translation":
+					{
+						"Text": "Set Tickable when Paused"
+					},
+					"Key": "UnLuaLatentAction:SetTickableWhenPaused"
+				},
+				{
+					"Source":
+					{
+						"Text": "Show Error Count"
+					},
+					"Translation":
+					{
+						"Text": "Show Error Count"
+					},
+					"Key": "Commandlet:ShowErrorCount"
+				},
+				{
+					"Source":
+					{
+						"Text": "Show Progress"
+					},
+					"Translation":
+					{
+						"Text": "Show Progress"
+					},
+					"Key": "Commandlet:ShowProgress"
+				},
+				{
+					"Source":
+					{
+						"Text": "Start"
+					},
+					"Translation":
+					{
+						"Text": "编辑器启动时"
+					},
+					"Key": "EUpdateMode.Start"
+				},
+				{
+					"Source":
+					{
+						"Text": "Startup Module Name"
+					},
+					"Translation":
+					{
+						"Text": "启动模块名称"
+					},
+					"Key": "UnLuaSettings:StartupModuleName"
+				},
+				{
+					"Source":
+					{
+						"Text": "Tick Even when Paused"
+					},
+					"Translation":
+					{
+						"Text": "Tick Even when Paused"
+					},
+					"Key": "UnLuaLatentAction:bTickEvenWhenPaused"
+				},
+				{
+					"Source":
+					{
+						"Text": "Tickable when Paused"
+					},
+					"Translation":
+					{
+						"Text": "Tickable when Paused"
+					},
+					"Key": "UnLuaLatentAction:SetTickableWhenPaused:bTickableWhenPaused"
+				},
+				{
+					"Source":
+					{
+						"Text": "Trigger Anim Notify"
+					},
+					"Translation":
+					{
+						"Text": "Trigger Anim Notify"
+					},
+					"Key": "UnLuaManager:TriggerAnimNotify"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Editor Function Library"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Editor Function Library"
+					},
+					"Key": "UnLuaEditorFunctionLibrary"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Function Library"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Function Library"
+					},
+					"Key": "UnLuaFunctionLibrary"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Intelli Sense Commandlet"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Intelli Sense Commandlet"
+					},
+					"Key": "UnLuaIntelliSenseCommandlet"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Interface"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Interface"
+					},
+					"Key": "UnLuaInterface"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Latent Action"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Latent Action"
+					},
+					"Key": "UnLuaLatentAction"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Latent Action Callback  Delegate Signature"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Latent Action Callback  Delegate Signature"
+					},
+					"Key": "UnLuaLatentActionCallback__DelegateSignature"
+				},
+				{
+					"Source":
+					{
+						"Text": "Un Lua Manager"
+					},
+					"Translation":
+					{
+						"Text": "Un Lua Manager"
+					},
+					"Key": "UnLuaManager"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLua"
+					},
+					"Translation":
+					{
+						"Text": "UnLua"
+					},
+					"Key": "UnLuaSettings"
+				},
+				{
+					"Source":
+					{
+						"Text": "UnLuaEditor"
+					},
+					"Translation":
+					{
+						"Text": "UnLuaEditor"
+					},
+					"Key": "UnLuaEditorSettings"
+				},
+				{
+					"Source":
+					{
+						"Text": "Update Mode"
+					},
+					"Translation":
+					{
+						"Text": "检查版本"
+					},
+					"Key": "UnLuaEditorSettings:UpdateMode"
+				},
+				{
+					"Source":
+					{
+						"Text": "Value"
+					},
+					"Translation":
+					{
+						"Text": "Value"
+					},
+					"Key": "UnLuaManager:InputGesture:Value"
+				},
+				{
+					"Source":
+					{
+						"Text": "With UE4Namespace"
+					},
+					"Translation":
+					{
+						"Text": "UE4命名空间"
+					},
+					"Key": "UnLuaEditorSettings:bWithUE4Namespace"
+				}
+			]
+		},
+		{
+			"Namespace": "UObjectToolTips",
+			"Children": [
+				{
+					"Source":
+					{
+						"Text": "Allow lua file with UTF-8 BOM header. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "允许Lua文件包含UTF8-BOM头（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyAllowUTF8WithBOM"
+				},
+				{
+					"Source":
+					{
+						"Text": "Auto append '_C' to blueprint class path. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "自动添加'_C'到蓝图资源加载路径（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyBlueprintPath"
+				},
+				{
+					"Source":
+					{
+						"Text": "Class of LuaEnvLocator, which handles lua env locating for each UObject."
+					},
+					"Translation":
+					{
+						"Text": "指定Lua环境分配器的类型，为每个UObject分配到特定的Lua环境中进行隔离"
+					},
+					"Key": "UnLuaSettings:EnvLocatorClass"
+				},
+				{
+					"Source":
+					{
+						"Text": "Create UE4 global table on lua env. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "在Lua环境创建UE4全局对象（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bWithUE4Namespace"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable 'Overridden' support at lua runtime. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "为绑定对象提供'Overridden'访问支持（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bEnableCallOverriddenFunction"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable RPC support (Deprecated). (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "启用RPC支持（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bEnableRPCCall"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable UnLua debug routine codes. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "启用UnLua的调试代码（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bEnableDebug"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable persistent buffer for UFunction's parameters. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "调用UFunction时重用参数缓存（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bEnablePersistentParamBuffer"
+				},
+				{
+					"Source":
+					{
+						"Text": "Enable type checking at lua runtime. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "在Lua调用UE方法时进行类型检查（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bEnableTypeChecking"
+				},
+				{
+					"Source":
+					{
+						"Text": "End Interface FTickableGameObject"
+					},
+					"Translation":
+					{
+						"Text": "End Interface FTickableGameObject"
+					},
+					"Key": "UnLuaLatentAction:OnLegacyCallback"
+				},
+				{
+					"Source":
+					{
+						"Text": "Entry module name of lua env. Leave it empty to skip execution on startup."
+					},
+					"Translation":
+					{
+						"Text": "入口脚本模块名称（如：Main），当Lua环境启动时自动执行此模块，留空表示不执行任何模块。"
+					},
+					"Key": "UnLuaSettings:StartupModuleName"
+				},
+				{
+					"Source":
+					{
+						"Text": "List of classes to bind on startup."
+					},
+					"Translation":
+					{
+						"Text": "当Lua环境启动时自动绑定的类型列表。"
+					},
+					"Key": "UnLuaSettings:PreBindClasses"
+				},
+				{
+					"Source":
+					{
+						"Text": "Pick a method for lua hot-reload."
+					},
+					"Translation":
+					{
+						"Text": "Pick a method for lua hot-reload."
+					},
+					"Key": "UnLuaEditorSettings:HotReloadMode"
+				},
+				{
+					"Source":
+					{
+						"Text": "Place out parameters before return value. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "将Out参数放在返回值前面（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bLegacyReturnOrder"
+				},
+				{
+					"Source":
+					{
+						"Text": "Prevent from infinite loops in lua. Timeout in seconds."
+					},
+					"Translation":
+					{
+						"Text": "设置一个超时时间，防止Lua代码无限循环（单位：秒）"
+					},
+					"Key": "UnLuaSettings:DeadLoopCheck"
+				},
+				{
+					"Source":
+					{
+						"Text": "Whether or not compile lua module as c++ code. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "是否以C++方式来编译Lua模块源码（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bLuaCompileAsCpp"
+				},
+				{
+					"Source":
+					{
+						"Text": "Whether or not generate intellisense files for lua."
+					},
+					"Translation":
+					{
+						"Text": "是否为Lua生成智能提示文件"
+					},
+					"Key": "UnLuaEditorSettings:bGenerateIntelliSense"
+				},
+				{
+					"Source":
+					{
+						"Text": "Whether or not startup UnLua module on game start. (Requires restart to take effect)"
+					},
+					"Translation":
+					{
+						"Text": "是否在游戏启动时候就启动UnLua模块（重启编译后生效）"
+					},
+					"Key": "UnLuaEditorSettings:bAutoStartup"
+				},
+				{
+					"Source":
+					{
+						"Text": "return a Lua file path which is relative to project's 'Content/Script', for example 'Weapon.BP_DefaultProjectile_C'"
+					},
+					"Translation":
+					{
+						"Text": "return a Lua file path which is relative to project's 'Content/Script', for example 'Weapon.BP_DefaultProjectile_C'"
+					},
+					"Key": "UnLuaInterface:GetModuleName"
+				}
+			]
+		}
+	]
+}

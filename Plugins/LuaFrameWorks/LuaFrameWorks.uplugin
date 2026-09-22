@@ -1,0 +1,30 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "LuaFrameWorks",
+	"Description": "",
+	"Category": "Other",
+	"CreatedBy": "ChenTianBao",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Plugins": [
+		{
+			"Name": "UnLua",
+			"Enabled": true
+		}
+	],
+	"Modules": [
+		{
+			"Name": "LuaFrameWorks",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}

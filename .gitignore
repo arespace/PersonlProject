@@ -1,8 +1,7 @@
 # ===== 默认忽略一切 =====
 #
 # 本仓库是「代码展示」仓库，不是「可克隆构建」仓库：
-# Content 下的美术/蓝图资产、Plugins 下的第三方插件（约 3.5 GB）、
-# 以及 Binaries/Intermediate/Saved/DerivedDataCache 等生成物都不入库。
+# Content 下的美术/蓝图资产、Binaries/Intermediate 等生成物都不入库。
 /*
 # ===== 例外 0：规则文件自身 =====
 #
@@ -19,3 +18,21 @@
 !/Content/
 Content/*
 !/Content/Script/
+# ===== 例外 3：插件源码 =====
+#
+# 插件只入库源码（.uplugin / Source / Content），不入库构建产物。
+# 下面是排除规则，写在 !/Plugins/ 之后才能生效（Git 是「后匹配的规则胜出」）。
+!/Plugins/
+# ===== 构建产物：任何深度都不入库 =====
+#
+# 这 4 个目录占了 Plugins 总体积 3.5 GB 中的 3.46 GB，
+# 且都是本地编译生成的中间物，换台机器重新编译即可，没有版本控制价值。
+# 排除后 Plugins 从 3.5 GB 降到约 57 MB。
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+# 调试符号与 MSBuild 输出（少数 .pdb / obj 不在 Binaries 下，单独兜底）
+*.pdb
+obj/
