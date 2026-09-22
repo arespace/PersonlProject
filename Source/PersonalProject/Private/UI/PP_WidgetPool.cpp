@@ -55,8 +55,13 @@ void UPP_WidgetPool::Release(UUserWidget* Widget)
 		return;
 	}
 
-	// 从在用列表移除
-	InUse.Remove(Widget);
+	// 防重复归还：不在 InUse 中的 Widget 说明已被归还过（或不属于本池）。
+	// 若不拦截，同一实例会在 Available 中出现两份，导致后续两次 Acquire 拿到同一对象。
+	if (InUse.Remove(Widget) == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WidgetPool] Release 忽略：%s 不在用列表中（重复归还或不属于本池）"), *Widget->GetName());
+		return;
+	}
 
 	// 重置状态并归还可用列表
 	Widget->RemoveFromParent();
