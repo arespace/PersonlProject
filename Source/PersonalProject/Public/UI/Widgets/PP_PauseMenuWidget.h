@@ -34,6 +34,14 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> QuitButton;
 
+	/** 蓝图绑定 - 返回登录界面按钮 */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> ReturnToLoginButton;
+
+	/** 登录界面Widget类 - 在WBP_PauseMenu中指定WBP_LoginView */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|PauseMenu")
+	TSubclassOf<UUserWidget> LoginWidgetClass;
+
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 
@@ -46,4 +54,8 @@ private:
 	/** 退出游戏按钮点击回调 */
 	UFUNCTION()
 	void OnQuitClicked();
+
+	/** 返回登录界面按钮点击回调 */
+	UFUNCTION()
+	void OnReturnToLoginClicked();
 };

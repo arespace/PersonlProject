@@ -27,11 +27,11 @@ public:
 
     /** 所属UI层级，决定Z序和输入优先级 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Config")
-    EPP_UILayer OwningLayer = EPP_UILayer::Overlay;
+    EPP_UILayer OwningLayer = EPP_UILayer::Modal;
 
     /** 是否消费全部输入（为 true 时，当此Widget为最顶层，输入模式切换为UI模式） */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Input")
-    bool bConsumesAllInput = false;
+    bool bConsumesAllInput = true;
 
     /** 是否启用入场/退场动画 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI|Animation")

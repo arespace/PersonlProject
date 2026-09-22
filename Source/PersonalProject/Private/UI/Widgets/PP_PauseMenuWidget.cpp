@@ -7,6 +7,7 @@
 #include "Game/PP_SessionManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/Button.h"
+#include "Blueprint/UserWidget.h"
 
 UPP_PauseMenuWidget::UPP_PauseMenuWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -28,6 +29,10 @@ void UPP_PauseMenuWidget::NativeOnInitialized()
 	{
 		QuitButton->OnClicked.AddDynamic(this, &UPP_PauseMenuWidget::OnQuitClicked);
 	}
+	if (ReturnToLoginButton)
+	{
+		ReturnToLoginButton->OnClicked.AddDynamic(this, &UPP_PauseMenuWidget::OnReturnToLoginClicked);
+	}
 }
 
 void UPP_PauseMenuWidget::NativeConstruct()
@@ -47,6 +52,31 @@ void UPP_PauseMenuWidget::ResumeGame()
 void UPP_PauseMenuWidget::OnResumeClicked()
 {
 	ResumeGame();
+}
+
+void UPP_PauseMenuWidget::OnReturnToLoginClicked()
+{
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC) return;
+
+	if (!LoginWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PauseMenu] OnReturnToLoginClicked - LoginWidgetClass 未指定（需在 WBP_PauseMenu 中设置）"));
+		return;
+	}
+
+	// 先关闭暂停菜单：走 UIManager 出栈，输入模式由新的栈顶重算
+	if (APP_HUD* HUD = Cast<APP_HUD>(PC->GetHUD()))
+	{
+		HUD->HidePauseMenu();
+	}
+
+	// 重新创建登录界面：NativeConstruct 会自动 push 进 UIManager 层级栈，
+	// 栈顶变为 Modal → 输入模式自动切回 UI
+	if (UUserWidget* LoginWidget = CreateWidget<UUserWidget>(PC, LoginWidgetClass))
+	{
+		LoginWidget->AddToViewport();
+	}
 }
 
 void UPP_PauseMenuWidget::OnQuitClicked()
