@@ -22,7 +22,9 @@ public class PersonalProject : ModuleRules
 			"Slate",
 			"SlateCore",
 			"OnlineSubsystem",
-			"OnlineSubsystemUtils"
+			"OnlineSubsystemUtils",
+			"UnLua",
+			"Lua"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule" });
