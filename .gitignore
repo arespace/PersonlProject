@@ -1,0 +1,21 @@
+# ===== 默认忽略一切 =====
+#
+# 本仓库是「代码展示」仓库，不是「可克隆构建」仓库：
+# Content 下的美术/蓝图资产、Plugins 下的第三方插件（约 3.5 GB）、
+# 以及 Binaries/Intermediate/Saved/DerivedDataCache 等生成物都不入库。
+/*
+# ===== 例外 0：规则文件自身 =====
+#
+# 上面的 /* 会把 .gitignore 自己也排除掉，必须在这里放行，
+# 否则规则文件不会入库，别人 clone 下来就丢了这套规则。
+!/.gitignore
+# ===== 例外 1：C++ 源码（PersonalProject 本体）=====
+!/Source/
+# ===== 例外 2：项目自己的 Lua 脚本 =====
+#
+# 注意：Git 不允许「父目录被排除时再单独放行其子文件」，
+# 所以必须先把 Content 目录本身放行，再排除 Content 下的其他内容，
+# 最后才放行 Content/Script。顺序不能颠倒。
+!/Content/
+Content/*
+!/Content/Script/
