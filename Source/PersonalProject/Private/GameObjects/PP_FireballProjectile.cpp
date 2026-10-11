@@ -3,7 +3,7 @@
 
 #include "GameObjects/PP_FireballProjectile.h"
 
-#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Characters/PP_EnemyCharacter.h"
 #include "GameplayTags/PPTags.h"
 #include "Utils/PP_BlueprintLibrary.h"
@@ -25,15 +25,19 @@ void APP_FireballProjectile::NotifyActorBeginOverlap(AActor* OtherActor)
 	APP_EnemyCharacter* Enemy = Cast<APP_EnemyCharacter>(OtherActor);
 	if (!IsValid(Enemy)) return;
 	if (!Enemy->IsAlive()) return;
+	if (!HasAuthority()) return;
 
-	UAbilitySystemComponent* AbilitySystemComponent = Enemy->GetAbilitySystemComponent();
-	if (!IsValid(AbilitySystemComponent) || !HasAuthority()) return;
-
+	// 1. 受击表现：用 Events.Enemy.HitReact 触发敌人受击反应。
+	//    敌人死亡不在这里判定 —— 由 OnHealthChanged → HandleDeath 负责，与伤害数值解耦。
 	FGameplayEventData Payload;
 	Payload.Instigator = GetOwner();
 	Payload.Target = Enemy;
-	// 对敌人：HitReact 事件用 Events.Enemy.HitReact（而非 Player），伤害 GE 用 SetByCaller.Player.Tertiary 幅度（对齐 Secondary 约定）
-	UPP_BlueprintLibrary::SendDamageEventToPlayer(Enemy, DamageEffect, Payload, PPTags::SetByCaller::Player::Tertiary, Damage, PPTags::Events::Enemy::HitReact);
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Enemy, PPTags::Events::Enemy::HitReact, Payload);
+
+	// 2. 伤害结算：以施法者身份发放 GE，伤害由 UPP_DamageExecutionCalculation 计算
+	//    （最终伤害 = 施法者攻击力 × DamageCoefficient − 敌人防御）
+	UPP_BlueprintLibrary::ApplyDamageEffectFromCauser(GetOwner(), Enemy, DamageEffect,
+		PPTags::SetByCaller::Player::Tertiary, DamageCoefficient);
 
 	SpawnImpactEffects();
 	Destroy();

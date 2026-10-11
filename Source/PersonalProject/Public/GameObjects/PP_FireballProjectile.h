@@ -23,13 +23,14 @@ public:
 	APP_FireballProjectile();
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
 
-	// 伤害数值（SetByCaller 幅度，负值表示扣血，与 APP_Projectile 约定一致）
+	// 伤害系数（SetByCaller 幅度，正值）：最终伤害 = 施法者攻击力 × 系数 − 目标防御
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|Damage", meta = (ExposeOnSpawn, ClampMin = "0.0"))
-	float Damage{-25.f};
+	float DamageCoefficient{1.5f};
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Crash|Projectile")
 	void SpawnImpactEffects();
 
+	/** 伤害 GE：其 Executions 需指向 UPP_DamageExecutionCalculation，且不带伤害 Modifier */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crash|Damage", meta = (ExposeOnSpawn))
 	TSubclassOf<UGameplayEffect> DamageEffect;
 

@@ -45,7 +45,15 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_MaxMana)
 	FGameplayAttributeData MaxMana;
-	
+
+	/** 攻击力：伤害结算中攻击方的输入（最终伤害 = 攻击力 × 系数 − 防御） */
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Attack)
+	FGameplayAttributeData Attack;
+
+	/** 防御力：伤害结算中受击方的减免值 */
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Defense)
+	FGameplayAttributeData Defense;
+
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
 	
@@ -58,8 +66,16 @@ public:
 	UFUNCTION()
 	void OnRep_MaxMana(const FGameplayAttributeData& OldValue);
 
+	UFUNCTION()
+	void OnRep_Attack(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_Defense(const FGameplayAttributeData& OldValue);
+
 	ATTRIBUTE_ACCESSORS(ThisClass,Health);
 	ATTRIBUTE_ACCESSORS(ThisClass,MaxHealth);
 	ATTRIBUTE_ACCESSORS(ThisClass,Mana);
 	ATTRIBUTE_ACCESSORS(ThisClass,MaxMana);
+	ATTRIBUTE_ACCESSORS(ThisClass,Attack);
+	ATTRIBUTE_ACCESSORS(ThisClass,Defense);
 };

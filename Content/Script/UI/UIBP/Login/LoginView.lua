@@ -16,18 +16,27 @@ local M = UnLua.Class()
 --end
 
 function M:Construct()
-    -- 数据驱动：菜单项由 DataTable (DT_LoginMenu) 配置，这里只负责遍历与展示
-    local ObjectClass = UE.UClass.Load('/Game/UI/UIObj/BP_ItemData.BP_ItemData_C')
-    local MenuItems = UE.UPP_MenuDataLibrary.GetLoginMenuItems()
+    -- 数据驱动：菜单项由 DataTable (DT_LoginMenu) 配置，这里只负责遍历与展示。
+    -- 数据表和条目类都来自 WBP_LoginView 的属性（C++ 基类 UPP_LoginViewWidget 上声明，
+    -- 在 Class Defaults 里指过去）——不再用 UE.UClass.Load('/Game/...') 这类字符串路径：
+    -- 字符串路径烘焙器看不见，打进包的构建里资产会丢（登录菜单曾经全空就是这个原因）。
+    if not self.LoginMenuTable or not self.MenuItemClass then
+        print("[LoginView] 配置缺失：请在 WBP_LoginView 的 Class Defaults 里设置 LoginMenuTable / MenuItemClass")
+        self:RefreshHealth()
+        return
+    end
+
+    local MenuItems = UE.UPP_MenuDataLibrary.GetLoginMenuItems(self.LoginMenuTable)
     self.Actions = {}
     for i = 1, MenuItems:Num() do
         local item = MenuItems:Get(i)
         self.Actions[i] = item.Action
-        local NewObj = NewObject(ObjectClass)
+        local NewObj = NewObject(self.MenuItemClass)
         NewObj.Name = item.Name
         NewObj.Func = self.HandleItemClicked
         NewObj.BinObj = self
         NewObj.Parame = i
+        -- IconPath 是字符串路径，由 C++ 从表里的 Icon 软引用回填（图标已被软引用带进包）
         NewObj.IconPath = item.IconPath
         self.ListView_84:AddItem(NewObj)
     end

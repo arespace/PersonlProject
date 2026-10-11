@@ -77,6 +77,22 @@ public:
 	UFUNCTION(BlueprintCallable)
 	static void SendDamageEventToPlayers(TArray<AActor*> Targets, const TSubclassOf<UGameplayEffect>& DamageEffect, UPARAM(ref) FGameplayEventData& Payload, const FGameplayTag& DataTag, float Damage, const FGameplayTag& EventTagOverride, UObject* OptionalParticleSystem = nullptr);
 
+	/**
+	 * 以【施法者】身份发放伤害 GE：伤害数值由 ExecCalc 结算，这里只传系数。
+	 *
+	 * 与 SendDamageEventToPlayer 的关键区别：spec 建在 Causer 的 ASC 上，使 ExecCalc
+	 * 捕获 Source 属性时能解析到施法者（攻击力）。调用方负责判断目标是否存活。
+	 *
+	 * @param Causer       施法者（伤害来源，其 Attack 属性参与结算）
+	 * @param Target       受击者（其 Defense 属性参与结算）
+	 * @param DamageEffect 伤害 GE，其 Executions 需指向 UPP_DamageExecutionCalculation
+	 * @param CoefficientTag SetByCaller 标签，需与 ExecCalc 的 CoefficientTag 一致
+	 * @param Coefficient  伤害系数（正值，最终伤害 = 攻击力 × 系数 − 防御）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Crash|Abilities")
+	static void ApplyDamageEffectFromCauser(AActor* Causer, AActor* Target, const TSubclassOf<UGameplayEffect>& DamageEffect,
+		const FGameplayTag& CoefficientTag, float Coefficient);
+
 	UFUNCTION(BlueprintCallable, Category= "Crash|Abilities")
 	static TArray<AActor*> HitBoxOverlapTest(AActor* AvatarActor , float HitBoxRadius,float HitBoxForwardOffset = 0,float HitBoxElevationOffset = 0,bool bDrawDebugs = false);
 	

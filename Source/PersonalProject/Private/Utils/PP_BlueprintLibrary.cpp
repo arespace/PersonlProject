@@ -132,6 +132,47 @@ void UPP_BlueprintLibrary::SendDamageEventToPlayers(TArray<AActor*> Targets,
 	}
 }
 
+void UPP_BlueprintLibrary::ApplyDamageEffectFromCauser(AActor* Causer, AActor* Target,
+	const TSubclassOf<UGameplayEffect>& DamageEffect, const FGameplayTag& CoefficientTag, float Coefficient)
+{
+	if (!IsValid(Causer) || !IsValid(Target) || !DamageEffect)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* CauserASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Causer);
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
+	if (!IsValid(CauserASC) || !IsValid(TargetASC))
+	{
+		return;
+	}
+
+	// 关键：spec 必须建在【施法者】ASC 上。MakeEffectContext() 内部会执行
+	// AddInstigator(GetOwnerActor(), GetAvatarActor())，所以 Source 才解析成施法者；
+	// 若建在 TargetASC 上，ExecCalc 捕获 Source 的攻击力会读到受击者自己。
+	FGameplayEffectContextHandle ContextHandle = CauserASC->MakeEffectContext();
+	ContextHandle.AddSourceObject(Causer);
+
+	// 让受击者的 GetInstigatorController() 能取到击杀者（供 HandleDeath 的任务击杀通知使用）
+	if (APawn* CauserPawn = Cast<APawn>(Causer))
+	{
+		if (APP_BaseCharacter* TargetCharacter = Cast<APP_BaseCharacter>(Target))
+		{
+			TargetCharacter->SetInstigator(CauserPawn);
+		}
+	}
+
+	FGameplayEffectSpecHandle SpecHandle = CauserASC->MakeOutgoingSpec(DamageEffect, 1.f, ContextHandle);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle, CoefficientTag, Coefficient);
+
+	CauserASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+}
+
 TArray<AActor*> UPP_BlueprintLibrary::HitBoxOverlapTest(AActor* AvatarActor, float HitBoxRadius,float HitBoxForwardOffset,float HitBoxElevationOffset,bool bDrawDebugs)
 {
 	if (!IsValid(AvatarActor)) return TArray<AActor*>();
