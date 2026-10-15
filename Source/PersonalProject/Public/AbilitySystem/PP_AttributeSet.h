@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -28,11 +28,11 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FAttributesInitialized OnAttributesInitialized;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_AttributesInitalized)
+	UPROPERTY(ReplicatedUsing = OnRep_AttributesInitialized)
 	bool bAttributesInitialized = false;
 	
 	UFUNCTION()
-	void OnRep_AttributesInitalized();
+	void OnRep_AttributesInitialized();
 	
 	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Health)
 	FGameplayAttributeData Health;

@@ -67,6 +67,35 @@ bool APP_GatherableActor::IsAvailable() const
 	return CurrentGatherer == nullptr && RemainingGatherTimes > 0;
 }
 
+bool APP_GatherableActor::CanInteract(APlayerController* Interactor) const
+{
+	return IsAvailable();
+}
+
+void APP_GatherableActor::Interact(APlayerController* Interactor)
+{
+	if (!Interactor || !IsAvailable())
+	{
+		return;
+	}
+
+	APawn* Pawn = Interactor->GetPawn();
+	if (!Pawn)
+	{
+		return;
+	}
+
+	// 客户端通过 Server RPC 发起采集；服务器直接执行
+	if (HasAuthority())
+	{
+		Server_StartGather_Implementation(Pawn);
+	}
+	else
+	{
+		Server_StartGather(Pawn);
+	}
+}
+
 void APP_GatherableActor::Server_StartGather_Implementation(AActor* Gatherer)
 {
 	if (!HasAuthority() || !Gatherer)

@@ -19,12 +19,22 @@
 #include "GameFramework/PlayerController.h"
 #include "UI/Inventory/PP_InventoryWidget.h"
 #include "UI/PP_UIManager.h"
+#include "UI/PP_UIUserWidget.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
 #include "Engine/GameInstance.h"
 
 APP_HUD::APP_HUD()
 {
 	PrimaryActorTick.bCanEverTick = false;
+}
+
+void APP_HUD::AddToViewportByLayer(UPP_UIUserWidget* Widget)
+{
+	if (Widget)
+	{
+		// ZOrder 唯一来源：Widget 自身的 OwningLayer（蓝图配置）
+		Widget->AddToViewport(static_cast<int32>(Widget->GetOwningLayer()));
+	}
 }
 
 void APP_HUD::BeginPlay()
@@ -68,7 +78,7 @@ void APP_HUD::CreateHUDWidgets()
 		if (HUDWidget)
 		{
 			HUDWidget->InitializeWidget(ViewModel);
-			HUDWidget->AddToViewport(ZOrder_CombatHUD);
+			AddToViewportByLayer(HUDWidget);
 		}
 	}
 
@@ -78,7 +88,7 @@ void APP_HUD::CreateHUDWidgets()
 		NotificationWidget = CreateWidget<UPP_NotificationWidget>(PlayerOwner, NotificationWidgetClass);
 		if (NotificationWidget)
 		{
-			NotificationWidget->AddToViewport(ZOrder_Notification);
+			AddToViewportByLayer(NotificationWidget);
 
 			// 强制设置通知 Widget 在视口中的锚点和位置
 			if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(NotificationWidget->Slot))
@@ -94,9 +104,6 @@ void APP_HUD::CreateHUDWidgets()
 			}
 
 			NotificationWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
-
-			// TODO: 测试通知显示，验证通过后删除
-			NotificationWidget->AddMessage(TEXT("测试通知消息"));
 		}
 	}
 
@@ -117,7 +124,7 @@ void APP_HUD::CreateHUDWidgets()
 		QuestTrackerWidget = CreateWidget<UPP_QuestTrackerWidget>(PlayerOwner, QuestTrackerWidgetClass);
 		if (QuestTrackerWidget)
 		{
-			QuestTrackerWidget->AddToViewport(ZOrder_CombatHUD + 1);
+			AddToViewportByLayer(QuestTrackerWidget);
 			if (QC)
 			{
 				QuestTrackerWidget->InitializeTracker(QC);
@@ -126,13 +133,15 @@ void APP_HUD::CreateHUDWidgets()
 	}
 
 	// 创建任务日志面板（初始隐藏，通过 ToggleQuestLog 按键打开）
+	// 注意：先 SetVisibility(Hidden) 再 AddToViewport —— 避免构造期自动推栈时
+	// 以可见状态触发 RecalculateInputMode 误切输入模式
 	if (QuestListWidgetClass)
 	{
 		QuestListWidget = CreateWidget<UPP_QuestListWidget>(PlayerOwner, QuestListWidgetClass);
 		if (QuestListWidget)
 		{
-			QuestListWidget->AddToViewport(ZOrder_Scoreboard);
 			QuestListWidget->SetVisibility(ESlateVisibility::Hidden);
+			AddToViewportByLayer(QuestListWidget);
 			if (QC)
 			{
 				QuestListWidget->InitializeQuestList(QC);
@@ -147,9 +156,8 @@ void APP_HUD::CreateHUDWidgets()
 		DamageNumberPool->Initialize(HUDWidget, DamageNumberWidgetClass, DamageNumberPoolSize);
 	}
 
-	// 所有 Widget 创建完毕、可见性已最终确定后，强制恢复游戏输入模式
-	// 防止 AddToViewport 期间 NativeConstruct→PushWidget→RecalculateInputMode
-	// 在 SetVisibility(Hidden) 之前误切到 UI 模式
+	// 所有 Widget 创建完毕后，强制归一为游戏输入模式
+	// （批量创建期间的构造期推栈可能已按栈逻辑重算，此处确保最终状态为 Gameplay）
 	if (UGameInstance* GI = GetGameInstance())
 	{
 		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
@@ -183,7 +191,7 @@ void APP_HUD::ShowPauseMenu()
 		PauseMenuWidget = CreateWidget<UPP_PauseMenuWidget>(PlayerOwner, PauseMenuWidgetClass);
 		if (PauseMenuWidget)
 		{
-			PauseMenuWidget->AddToViewport(ZOrder_PauseMenu);
+			AddToViewportByLayer(PauseMenuWidget);
 			// NativeConstruct → UIManager::PushWidget(Modal, bConsumesAllInput) → 自动 SetInputModeUI
 		}
 	}
@@ -216,7 +224,7 @@ void APP_HUD::ShowScoreboard()
 		ScoreboardWidget = CreateWidget<UPP_ScoreboardWidget>(PlayerOwner, ScoreboardWidgetClass);
 		if (ScoreboardWidget)
 		{
-			ScoreboardWidget->AddToViewport(ZOrder_Scoreboard);
+			AddToViewportByLayer(ScoreboardWidget);
 		}
 	}
 }
@@ -243,7 +251,7 @@ void APP_HUD::ShowDeathScreen(float RespawnTime)
 		DeathScreenWidget = CreateWidget<UPP_DeathScreenWidget>(PlayerOwner, DeathScreenWidgetClass);
 		if (DeathScreenWidget)
 		{
-			DeathScreenWidget->AddToViewport(ZOrder_DeathScreen);
+			AddToViewportByLayer(DeathScreenWidget);
 		}
 	}
 	if (DeathScreenWidget)
@@ -285,14 +293,7 @@ void APP_HUD::ShowMainHUD()
 	{
 		HUDWidget->SetVisibility(ESlateVisibility::Visible);
 		bIsHUDVisible = true;
-		// 输入模式由 UIManager 根据当前栈顶 bConsumesAllInput 自动计算
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->SetInputModeGameplay();
-			}
-		}
+		// 输入模式完全由 UIManager 栈逻辑决定（HUDWidget 为 Gameplay 层，不影响输入）
 	}
 }
 
@@ -302,14 +303,7 @@ void APP_HUD::HideMainHUD()
 	{
 		HUDWidget->SetVisibility(ESlateVisibility::Hidden);
 		bIsHUDVisible = false;
-		// 输入模式恢复游戏
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->SetInputModeGameplay();
-			}
-		}
+		// 输入模式完全由 UIManager 栈逻辑决定（HUDWidget 为 Gameplay 层，不影响输入）
 	}
 }
 
@@ -330,7 +324,8 @@ void APP_HUD::SpawnDamageNumber(float Damage, FVector WorldLocation, bool bIsHea
 	if (DamageNumber)
 	{
 		DamageNumber->Configure(Damage, WorldLocation, bIsHeal, bIsCritical);
-		DamageNumber->AddToViewport(ZOrder_CombatHUD + 1);
+		// 伤害数字为对象池管理的普通 UUserWidget（不进 UIManager 栈），ZOrder 贴近 Gameplay 层之上
+		DamageNumber->AddToViewport(static_cast<int32>(EPP_UILayer::Gameplay) + 1);
 
 		// 委托驱动回收：动画完成时自动归还到池，无需 Tick 轮询
 		DamageNumber->OnFinished.AddDynamic(this, &APP_HUD::OnDamageNumberFinished);
@@ -385,24 +380,19 @@ void APP_HUD::ToggleQuestLog()
 	if (bIsVisible)
 	{
 		QuestListWidget->SetVisibility(ESlateVisibility::Hidden);
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->SetInputModeGameplay();
-			}
-		}
 	}
 	else
 	{
 		QuestListWidget->RefreshQuestList();
 		QuestListWidget->SetVisibility(ESlateVisibility::Visible);
-		if (UGameInstance* GI = GetGameInstance())
+	}
+
+	// 输入模式由 UIManager 根据栈+可见性重算（QuestListWidget 位于 Overlay 层）
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
 		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->SetInputModeGameAndUI();
-			}
+			Mgr->RefreshInputMode();
 		}
 	}
 }
@@ -450,7 +440,8 @@ void APP_HUD::ToggleInventory()
 				InventoryWidget->BindInventory(InvComp);
 			}
 
-			InventoryWidget->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));
+			// ZOrder 取自 Widget 自身 OwningLayer；构造期自动推栈 → RecalculateInputMode
+			AddToViewportByLayer(InventoryWidget);
 		}
 	}
 }

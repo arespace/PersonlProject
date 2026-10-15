@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 
 #include "PersonalProject/Public/Characters/PP_PlayerCharacter.h"
@@ -6,7 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "Components/CapsuleComponent.h"
-#include "Engine/DataTable.h"
+#include "Game/PP_DataManager.h"
 #include "Game/PP_GameInstance.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -67,42 +67,7 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	// 角色外观恢复（不依赖 ASC，必须在 ASC 检查之前执行）
-	if (APP_PlayerState* PS = GetPlayerState<APP_PlayerState>())
-	{
-		FName CharId = PS->GetSelectedCharacterId();
-
-		// 优先级1: 从 PlayerController 读取（最可靠，PC 跨地图不销毁）
-		if (CharId.IsNone())
-		{
-			if (APP_PlayerController* PC = Cast<APP_PlayerController>(GetController()))
-			{
-				CharId = PC->GetPendingCharacterId();
-
-
-				if (!CharId.IsNone())
-				{
-					PS->SetSelectedCharacterId(CharId);
-					UE_LOG(LogTemp, Log, TEXT("[PossessedBy] Restored from PlayerController: %s"), *CharId.ToString());
-				}
-			}
-		}
-
-		// 优先级2: 从 GameInstance 读取（PlayerName 匹配可能失败）
-		if (CharId.IsNone())
-		{
-			if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
-			{
-				CharId = GI->GetPlayerCharacterSelection(PS->GetPlayerName());
-				if (!CharId.IsNone())
-				{
-					PS->SetSelectedCharacterId(CharId);
-					UE_LOG(LogTemp, Log, TEXT("[PossessedBy] Restored from GameInstance: %s"), *CharId.ToString());
-				}
-			}
-		}
-
-		ApplyCharacterAppearance(CharId);
-	}
+	RestoreCharacterSelection();
 
 	if (!IsValid(GetAbilitySystemComponent()) || !HasAuthority()) return;
 
@@ -122,36 +87,7 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 	Super::OnRep_PlayerState();
 
 	// 客户端角色外观恢复（ASC 检查之前执行）
-	if (APP_PlayerState* PS = GetPlayerState<APP_PlayerState>())
-	{
-		FName CharId = PS->GetSelectedCharacterId();
-
-		if (CharId.IsNone())
-		{
-			if (APP_PlayerController* PC = Cast<APP_PlayerController>(GetController()))
-			{
-				CharId = PC->GetPendingCharacterId();
-				if (!CharId.IsNone())
-				{
-					PS->SetSelectedCharacterId(CharId);
-				}
-			}
-		}
-
-		if (CharId.IsNone())
-		{
-			if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
-			{
-				CharId = GI->GetPlayerCharacterSelection(PS->GetPlayerName());
-				if (!CharId.IsNone())
-				{
-					PS->SetSelectedCharacterId(CharId);
-				}
-			}
-		}
-
-		ApplyCharacterAppearance(CharId);
-	}
+	RestoreCharacterSelection();
 
 	if (!IsValid(GetAbilitySystemComponent())) return;
 
@@ -164,13 +100,52 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
 }
 
+void APP_PlayerCharacter::RestoreCharacterSelection()
+{
+	APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
+	if (!PS) return;
+
+	// 优先级1: PlayerState 已复制的值（最权威）
+	FName CharId = PS->GetSelectedCharacterId();
+
+	// 优先级2: PlayerController 的 PendingCharacterId（跨 ServerTravel 传递）
+	if (CharId.IsNone())
+	{
+		if (APP_PlayerController* PC = Cast<APP_PlayerController>(GetController()))
+		{
+			CharId = PC->GetPendingCharacterId();
+			if (!CharId.IsNone())
+			{
+				PS->SetSelectedCharacterId(CharId);
+			}
+		}
+	}
+
+	// 优先级3: GameInstance（转发到 SessionManager）的最后选择
+	if (CharId.IsNone())
+	{
+		if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
+		{
+			CharId = GI->GetLastCharacterSelection();
+			if (!CharId.IsNone())
+			{
+				PS->SetSelectedCharacterId(CharId);
+			}
+		}
+	}
+
+	ApplyCharacterAppearance(CharId);
+}
+
 void APP_PlayerCharacter::ApplyCharacterAppearance(FName CharacterId)
 {
-	if (CharacterId.IsNone() || !CharacterDataTable) return;
+	if (CharacterId.IsNone()) return;
 
-	// 从 DataTable 查找角色数据
-	static const FString ContextString(TEXT("CharacterAppearance"));
-	FCharacterDataRow* Row = CharacterDataTable->FindRow<FCharacterDataRow>(CharacterId, ContextString);
+	// 统一走 DataManager 全局角色表
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	if (!DataManager) return;
+
+	const FCharacterDataRow* Row = DataManager->GetCharacterData(CharacterId);
 	if (!Row) return;
 
 	// 应用骨骼网格体

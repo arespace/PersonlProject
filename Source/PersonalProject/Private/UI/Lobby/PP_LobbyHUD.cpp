@@ -9,7 +9,7 @@
 #include "UI/Lobby/PP_SettingsWidget.h"
 #include "Characters/PP_CharacterPreviewActor.h"
 #include "Characters/PP_CharacterData.h"
-#include "Engine/DataTable.h"
+#include "Game/PP_DataManager.h"
 #include "Game/PP_SessionManager.h"
 #include "Blueprint/UserWidget.h"
 
@@ -215,12 +215,15 @@ void APP_LobbyHUD::HideSettings()
 
 void APP_LobbyHUD::UpdatePreviewCharacter(FName CharacterId)
 {
-	if (!PreviewActor || !CharacterDataTable) return;
+	if (!PreviewActor) return;
+
+	// 统一走 DataManager 全局角色表；表不可用时与原先表引用为空一致：直接返回且不更新本地缓存
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	if (!DataManager || !DataManager->HasCharacterTable()) return;
 
 	LocalSelectedCharacterId = CharacterId;
 
-	static const FString ContextString(TEXT("PreviewCharacter"));
-	if (FCharacterDataRow* Row = CharacterDataTable->FindRow<FCharacterDataRow>(CharacterId, ContextString))
+	if (const FCharacterDataRow* Row = DataManager->GetCharacterData(CharacterId))
 	{
 		PreviewActor->SetPreviewCharacter(*Row);
 	}

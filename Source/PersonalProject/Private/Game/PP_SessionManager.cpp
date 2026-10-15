@@ -457,8 +457,18 @@ void UPP_SessionManager::SetPlayerCharacterSelection(const FString& PlayerName, 
 	if (PlayerName.IsEmpty() || CharacterId.IsNone()) return;
 
 	PlayerCharacterSelections.Add(PlayerName, CharacterId);
+	LastCharacterId = CharacterId;  // 后备方案：不依赖 PlayerName 匹配
 	UE_LOG(LogTemp, Log, TEXT("[SessionManager] SetPlayerCharacterSelection - Player: %s, Character: %s"),
 		*PlayerName, *CharacterId.ToString());
+}
+
+FName UPP_SessionManager::GetPlayerCharacterSelection(const FString& PlayerName) const
+{
+	if (const FName* Found = PlayerCharacterSelections.Find(PlayerName))
+	{
+		return *Found;
+	}
+	return NAME_None;
 }
 
 FName UPP_SessionManager::ConsumePlayerCharacterSelection(const FString& PlayerName)
@@ -472,4 +482,15 @@ FName UPP_SessionManager::ConsumePlayerCharacterSelection(const FString& PlayerN
 			*PlayerName, *CharacterId.ToString());
 	}
 	return CharacterId;
+}
+
+void UPP_SessionManager::ClearPlayerCharacterSelection(const FString& PlayerName)
+{
+	PlayerCharacterSelections.Remove(PlayerName);
+}
+
+void UPP_SessionManager::ClearAllPlayerCharacterSelections()
+{
+	PlayerCharacterSelections.Empty();
+	LastCharacterId = NAME_None;
 }

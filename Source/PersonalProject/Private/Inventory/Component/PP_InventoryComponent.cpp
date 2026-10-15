@@ -6,7 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
-#include "Engine/DataTable.h"
+#include "Game/PP_DataManager.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
 
@@ -32,13 +32,17 @@ void UPP_InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 const FPP_ItemInfo* UPP_InventoryComponent::FindItemInfo(FName ItemID) const
 {
-	if (!ItemDataTable || ItemID.IsNone())
+	if (ItemID.IsNone())
 	{
 		return nullptr;
 	}
-	// 数据表 RowName 与 ItemID 保持一致，直接按 RowName 查
-	static const FString ContextString(TEXT("UPP_InventoryComponent::FindItemInfo"));
-	return ItemDataTable->FindRow<FPP_ItemInfo>(ItemID, ContextString, false);
+	// 统一走 DataManager 全局物品表（数据表 RowName 与 ItemID 保持一致，直接按 RowName 查）
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	if (!DataManager)
+	{
+		return nullptr;
+	}
+	return DataManager->GetItemInfo(ItemID);
 }
 
 // ===== 物品基础接口 =====

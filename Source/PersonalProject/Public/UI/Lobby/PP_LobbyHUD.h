@@ -14,7 +14,6 @@ class UPP_CharacterSelectWidget;
 class UPP_RoomSettingsWidget;
 class UPP_SettingsWidget;
 class APP_CharacterPreviewActor;
-class UDataTable;
 class UTextureRenderTarget2D;
 
 /**
@@ -184,8 +183,4 @@ private:
 	/** 预览Actor的Spawn旋转 */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby|Preview")
 	FRotator PreviewSpawnRotation = FRotator::ZeroRotator;
-
-	/** 角色数据表引用 */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby|Preview")
-	TObjectPtr<UDataTable> CharacterDataTable;
 };

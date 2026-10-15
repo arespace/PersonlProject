@@ -20,6 +20,7 @@
 #include "Dialogue/Actor/PP_NPCActor.h"
 #include "Dialogue/Data/PP_DialogueData.h"
 #include "Gather/Actor/PP_GatherableActor.h"
+#include "Interaction/PP_InteractableInterface.h"
 #include "UI/Dialogue/PP_DialogueWidget.h"
 #include "UI/Shop/PP_ShopWidget.h"
 #include "Shop/Component/PP_ShopComponent.h"
@@ -741,25 +742,13 @@ void APP_PlayerController::Interact()
 
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Interact - Hit: %s"), *Hit.GetActor()->GetName());
 
-	APP_NPCActor* NPC = Cast<APP_NPCActor>(Hit.GetActor());
-	if (NPC)
+	// 通过交互接口统一处理，无需关心具体类型（NPC/采集物/宝箱等）
+	if (IPP_Interactable* Interactable = Cast<IPP_Interactable>(Hit.GetActor()))
 	{
-		// 调用 NPC 的 Interact（内部会判断服务器/客户端并转发）
-		NPC->Interact(this);
-		return;
-	}
-
-	// 采集物交互：通过 Server RPC 走完整的采集流程
-	APP_GatherableActor* Gatherable = Cast<APP_GatherableActor>(Hit.GetActor());
-	if (Gatherable)
-	{
-		if (!Gatherable->IsAvailable())
+		if (Interactable->CanInteract(this))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Interact - Gatherable NOT available: %s"), *Gatherable->GetName());
-			return;
+			Interactable->Interact(this);
 		}
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Interact - Gatherable HIT: %s, ItemID=%s"), *Gatherable->GetName(), *Gatherable->ItemID.ToString());
-		Server_InteractGather(Gatherable);
 		return;
 	}
 

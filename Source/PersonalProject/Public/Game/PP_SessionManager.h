@@ -116,8 +116,20 @@ public:
 	/** 存入玩家的角色选择（大厅阶段调用） */
 	void SetPlayerCharacterSelection(const FString& PlayerName, FName CharacterId);
 
-	/** 取出玩家的角色选择（战斗关卡调用，取出后清除） */
+	/** 读取玩家的角色选择（不清除，可多次读取） */
+	FName GetPlayerCharacterSelection(const FString& PlayerName) const;
+
+	/** 取出玩家的角色选择（取出后清除） */
 	FName ConsumePlayerCharacterSelection(const FString& PlayerName);
+
+	/** 不依赖 PlayerName，返回最后存入的角色选择 */
+	FName GetLastCharacterSelection() const { return LastCharacterId; }
+
+	/** 清除指定玩家的角色选择 */
+	void ClearPlayerCharacterSelection(const FString& PlayerName);
+
+	/** 清除所有玩家的角色选择 */
+	void ClearAllPlayerCharacterSelections();
 
 	/** 新房主自动创建 Session 并开启 Listen Server */
 	void ExecuteHostMigration_AsNewHost();
@@ -174,6 +186,9 @@ private:
 
 	/** 玩家角色选择缓存：PlayerName → CharacterId */
 	TMap<FString, FName> PlayerCharacterSelections;
+
+	/** 最后存入的角色选择（不依赖 PlayerName 匹配的后备方案） */
+	FName LastCharacterId;
 
 	/** 迁移创建 Session 完成回调 */
 	UFUNCTION()

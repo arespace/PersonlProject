@@ -7,6 +7,7 @@
 #include "PP_HUD.generated.h"
 
 class UPP_UIViewModel;
+class UPP_UIUserWidget;
 class UPP_HUDWidget;
 class UPP_DamageNumberWidget;
 class UPP_ScoreboardWidget;
@@ -102,14 +103,6 @@ public:
 
 protected:
 
-	// ===== ZOrder分层常量 =====
-	static constexpr int32 ZOrder_GameWorld = 0;
-	static constexpr int32 ZOrder_CombatHUD = 10;
-	static constexpr int32 ZOrder_Notification = 20;
-	static constexpr int32 ZOrder_Scoreboard = 30;
-	static constexpr int32 ZOrder_DeathScreen = 40;
-	static constexpr int32 ZOrder_PauseMenu = 50;
-
 	// ===== Widget类配置 =====
 
 	/** 战斗HUD Widget类 */
@@ -201,6 +194,12 @@ private:
 
 	/** 初始化ViewModel */
 	void InitializeViewModel();
+
+	/**
+	 * 以 Widget 自身 OwningLayer 作为 ZOrder 添加到视口
+	 * 层级唯一真相来源是 UPP_UIUserWidget::OwningLayer（蓝图配置），HUD 不再维护独立 ZOrder 常量
+	 */
+	static void AddToViewportByLayer(UPP_UIUserWidget* Widget);
 
 	/** 创建所有HUD Widget */
 	void CreateHUDWidgets();

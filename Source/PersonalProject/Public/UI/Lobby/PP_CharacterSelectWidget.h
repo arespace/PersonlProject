@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -10,7 +10,6 @@
 #include "Characters/PP_CharacterData.h"
 #include "PP_CharacterSelectWidget.generated.h"
 
-class UDataTable;
 class UTextBlock;
 class APP_LobbyHUD;
 
@@ -43,10 +42,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby|Character")
 	TSubclassOf<UUserWidget> CharacterEntryClass;
-
-	/** 角色数据表引用（可选；有效时动态填充 AvailableCharacters） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby|Character")
-	TObjectPtr<UDataTable> CharacterDataTable;
 
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UButton> PrevCharacterButton;

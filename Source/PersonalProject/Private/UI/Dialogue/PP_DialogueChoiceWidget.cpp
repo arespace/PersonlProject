@@ -6,6 +6,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Dialogue/Actor/PP_NPCActor.h"
+#include "Game/PP_DataManager.h"
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"
 #include "Quest/Component/PP_QuestComponent.h"
@@ -101,16 +102,16 @@ void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_
 				}
 			}
 
-			// 从任务数据表查找任务名
+			// 从任务数据表查找任务名（统一走 DataManager 全局任务表）
 			if (!RelatedQuestID.IsNone() && OwnerPC.IsValid())
 			{
 				if (APP_PlayerState* PPPS = OwnerPC->GetPlayerState<APP_PlayerState>())
 				{
 					if (UPP_QuestComponent* QC = PPPS->GetQuestComponent())
 					{
-						if (UDataTable* QuestDT = QC->QuestDataTable)
+						if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 						{
-							if (const FPP_QuestInfo* QuestInfo = QuestDT->FindRow<FPP_QuestInfo>(RelatedQuestID, TEXT("SetupChoices-Prompt")))
+							if (const FPP_QuestInfo* QuestInfo = DataManager->GetQuestInfo(RelatedQuestID))
 							{
 								PromptContent = QuestInfo->QuestName;
 							}

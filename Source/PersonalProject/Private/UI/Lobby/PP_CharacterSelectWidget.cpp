@@ -1,9 +1,9 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #include "UI/Lobby/PP_CharacterSelectWidget.h"
 #include "UI/Lobby/PP_LobbyHUD.h"
+#include "Game/PP_DataManager.h"
 #include "Player/PP_PlayerController.h"
-#include "Engine/DataTable.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -16,10 +16,10 @@ void UPP_CharacterSelectWidget::NativeOnInitialized()
 	if (PrevCharacterButton) PrevCharacterButton->OnClicked.AddDynamic(this, &UPP_CharacterSelectWidget::OnPrevCharacterClicked);
 	if (NextCharacterButton) NextCharacterButton->OnClicked.AddDynamic(this, &UPP_CharacterSelectWidget::OnNextCharacterClicked);
 
-	// 优先从 DataTable 读取行名；没有则回退到默认角色列表
-	if (CharacterDataTable)
+	// 优先从 DataManager 全局角色表读取行名；没有则回退到默认角色列表
+	if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 	{
-		AvailableCharacters = CharacterDataTable->GetRowNames();
+		AvailableCharacters = DataManager->GetCharacterRowNames();
 	}
 	if (AvailableCharacters.Num() == 0)
 	{
@@ -47,12 +47,11 @@ void UPP_CharacterSelectWidget::SetSelectedCharacter(FName CharacterId)
 {
 	CurrentlySelected = CharacterId;
 
-	// 详情面板：优先用表里的 DisplayName / Description
+	// 详情面板：优先用表里的 DisplayName / Description（统一走 DataManager 全局角色表）
 	bool bFilledFromTable = false;
-	if (CharacterDataTable)
+	if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 	{
-		static const FString ContextString(TEXT("CharacterSelect"));
-		if (const FCharacterDataRow* Row = CharacterDataTable->FindRow<FCharacterDataRow>(CharacterId, ContextString))
+		if (const FCharacterDataRow* Row = DataManager->GetCharacterData(CharacterId))
 		{
 			if (CharacterNameText)
 			{

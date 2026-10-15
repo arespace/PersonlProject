@@ -3,7 +3,7 @@
 
 #include "Quest/Component/PP_QuestComponent.h"
 
-#include "Engine/DataTable.h"
+#include "Game/PP_DataManager.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
 #include "Player/PP_PlayerState.h"
 #include "Net/UnrealNetwork.h"
@@ -318,8 +318,10 @@ bool UPP_QuestComponent::CanAcceptQuest(FName QuestID) const
 
 const FPP_QuestInfo* UPP_QuestComponent::FindQuestInfo(FName QuestID) const
 {
-	if (!QuestDataTable) return nullptr;
-	return QuestDataTable->FindRow<FPP_QuestInfo>(QuestID, TEXT("FindQuestInfo"));
+	// 统一走 DataManager 全局任务表
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	if (!DataManager) return nullptr;
+	return DataManager->GetQuestInfo(QuestID);
 }
 
 // ===== OnRep =====

@@ -7,7 +7,6 @@
 #include "Player/PP_PlayerController.h"
 #include "Characters/PP_PlayerCharacter.h"
 #include "Player/PP_PlayerState.h"
-#include "UObject/ConstructorHelpers.h"
 #include "AbilitySystemComponent.h"
 #include "Quest/Bridge/PP_QuestEventBridge.h"
 #include "Game/PP_GameInstance.h"
@@ -15,49 +14,11 @@
 
 APP_CrashGameMode::APP_CrashGameMode()
 {
-	// 绑定BP_HUD蓝图到GameMode
-	static ConstructorHelpers::FClassFinder<AHUD> HUDClassFinder(TEXT("/Game/PersonalProject/UI/HUD/BP_HUD.BP_HUD_C"));
-	if (HUDClassFinder.Succeeded())
-	{
-		HUDClass = HUDClassFinder.Class;
-	}
-	else
-	{
-		HUDClass = APP_HUD::StaticClass();
-	}
-
-	// 绑定BP_PP_PlayerController蓝图到GameMode
-	static ConstructorHelpers::FClassFinder<APlayerController> PCClassFinder(TEXT("/Game/PersonalProject/Player/BP_PP_PlayerController.BP_PP_PlayerController_C"));
-	if (PCClassFinder.Succeeded())
-	{
-		PlayerControllerClass = PCClassFinder.Class;
-	}
-	else
-	{
-		PlayerControllerClass = APP_PlayerController::StaticClass();
-	}
-
-	// 绑定BP_PP_PlayerCharacter蓝图到GameMode（DefaultPawnClass）
-	static ConstructorHelpers::FClassFinder<APawn> PawnClassFinder(TEXT("/Game/PersonalProject/Characters/PlayerCharacter/BP_PP_PlayerCharacter.BP_PP_PlayerCharacter_C"));
-	if (PawnClassFinder.Succeeded())
-	{
-		DefaultPawnClass = PawnClassFinder.Class;
-	}
-	else
-	{
-		DefaultPawnClass = APP_PlayerCharacter::StaticClass();
-	}
-
-	// 绑定BP_PP_PlayerState蓝图到GameMode
-	static ConstructorHelpers::FClassFinder<APlayerState> PSClassFinder(TEXT("/Game/PersonalProject/Player/BP_PP_PlayerState.BP_PP_PlayerState_C"));
-	if (PSClassFinder.Succeeded())
-	{
-		PlayerStateClass = PSClassFinder.Class;
-	}
-	else
-	{
-		PlayerStateClass = APP_PlayerState::StaticClass();
-	}
+	// 设置 C++ 基类作为默认值，蓝图（BP_CrashGameMode）中可覆盖为对应的蓝图类
+	HUDClass = APP_HUD::StaticClass();
+	PlayerControllerClass = APP_PlayerController::StaticClass();
+	DefaultPawnClass = APP_PlayerCharacter::StaticClass();
+	PlayerStateClass = APP_PlayerState::StaticClass();
 
 	// 任务事件桥接器组件
 	QuestEventBridge = CreateDefaultSubobject<UPP_QuestEventBridge>("QuestEventBridge");
@@ -70,35 +31,22 @@ void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
 	APP_PlayerState* PS = NewPlayer->GetPlayerState<APP_PlayerState>();
 	if (!PS) return;
 
-	// 从 GameInstance 恢复大厅选择的角色ID（GameInstance 跨 SeamlessTravel 真正持久）
-	// 同时也尝试 SessionManager（作为备用路径）
+	// 从 GameInstance（转发到 SessionManager）恢复大厅选择的角色ID
 	UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld());
 	if (GI)
 	{
 		FName CharId = GI->GetPlayerCharacterSelection(PS->GetPlayerName());
-
+		if (CharId.IsNone())
+		{
+			// 后备：不依赖 PlayerName 的最后选择
+			CharId = GI->GetLastCharacterSelection();
+		}
 
 		if (!CharId.IsNone())
 		{
 			PS->SetSelectedCharacterId(CharId);
-			UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection from GameInstance for %s: %s"),
+			UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection for %s: %s"),
 				*PS->GetPlayerName(), *CharId.ToString());
-		}
-	}
-
-	// 备用：如果 GameInstance 没有，尝试从 SessionManager 读取
-	if (PS->GetSelectedCharacterId().IsNone())
-	{
-		UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld());
-		if (SM)
-		{
-			FName CharId = SM->ConsumePlayerCharacterSelection(PS->GetPlayerName());
-			if (!CharId.IsNone())
-			{
-				PS->SetSelectedCharacterId(CharId);
-				UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection from SessionManager for %s: %s"),
-					*PS->GetPlayerName(), *CharId.ToString());
-			}
 		}
 	}
 
@@ -139,30 +87,16 @@ void APP_CrashGameMode::RestartPlayer(AController* NewPlayer)
 	Super::RestartPlayer(NewPlayer);
 
 	// 在 Pawn 生成并 Possess 之后，从 PlayerController 获取角色选择并应用外观
-	// 这绕过了 BP_PP_PlayerCharacter 可能覆盖 PossessedBy 导致 C++ 代码不执行的问题
 	APP_PlayerController* PC = Cast<APP_PlayerController>(NewPlayer);
 	if (!PC) return;
 
 	APP_PlayerCharacter* PlayerChar = Cast<APP_PlayerCharacter>(PC->GetPawn());
 	if (!PlayerChar) return;
 
+	// 优先从 PlayerController 的 PendingCharacterId（跨 ServerTravel 传递）
 	FName CharId = PC->GetPendingCharacterId();
 
-
-
-	// 后备1: GameInstance 的 PlayerName 匹配
-	if (CharId.IsNone())
-	{
-		if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
-		{
-			if (APP_PlayerState* PS = PC->GetPlayerState<APP_PlayerState>())
-			{
-				CharId = GI->GetPlayerCharacterSelection(PS->GetPlayerName());
-			}
-		}
-	}
-
-	// 后备2: GameInstance 的 LastCharacterId（不依赖 PlayerName，最可靠）
+	// 后备：从 GameInstance（转发到 SessionManager）获取最后选择
 	if (CharId.IsNone())
 	{
 		if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
@@ -173,7 +107,7 @@ void APP_CrashGameMode::RestartPlayer(AController* NewPlayer)
 
 	if (!CharId.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CrashGameMode] RestartPlayer - Applying appearance: %s"), *CharId.ToString());
+		UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] RestartPlayer - Applying appearance: %s"), *CharId.ToString());
 		PlayerChar->ApplyCharacterAppearance(CharId);
 	}
 	else

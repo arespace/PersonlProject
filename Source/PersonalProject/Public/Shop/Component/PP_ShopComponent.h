@@ -8,7 +8,6 @@
 #include "Shop/Data/PP_ShopData.h"
 #include "PP_ShopComponent.generated.h"
 
-class UDataTable;
 class UPP_InventoryComponent;
 class APlayerController;
 
@@ -22,15 +21,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShopResult, const FText&, Message
  * 商店管理组件
  *
  * 职责：
- *   1. 维护商品数据表引用与出售折扣配置
+ *   1. 维护实例级商品表（ShopDataTable，每个商人各配各的）+ 出售折扣配置
  *   2. 处理购买请求：验证商品存在→库存充足→金币充足→扣金币→加物品→广播事件
  *   3. 处理出售请求：验证背包有物品→移除物品→加金币（SellPrice * SellPriceMultiplier）
  *   4. 通过 OnPurchaseCompleted 委托供任务系统监听购买行为
+ *
+ * 数据分界：ShopDataTable 是实例级数据（卖什么、库存多少），必须保留在本组件上；
+ *          物品定义（名称/价格/图标）走 DataManager 全局物品表查询。
  *
  * 网络模型：Server RPC 执行购买/出售，客户端仅请求。
  *          结果通过 InventoryComponent 的 OnRep 自动同步。
  *
  * 使用约定：挂载在 NPC Actor 或任何需要商店功能的 Actor 上。
+ *          只有配置了非空 ShopDataTable 的 NPC 才会被对话 UI 判定为商人。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class PERSONALPROJECT_API UPP_ShopComponent : public UActorComponent
@@ -98,22 +101,22 @@ protected:
 
 	// ===== 配置 =====
 
-	/** 商品数据表（FPP_ShopItem 行结构），定义商店售卖的物品清单 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop|Config")
-	TObjectPtr<UDataTable> ShopDataTable;
-
-	/** 物品数据表引用（FPP_ItemInfo行结构），用于查询物品价格 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop|Config")
-	TObjectPtr<UDataTable> ItemDataTable;
-
 	/** 出售折扣系数：玩家出售物品实际收益 = SellPrice * SellPriceMultiplier */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop|Config", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float SellPriceMultiplier;
 
 private:
+	/**
+	 * 实例级商品表（卖什么、库存多少）——每个商人 NPC 各配各的
+	 * 注意：这是实例数据，不能收编进 DataManager 全局表；
+	 * 物品定义（FPP_ItemInfo）才走 DataManager 全局物品表
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop|Config", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UDataTable> ShopDataTable;
+
 	/** 获取指定玩家的库存组件 */
 	UPP_InventoryComponent* GetPlayerInventory(APlayerController* PC) const;
 
-	/** 在商品数据表中查找指定商品 */
+	/** 在本实例的商品表（ShopDataTable）中按 ItemID 字段查找商品（行名与 ItemID 不一致，需遍历匹配） */
 	FPP_ShopItem* FindShopItem(FName ItemID) const;
 };

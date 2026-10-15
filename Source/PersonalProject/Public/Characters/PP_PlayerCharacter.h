@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -37,7 +37,6 @@ private:
 	UPROPERTY(VisibleAnywhere,Category= "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
 
-	/** 角色数据表引用 - 用于根据 CharacterId 查找模型和动画 */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Character")
-	TObjectPtr<UDataTable> CharacterDataTable;
+	/** 从 PlayerState/PlayerController/GameInstance 恢复角色选择并应用外观 */
+	void RestoreCharacterSelection();
 };

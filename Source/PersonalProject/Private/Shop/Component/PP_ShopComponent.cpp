@@ -3,7 +3,7 @@
 
 #include "Shop/Component/PP_ShopComponent.h"
 
-#include "Engine/DataTable.h"
+#include "Game/PP_DataManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
@@ -38,19 +38,19 @@ UPP_InventoryComponent* UPP_ShopComponent::GetPlayerInventory(APlayerController*
 
 FPP_ShopItem* UPP_ShopComponent::FindShopItem(FName ItemID) const
 {
-	if (!ShopDataTable || ItemID.IsNone())
+	if (ItemID.IsNone() || !ShopDataTable)
 	{
 		return nullptr;
 	}
-	static const FString ContextString(TEXT("UPP_ShopComponent::FindShopItem"));
-	// 遍历所有行，按 ItemID 字段匹配（因为数据表行名如 Shop_Armor_Leath 与实际 ItemID 不一致）
-	TArray<FName> RowNames = ShopDataTable->GetRowNames();
-	for (const FName& RowName : RowNames)
+	// 在本实例的商品表中遍历匹配 ItemID 字段（数据表行名与实际 ItemID 不一致）
+	for (const auto& Pair : ShopDataTable->GetRowMap())
 	{
-		FPP_ShopItem* Row = ShopDataTable->FindRow<FPP_ShopItem>(RowName, ContextString, false);
-		if (Row && Row->ItemID == ItemID)
+		if (const FPP_ShopItem* Row = reinterpret_cast<const FPP_ShopItem*>(Pair.Value))
 		{
-			return Row;
+			if (Row->ItemID == ItemID)
+			{
+				return const_cast<FPP_ShopItem*>(Row);
+			}
 		}
 	}
 	return nullptr;
@@ -58,34 +58,33 @@ FPP_ShopItem* UPP_ShopComponent::FindShopItem(FName ItemID) const
 
 TArray<FPP_ShopItem> UPP_ShopComponent::GetShopItems() const
 {
-	TArray<FPP_ShopItem> Result;
-	if (!ShopDataTable)
+	// 返回本实例商品表的所有行（未配置表或表为空 → 非商人，对话 UI 不显示"打开商店"）
+	TArray<FPP_ShopItem> Items;
+	if (ShopDataTable)
 	{
-		return Result;
-	}
-	static const FString ContextString(TEXT("UPP_ShopComponent::GetShopItems"));
-	TArray<FName> RowNames = ShopDataTable->GetRowNames();
-	for (const FName& RowName : RowNames)
-	{
-		if (FPP_ShopItem* Row = ShopDataTable->FindRow<FPP_ShopItem>(RowName, ContextString, false))
+		for (const auto& Pair : ShopDataTable->GetRowMap())
 		{
-			Result.Add(*Row);
+			if (const FPP_ShopItem* Row = reinterpret_cast<const FPP_ShopItem*>(Pair.Value))
+			{
+				Items.Add(*Row);
+			}
 		}
 	}
-	return Result;
+	return Items;
 }
 
 int32 UPP_ShopComponent::GetItemBuyPrice(FName ItemID) const
 {
+	// 价格覆盖来自本实例的商品表
 	const FPP_ShopItem* ShopItem = FindShopItem(ItemID);
 	if (ShopItem && ShopItem->PriceOverride > 0)
 	{
 		return ShopItem->PriceOverride;
 	}
-	if (ItemDataTable)
+	// 默认售价来自 DataManager 全局物品表
+	if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 	{
-		static const FString ContextString(TEXT("UPP_ShopComponent::GetItemBuyPrice"));
-		if (const FPP_ItemInfo* Info = ItemDataTable->FindRow<FPP_ItemInfo>(ItemID, ContextString, false))
+		if (const FPP_ItemInfo* Info = DataManager->GetItemInfo(ItemID))
 		{
 			return Info->BuyPrice;
 		}
@@ -156,16 +155,12 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 		return;
 	}
 
-	// 预检：确认 Inventory 的 ItemDataTable 能找到该物品（避免 AddItem 失败后猜测原因）
-	const FPP_ItemInfo* ItemInfo = nullptr;
-	if (ItemDataTable)
-	{
-		static const FString BuyCtx(TEXT("UPP_ShopComponent::Server_BuyItem"));
-		ItemInfo = ItemDataTable->FindRow<FPP_ItemInfo>(ItemID, BuyCtx, false);
-	}
+	// 预检：确认 DataManager 全局物品表能找到该物品（避免 AddItem 失败后猜测原因）
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	const FPP_ItemInfo* ItemInfo = DataManager ? DataManager->GetItemInfo(ItemID) : nullptr;
 	if (!ItemInfo)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: ItemDataTable 中找不到物品 %s，请检查 PP_InventoryComponent 的 ItemDataTable 配置"), *ItemID.ToString());
+		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 全局物品表(DataManager)中找不到物品 %s，请检查 DefaultGame.ini 的 DataManager 物品表配置"), *ItemID.ToString());
 		Inventory->AddGold(TotalPrice);
 		Client_OnShopResult(FText::Format(
 			NSLOCTEXT("Shop", "ItemNotFound", "物品 {0} 配置缺失"),
@@ -224,12 +219,11 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 		return;
 	}
 
-	// 2) 查询物品 SellPrice
+	// 2) 查询物品 SellPrice（统一走 DataManager 全局物品表）
 	int32 SellPriceUnit = 0;
-	if (ItemDataTable)
+	if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 	{
-		static const FString ContextString(TEXT("UPP_ShopComponent::Server_SellItem"));
-		if (const FPP_ItemInfo* Info = ItemDataTable->FindRow<FPP_ItemInfo>(ItemID, ContextString, false))
+		if (const FPP_ItemInfo* Info = DataManager->GetItemInfo(ItemID))
 		{
 			SellPriceUnit = Info->SellPrice;
 		}

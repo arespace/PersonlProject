@@ -1,6 +1,7 @@
 // Chen Tianbao uses GAS to create online battle games
 
 #include "Game/PP_GameInstance.h"
+#include "Game/PP_SessionManager.h"
 #include "Engine/World.h"
 
 UPP_GameInstance* UPP_GameInstance::Get(const UWorld* World)
@@ -11,31 +12,42 @@ UPP_GameInstance* UPP_GameInstance::Get(const UWorld* World)
 
 void UPP_GameInstance::SetPlayerCharacterSelection(const FString& PlayerName, FName CharacterId)
 {
-	if (PlayerName.IsEmpty() || CharacterId.IsNone()) return;
-
-	PlayerCharacterSelections.Add(PlayerName, CharacterId);
-	LastCharacterId = CharacterId;  // 后备方案：不依赖PlayerName匹配
-	UE_LOG(LogTemp, Log, TEXT("[GameInstance] SetPlayerCharacterSelection - Player: %s, Character: %s"),
-		*PlayerName, *CharacterId.ToString());
+	if (UPP_SessionManager* SM = GetSubsystem<UPP_SessionManager>())
+	{
+		SM->SetPlayerCharacterSelection(PlayerName, CharacterId);
+	}
 }
 
 FName UPP_GameInstance::GetPlayerCharacterSelection(const FString& PlayerName) const
 {
-	if (const FName* Found = PlayerCharacterSelections.Find(PlayerName))
+	if (UPP_SessionManager* SM = GetSubsystem<UPP_SessionManager>())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[GameInstance] GetPlayerCharacterSelection - Player: %s, Character: %s"),
-			*PlayerName, *(*Found).ToString());
-		return *Found;
+		return SM->GetPlayerCharacterSelection(PlayerName);
+	}
+	return NAME_None;
+}
+
+FName UPP_GameInstance::GetLastCharacterSelection() const
+{
+	if (UPP_SessionManager* SM = GetSubsystem<UPP_SessionManager>())
+	{
+		return SM->GetLastCharacterSelection();
 	}
 	return NAME_None;
 }
 
 void UPP_GameInstance::ClearPlayerCharacterSelection(const FString& PlayerName)
 {
-	PlayerCharacterSelections.Remove(PlayerName);
+	if (UPP_SessionManager* SM = GetSubsystem<UPP_SessionManager>())
+	{
+		SM->ClearPlayerCharacterSelection(PlayerName);
+	}
 }
 
 void UPP_GameInstance::ClearAllPlayerCharacterSelections()
 {
-	PlayerCharacterSelections.Empty();
+	if (UPP_SessionManager* SM = GetSubsystem<UPP_SessionManager>())
+	{
+		SM->ClearAllPlayerCharacterSelections();
+	}
 }

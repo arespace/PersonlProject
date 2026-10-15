@@ -105,6 +105,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI|Input")
     void SetInputModeGameAndUI();
 
+    /**
+     * 重新计算输入模式
+     * Widget 仅改变可见性（未 Push/Pop）时，由外部通知 UIManager 重算
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Input")
+    void RefreshInputMode();
+
     // ===== 委托 =====
 
     UPROPERTY(BlueprintAssignable, Category = "UI|Events")

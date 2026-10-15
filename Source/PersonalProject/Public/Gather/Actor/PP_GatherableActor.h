@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Interaction/PP_InteractableInterface.h"
 #include "PP_GatherableActor.generated.h"
 
 class USphereComponent;
@@ -34,12 +35,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGatherCompleted, AActor*, Gath
  * 使用方式：在关卡中放置此Actor，配置 ItemID/数量/时间等参数
  */
 UCLASS(Blueprintable)
-class PERSONALPROJECT_API APP_GatherableActor : public AActor
+class PERSONALPROJECT_API APP_GatherableActor : public AActor, public IPP_Interactable
 {
 	GENERATED_BODY()
 
 public:
 	APP_GatherableActor();
+
+	//~ Begin IPP_Interactable Interface
+	virtual void Interact(APlayerController* Interactor) override;
+	virtual bool CanInteract(APlayerController* Interactor) const override;
+	//~ End IPP_Interactable Interface
 
 	//~ Begin AActor Interface
 	virtual void BeginPlay() override;

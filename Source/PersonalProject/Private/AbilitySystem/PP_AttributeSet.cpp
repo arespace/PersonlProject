@@ -65,49 +65,12 @@ void UPP_AttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMod
 	
 	if (!bAttributesInitialized)
 	{
-		// ===================== 临时诊断：把生效 GE 的 Modifier 逐条打出来，定位完删除 =====================
-		// 属性值最终是 0、但编辑器那一行"看着配好了"的情况只剩两种：
-		//   ① ModifierOp 不是 Additive —— 基础值为 0 时 Multiplicitive(0×n) 与 Division(0/n) 结果都还是 0
-		//   ② ModifierMagnitude 的量值本身算出来就是 0 —— SetByCaller 没写标签，或 AttributeBased 依赖的属性也是 0
-		// （"Attribute 指向 None / FFieldPath 解析失败"已被排除：那条路会在 InternalExecuteMod:4038
-		//   的 GetAttributeSetClass() 里直接 check 崩溃，而不是静默跳过 —— 没崩就说明 Attribute 有效。）
-		// AttemptCalculateMagnitude 拿的是真实 Spec，会把 SetByCaller/AttributeBased 一并解析，
-		// 所以"解析失败"和"解析出来就是 0"在这一行里能分开看。
-		if (const UGameplayEffect* ActiveGE = Data.EffectSpec.Def)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[PP_InitDiag] GE=%s  共 %d 条 Modifier"),
-				*GetNameSafe(ActiveGE), ActiveGE->Modifiers.Num());
-
-			for (int32 ModIndex = 0; ModIndex < ActiveGE->Modifiers.Num(); ++ModIndex)
-			{
-				const FGameplayModifierInfo& ModInfo = ActiveGE->Modifiers[ModIndex];
-
-				float StaticValue = -1.f;
-				const bool bHasStaticValue = ModInfo.ModifierMagnitude.GetStaticMagnitudeIfPossible(1.f, StaticValue);
-
-				float ResolvedValue = -1.f;
-				const bool bResolved = ModInfo.ModifierMagnitude.AttemptCalculateMagnitude(
-					Data.EffectSpec, ResolvedValue, /*WarnIfSetByCallerFail=*/false);
-
-				UE_LOG(LogTemp, Warning,
-					TEXT("[PP_InitDiag]  #%d 属性='%s' 有效=%d | Op=%d | 量值类型=%d | 静态值OK=%d 值=%.2f | 解析OK=%d 值=%.2f"),
-					ModIndex,
-					*ModInfo.Attribute.GetName(),
-					ModInfo.Attribute.IsValid() ? 1 : 0,
-					(int32)ModInfo.ModifierOp.GetValue(),
-					(int32)ModInfo.ModifierMagnitude.GetMagnitudeCalculationType(),
-					bHasStaticValue ? 1 : 0, StaticValue,
-					bResolved ? 1 : 0, ResolvedValue);
-			}
-		}
-		// ===================== 临时诊断结束 =====================
-
-		bAttributesInitialized = true;	
+		bAttributesInitialized = true;
 		OnAttributesInitialized.Broadcast();
 	}
 }
 
-void UPP_AttributeSet::OnRep_AttributesInitalized()
+void UPP_AttributeSet::OnRep_AttributesInitialized()
 {
 	if (bAttributesInitialized)
 	{

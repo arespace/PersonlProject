@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Characters/PP_CharacterData.h"
+#include "Interaction/PP_InteractableInterface.h"
 #include "PP_NPCActor.generated.h"
 
 class UStaticMeshComponent;
@@ -31,7 +32,7 @@ class APP_PlayerController;
  *     发起请求，服务端再回调本 Actor。
  */
 UCLASS()
-class PERSONALPROJECT_API APP_NPCActor : public AActor
+class PERSONALPROJECT_API APP_NPCActor : public AActor, public IPP_Interactable
 {
 	GENERATED_BODY()
 
@@ -68,7 +69,7 @@ public:
 	 * 由 PlayerController::Interact 在 trace 命中本 NPC 后调用
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NPC")
-	void Interact(APlayerController* Player);
+	virtual void Interact(APlayerController* Player) override;
 
 	/**
 	 * 根据玩家任务状态解析起始对话 ID

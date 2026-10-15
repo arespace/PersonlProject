@@ -60,7 +60,7 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UTextBlock> StatusText;
 
-	/** 版本号文本（右下角小字），蓝图里可选 */
+	/** 版本号文本（右下角小字），蓝图里可选；WBP_MainMenu 中需有名为 "VersionText" 的 TextBlock */
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UTextBlock> VersionText;
 

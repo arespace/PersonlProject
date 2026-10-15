@@ -216,6 +216,11 @@ void UPP_UIManager::SetInputModeGameAndUI()
     }
 }
 
+void UPP_UIManager::RefreshInputMode()
+{
+    RecalculateInputMode();
+}
+
 void UPP_UIManager::RecalculateInputMode()
 {
     // 只扫描 Modal 和 Overlay 层决定输入模式

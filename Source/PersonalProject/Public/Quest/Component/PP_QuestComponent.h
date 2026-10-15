@@ -8,7 +8,6 @@
 #include "Quest/Data/PP_QuestData.h"
 #include "PP_QuestComponent.generated.h"
 
-class UDataTable;
 class UPP_InventoryComponent;
 
 /** 任务接取事件 */
@@ -145,12 +144,6 @@ public:
 	/** 任务列表变更时广播（客户端 OnRep 触发，服务端 Accept/Submit 后也会触发） */
 	UPROPERTY(BlueprintAssignable, Category = "Quest|Events")
 	FOnQuestsUpdated OnQuestsUpdated;
-
-	// ===== 配置 =====
-
-	/** 任务数据表（FPP_QuestInfo 行结构） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Quest|Config")
-	TObjectPtr<UDataTable> QuestDataTable;
 
 protected:
 	// ===== OnRep 回调 =====

@@ -10,7 +10,6 @@
 #include "Inventory/Data/PP_ItemTypes.h"
 #include "PP_InventoryComponent.generated.h"
 
-class UDataTable;
 class UAbilitySystemComponent;
 class UGameplayEffect;
 class APP_PlayerState;
@@ -60,7 +59,7 @@ public:
 	/**
 	 * 向库存中添加物品
 	 * 优先填充已存在的同ID堆叠槽，若达到 MaxStackCount 则新建条目
-	 * @param ItemID 物品ID（必须存在于 ItemDataTable 中）
+	 * @param ItemID 物品ID（必须存在于全局物品表中，通过 DataManager 查询）
 	 * @param Count  添加数量（必须 > 0）
 	 * @return 是否成功添加（任何一件成功即返回 true）
 	 */
@@ -207,10 +206,6 @@ protected:
 	int32 Gold;
 
 	// ===== 配置 =====
-
-	/** 物品配置数据表（FPP_ItemInfo 行结构） */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Config")
-	TObjectPtr<UDataTable> ItemDataTable;
 
 	/** 背包最大条目数（堆叠槽数量），0 表示无限 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Config", meta = (ClampMin = "0"))
