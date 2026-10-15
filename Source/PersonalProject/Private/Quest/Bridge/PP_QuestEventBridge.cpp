@@ -4,7 +4,8 @@
 #include "Quest/Bridge/PP_QuestEventBridge.h"
 
 #include "Quest/Component/PP_QuestComponent.h"
-#include "Gather/Actor/PP_GatherableActor.h"
+#include "Game/PP_EventBus.h"
+#include "Game/PP_EventTypes.h"
 #include "Shop/Component/PP_ShopComponent.h"
 #include "Dialogue/Actor/PP_NPCActor.h"
 #include "Player/PP_PlayerState.h"
@@ -35,13 +36,36 @@ void UPP_QuestEventBridge::BeginPlay()
 	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] All subsystem bindings completed"));
 }
 
+void UPP_QuestEventBridge::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 退订 EventBus 事件（Bridge 生命周期短于 GameInstance，必须成对退订）
+	if (UWorld* World = GetWorld())
+	{
+		if (UPP_EventBus* EventBus = World->GetGameInstance()->GetSubsystem<UPP_EventBus>())
+		{
+			EventBus->Unsubscribe(GatherEventHandle);
+		}
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
 // ===== 绑定实现 =====
 
 void UPP_QuestEventBridge::BindToGatherSystem()
 {
-	// 绑定全局静态委托
-	APP_GatherableActor::OnGatherCompletedDelegate.AddDynamic(this, &UPP_QuestEventBridge::OnGatherCompleted);
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] Bound to GatherSystem"));
+	// 订阅 EventBus 采集完成事件（替代原全局静态委托，采集系统与任务系统解耦）
+	if (UWorld* World = GetWorld())
+	{
+		if (UPP_EventBus* EventBus = World->GetGameInstance()->GetSubsystem<UPP_EventBus>())
+		{
+			GatherEventHandle = EventBus->Subscribe<FPP_GatherEvent>(
+				[this](const FPP_GatherEvent& Event)
+				{
+					OnGatherEvent(Event);
+				});
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] Bound to GatherSystem (EventBus)"));
 }
 
 void UPP_QuestEventBridge::BindToShopSystem()
@@ -71,21 +95,22 @@ void UPP_QuestEventBridge::BindToDialogueSystem()
 
 // ===== 事件回调 =====
 
-void UPP_QuestEventBridge::OnGatherCompleted(AActor* Gatherer, FName ItemID, int32 Count)
+void UPP_QuestEventBridge::OnGatherEvent(const FPP_GatherEvent& Event)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherCompleted: Gatherer=%s ItemID=%s Count=%d"),
-		*GetNameSafe(Gatherer), *ItemID.ToString(), Count);
+	UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherEvent: Gatherer=%s ItemID=%s Count=%d"),
+		*GetNameSafe(Event.Gatherer), *Event.ItemID.ToString(), Event.Count);
 
-	UPP_QuestComponent* QC = GetQuestComponentFromActor(Gatherer);
+	// 事件中的 Gatherer 已是 PlayerController
+	UPP_QuestComponent* QC = GetQuestComponentFromPC(Event.Gatherer);
 	if (!QC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherCompleted - QC is NULL for Gatherer=%s"), *GetNameSafe(Gatherer));
+		UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherEvent - QC is NULL for Gatherer=%s"), *GetNameSafe(Event.Gatherer));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherCompleted - Calling UpdateObjectiveProgress: Type=GatherItem TargetID=%s Count=%d"),
-		*ItemID.ToString(), Count);
-	QC->UpdateObjectiveProgress(EPP_QuestObjectiveType::GatherItem, ItemID, Count);
+	UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherEvent - Calling UpdateObjectiveProgress: Type=GatherItem TargetID=%s Count=%d"),
+		*Event.ItemID.ToString(), Event.Count);
+	QC->UpdateObjectiveProgress(EPP_QuestObjectiveType::GatherItem, Event.ItemID, Event.Count);
 }
 
 void UPP_QuestEventBridge::OnPurchaseCompleted(AActor* Buyer, FName ItemID, int32 Count)

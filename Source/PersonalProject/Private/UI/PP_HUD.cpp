@@ -22,6 +22,8 @@
 #include "UI/PP_UIUserWidget.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
 #include "Engine/GameInstance.h"
+#include "Game/PP_EventBus.h"
+#include "Game/PP_EventTypes.h"
 
 APP_HUD::APP_HUD()
 {
@@ -53,6 +55,31 @@ void APP_HUD::BeginPlay()
 	InitializeViewModel();
 	CreateHUDWidgets();
 	BindViewModelDelegates();
+
+	// 订阅任务完成事件（EventBus 广播 → 通知栏显示），任务系统不再直接依赖 HUD
+	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
+	{
+		QuestCompletedEventHandle = EventBus->Subscribe<FPP_QuestCompletedEvent>(
+			[this](const FPP_QuestCompletedEvent& Event)
+			{
+				OnQuestCompletedEvent(Event);
+			});
+	}
+}
+
+void APP_HUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 退订 EventBus 事件（HUD 生命周期短于 GameInstance，必须成对退订）
+	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
+	{
+		EventBus->Unsubscribe(QuestCompletedEventHandle);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void APP_HUD::OnQuestCompletedEvent(const FPP_QuestCompletedEvent& Event)
+{
+	AddNotification(FString::Printf(TEXT("任务完成：%s"), *Event.QuestName));
 }
 
 void APP_HUD::InitializeViewModel()

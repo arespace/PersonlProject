@@ -32,10 +32,11 @@ public:
 	UPP_QuestEventBridge();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// ===== 绑定接口 =====
 
-	/** 绑定采集系统：APP_GatherableActor::OnGatherCompletedDelegate */
+	/** 订阅采集系统：EventBus 的 FPP_GatherEvent（替代原静态委托绑定） */
 	void BindToGatherSystem();
 
 	/** 绑定商店系统：遍历 NPC 绑定 ShopComponent->OnPurchaseCompleted */
@@ -65,13 +66,15 @@ public:
 	void NotifyDialogueCompleted(APlayerController* Player, FName NPCID);
 
 private:
-	/** 采集完成回调 */
-	UFUNCTION()
-	void OnGatherCompleted(AActor* Gatherer, FName ItemID, int32 Count);
+	/** 采集完成事件回调（EventBus 订阅） */
+	void OnGatherEvent(const struct FPP_GatherEvent& Event);
 
 	/** 商店购买完成回调 */
 	UFUNCTION()
 	void OnPurchaseCompleted(AActor* Buyer, FName ItemID, int32 Count);
+
+	/** 采集事件订阅句柄（EndPlay 时退订） */
+	FDelegateHandle GatherEventHandle;
 
 	/** 从 Actor 获取其 QuestComponent（通过 PlayerState） */
 	UPP_QuestComponent* GetQuestComponentFromActor(AActor* Actor) const;

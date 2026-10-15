@@ -132,10 +132,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gather")
 	float GetGatherTime() const { return GatherTime; }
 
-	// ===== 全局委托 =====
+	// ===== 事件广播 =====
 
-	/** 采集完成全局委托（供任务系统等外部系统监听） */
-	static FOnGatherCompleted OnGatherCompletedDelegate;
+	/**
+	 * 广播采集完成事件到 EventBus（FPP_GatherEvent）
+	 * 供 NotifyPickup 与 CompleteGather 复用；任务系统等通过 EventBus 订阅（替代原全局静态委托）
+	 */
+	void BroadcastGatherCompleted(AActor* Gatherer, FName InItemID, int32 InCount);
 
 protected:
 	/** 进入交互范围回调 */

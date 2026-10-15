@@ -7,12 +7,11 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
+#include "Game/PP_EventBus.h"
+#include "Game/PP_EventTypes.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/PP_PlayerState.h"
 #include "TimerManager.h"
-
-// 全局静态委托定义
-FOnGatherCompleted APP_GatherableActor::OnGatherCompletedDelegate;
 
 APP_GatherableActor::APP_GatherableActor()
 {
@@ -143,8 +142,32 @@ void APP_GatherableActor::NotifyPickup(AActor* Gatherer)
 	UE_LOG(LogTemp, Warning, TEXT("[Gather] NotifyPickup: actor=%s ItemID=%s GatherCount=%d Gatherer=%s"),
 		*GetName(), *ItemID.ToString(), GatherCount, *Gatherer->GetName());
 
-	// 广播采集完成事件（任务系统通过静态委托监听）
-	OnGatherCompletedDelegate.Broadcast(Gatherer, ItemID, GatherCount);
+	// 广播采集完成事件（任务系统等通过 EventBus 订阅）
+	BroadcastGatherCompleted(Gatherer, ItemID, GatherCount);
+}
+
+void APP_GatherableActor::BroadcastGatherCompleted(AActor* Gatherer, FName InItemID, int32 InCount)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	UPP_EventBus* EventBus = World->GetGameInstance()->GetSubsystem<UPP_EventBus>();
+	if (!EventBus)
+	{
+		return;
+	}
+
+	FPP_GatherEvent Event;
+	// Gatherer 传入的是 Pawn/Character，转换为 PlayerController（事件以 PC 标识玩家）
+	if (const APawn* GathererPawn = Cast<APawn>(Gatherer))
+	{
+		Event.Gatherer = Cast<APlayerController>(GathererPawn->GetController());
+	}
+	Event.ItemID = InItemID;
+	Event.Count = InCount;
+	EventBus->Broadcast(Event);
 }
 
 void APP_GatherableActor::CompleteGather(AActor* Gatherer)
@@ -194,8 +217,8 @@ void APP_GatherableActor::CompleteGather(AActor* Gatherer)
 	--RemainingGatherTimes;
 	CurrentGatherer = nullptr;
 
-	// 3. 广播全局委托（任务系统等监听）
-	OnGatherCompletedDelegate.Broadcast(Gatherer, ItemID, GatherCount);
+	// 3. 广播采集完成事件（任务系统等通过 EventBus 订阅）
+	BroadcastGatherCompleted(Gatherer, ItemID, GatherCount);
 
 	// 4. 检查是否耗尽
 	if (RemainingGatherTimes <= 0)

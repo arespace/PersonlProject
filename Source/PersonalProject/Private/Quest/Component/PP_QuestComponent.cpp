@@ -4,10 +4,11 @@
 #include "Quest/Component/PP_QuestComponent.h"
 
 #include "Game/PP_DataManager.h"
+#include "Game/PP_EventBus.h"
+#include "Game/PP_EventTypes.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
 #include "Player/PP_PlayerState.h"
 #include "Net/UnrealNetwork.h"
-#include "UI/PP_HUD.h"
 #include "GameFramework/PlayerController.h"
 
 UPP_QuestComponent::UPP_QuestComponent()
@@ -161,15 +162,19 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 	OnQuestCompleted.Broadcast(QuestID);
 	OnQuestsUpdated.Broadcast();
 
-	// 发送任务完成通知到 HUD
+	// 通过 EventBus 广播任务完成事件（HUD 订阅显示通知，任务系统不再直接依赖 UI）
 	if (UWorld* World = GetWorld())
 	{
-		if (APlayerController* PC = World->GetFirstPlayerController())
+		if (UGameInstance* GI = World->GetGameInstance())
 		{
-			if (APP_HUD* HUD = Cast<APP_HUD>(PC->GetHUD()))
+			if (UPP_EventBus* EventBus = GI->GetSubsystem<UPP_EventBus>())
 			{
-				FString QuestName = QuestInfo ? QuestInfo->QuestName.ToString() : QuestID.ToString();
-				HUD->AddNotification(FString::Printf(TEXT("任务完成：%s"), *QuestName));
+				FPP_QuestCompletedEvent Event;
+				const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
+				Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
+				Event.QuestID = QuestID;
+				Event.QuestName = QuestInfo ? QuestInfo->QuestName.ToString() : QuestID.ToString();
+				EventBus->Broadcast(Event);
 			}
 		}
 	}

@@ -27,6 +27,10 @@ struct FPP_QuestCompletedEvent
 	/** 完成的任务 ID */
 	UPROPERTY(BlueprintReadOnly, Category = "Event")
 	FName QuestID;
+
+	/** 任务显示名（发布方组装，订阅方无需查表） */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	FString QuestName;
 };
 
 /** 采集完成事件：GatherableActor -> Quest/UI */

@@ -63,7 +63,7 @@ template<typename EventType>
 FDelegateHandle UPP_EventBus::Subscribe(TFunction<void(const EventType&)> Callback)
 {
 	UScriptStruct* Struct = EventType::StaticStruct();
-	FDelegateHandle Handle = FDelegateHandle::GenerateNewHandle();
+	FDelegateHandle Handle(FDelegateHandle::GenerateNewHandle);
 
 	FEventCallback Wrapped;
 	Wrapped.Struct = Struct;

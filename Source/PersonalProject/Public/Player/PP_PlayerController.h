@@ -148,6 +148,13 @@ public:
 	UFUNCTION(Client, Reliable, Category = "Dialogue")
 	void Client_OpenShopUI(APP_NPCActor* NPC);
 
+	/**
+	 * 客户端显示任务系统提示（通知栏）
+	 * 用于服务器侧任务操作失败时反馈给玩家（如提交时目标未完成），避免静默无反馈
+	 */
+	UFUNCTION(Client, Reliable, Category = "Quest")
+	void Client_NotifyQuestMessage(const FString& Message);
+
 	// ===== 对话事件委托（供蓝图 UI 监听） =====
 
 	/** 对话推进到新一行台词时广播 */

@@ -619,7 +619,13 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 					UPP_QuestComponent* QC = PS->GetQuestComponent();
 					if (QC)
 					{
-						QC->SubmitQuest(SubmitRow->RelatedQuestID);
+						// 提交失败时通知客户端（目标未完成/任务未接），避免静默无反馈
+						if (!QC->SubmitQuest(SubmitRow->RelatedQuestID))
+						{
+							Client_NotifyQuestMessage(FString::Printf(
+								TEXT("任务「%s」的目标尚未全部完成，无法提交"),
+								*SubmitRow->RelatedQuestID.ToString()));
+						}
 					}
 				}
 			}
@@ -653,20 +659,6 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 	default:
 		UE_LOG(LogTemp, Log, TEXT("[PlayerController] Server_ConfirmDialogueEndAction - Action=None, dialogue ended."));
 		break;
-	}
-
-	// 通知任务系统：与 NPC 对话完成（TalkToNPC 任务目标）
-	if (!NPC->NPCID.IsNone())
-	{
-		APP_CrashGameMode* GM = GetWorld()->GetAuthGameMode<APP_CrashGameMode>();
-		if (GM)
-		{
-			UPP_QuestEventBridge* Bridge = GM->GetQuestEventBridge();
-			if (Bridge)
-			{
-				Bridge->NotifyDialogueCompleted(this, NPC->NPCID);
-			}
-		}
 	}
 }
 
@@ -711,6 +703,16 @@ void APP_PlayerController::Client_OpenShopUI_Implementation(APP_NPCActor* NPC)
 	ShopWidget->InitializeShop(Shop, Inventory);
 
 	UE_LOG(LogTemp, Log, TEXT("[PlayerController] Client_OpenShopUI - Opened shop for NPC '%s'"), *NPC->GetName());
+}
+
+void APP_PlayerController::Client_NotifyQuestMessage_Implementation(const FString& Message)
+{
+	if (!IsLocalController()) return;
+
+	if (APP_HUD* HUD = Cast<APP_HUD>(GetHUD()))
+	{
+		HUD->AddNotification(Message);
+	}
 }
 
 void APP_PlayerController::Interact()

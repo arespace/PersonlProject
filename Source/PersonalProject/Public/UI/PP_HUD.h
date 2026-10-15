@@ -32,6 +32,7 @@ class PERSONALPROJECT_API APP_HUD : public AHUD
 public:
 	APP_HUD();
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// ===== 菜单控制 =====
 
@@ -200,6 +201,12 @@ private:
 	 * 层级唯一真相来源是 UPP_UIUserWidget::OwningLayer（蓝图配置），HUD 不再维护独立 ZOrder 常量
 	 */
 	static void AddToViewportByLayer(UPP_UIUserWidget* Widget);
+
+	/** 任务完成事件回调（EventBus 订阅 → 通知栏显示），任务系统不再直接调用 HUD */
+	void OnQuestCompletedEvent(const struct FPP_QuestCompletedEvent& Event);
+
+	/** 任务完成事件订阅句柄（EndPlay 时退订） */
+	FDelegateHandle QuestCompletedEventHandle;
 
 	/** 创建所有HUD Widget */
 	void CreateHUDWidgets();
