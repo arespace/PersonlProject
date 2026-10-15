@@ -6,6 +6,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Components/Image.h"
+#include "Components/TextBlock.h"
 
 void UPP_CharacterSelectWidget::NativeOnInitialized()
 {
@@ -45,6 +46,31 @@ void UPP_CharacterSelectWidget::OnConfirmClicked()
 void UPP_CharacterSelectWidget::SetSelectedCharacter(FName CharacterId)
 {
 	CurrentlySelected = CharacterId;
+
+	// 详情面板：优先用表里的 DisplayName / Description
+	bool bFilledFromTable = false;
+	if (CharacterDataTable)
+	{
+		static const FString ContextString(TEXT("CharacterSelect"));
+		if (const FCharacterDataRow* Row = CharacterDataTable->FindRow<FCharacterDataRow>(CharacterId, ContextString))
+		{
+			if (CharacterNameText)
+			{
+				CharacterNameText->SetText(Row->DisplayName);
+			}
+			if (CharacterDescText)
+			{
+				CharacterDescText->SetText(Row->Description);
+			}
+			bFilledFromTable = true;
+		}
+	}
+
+	if (!bFilledFromTable && CharacterNameText)
+	{
+		CharacterNameText->SetText(FText::FromName(CharacterId));
+	}
+
 	BP_OnCharacterSelected(CharacterId);
 }
 

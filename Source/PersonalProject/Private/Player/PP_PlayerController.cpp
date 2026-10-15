@@ -450,6 +450,12 @@ void APP_PlayerController::Client_NotifyHostMigrating_Implementation(const FHost
 	{
 		SM->SetMigrationData(MigrationData);
 	}
+
+	// 给玩家一个明确反馈：大厅顶部弹出「房主迁移中」提示条
+	if (APP_LobbyHUD* LobbyHUD = GetLobbyHUD())
+	{
+		LobbyHUD->NotifyHostMigrating();
+	}
 }
 
 // ===== NPC对话系统 RPC 实现 =====

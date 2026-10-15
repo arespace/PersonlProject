@@ -7,9 +7,11 @@
 #include "Components/Button.h"
 #include "Components/GridPanel.h"
 #include "Components/Image.h"
+#include "Characters/PP_CharacterData.h"
 #include "PP_CharacterSelectWidget.generated.h"
 
 class UDataTable;
+class UTextBlock;
 class APP_LobbyHUD;
 
 UCLASS()
@@ -54,6 +56,14 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UImage> CharacterPreviewImage;
+
+	/** 详情面板角色名（读 DT_Characters 的 DisplayName，不再暴露 RowName / 资产名） */
+	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby|Character")
+	TObjectPtr<UTextBlock> CharacterNameText;
+
+	/** 详情面板角色描述（读 DT_Characters 的 Description，用来填实中部区域） */
+	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby|Character")
+	TObjectPtr<UTextBlock> CharacterDescText;
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Character Selected"))
 	void BP_OnCharacterSelected(FName CharacterId);

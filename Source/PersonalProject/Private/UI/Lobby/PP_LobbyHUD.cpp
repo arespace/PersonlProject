@@ -127,7 +127,13 @@ void APP_LobbyHUD::HideAllMenus()
 void APP_LobbyHUD::ShowMainMenu()
 {
 	HideAllMenus();
-	if (MainMenuWidget) { MainMenuWidget->SetVisibility(ESlateVisibility::Visible); }
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
+
+		// 每次显示主菜单自动搜一次房间，避免房间列表初始为空
+		MainMenuWidget->RefreshRoomList();
+	}
 }
 
 void APP_LobbyHUD::HideMainMenu()
@@ -135,11 +141,22 @@ void APP_LobbyHUD::HideMainMenu()
 	if (MainMenuWidget) { MainMenuWidget->SetVisibility(ESlateVisibility::Hidden); }
 }
 
+bool APP_LobbyHUD::IsInRoom() const
+{
+	const UWorld* World = GetWorld();
+	return World && World->GetNetMode() != NM_Standalone;
+}
+
 void APP_LobbyHUD::ShowLobby()
 {
 	HideAllMenus();
 	ShowPreviewActor();
-	if (LobbyWidget) { LobbyWidget->SetVisibility(ESlateVisibility::Visible); }
+	if (LobbyWidget)
+	{
+		LobbyWidget->SetVisibility(ESlateVisibility::Visible);
+		// 正常进入大厅时清掉上一次的迁移提示
+		LobbyWidget->SetMigrationBannerVisible(false);
+	}
 }
 
 void APP_LobbyHUD::HideLobby()
@@ -217,6 +234,13 @@ void APP_LobbyHUD::OnPlayerListUpdated(const TArray<FLobbyPlayerInfo>& Players)
 void APP_LobbyHUD::OnRoomSettingsUpdated(const FRoomSettings& Settings)
 {
 	if (RoomSettingsWidget) { RoomSettingsWidget->ApplySettings(Settings); }
+	// 大厅也要拿到 MaxPlayers / MapName / GameModeName 用于顶栏显示与空位补齐
+	if (LobbyWidget) { LobbyWidget->ApplyRoomSettings(Settings); }
+}
+
+void APP_LobbyHUD::NotifyHostMigrating()
+{
+	if (LobbyWidget) { LobbyWidget->SetMigrationBannerVisible(true); }
 }
 
 void APP_LobbyHUD::OnGameStarting(float Countdown)
@@ -227,6 +251,11 @@ void APP_LobbyHUD::OnGameStarting(float Countdown)
 void APP_LobbyHUD::AddChatMessage(const FString& PlayerName, const FString& Message)
 {
 	if (LobbyWidget) { LobbyWidget->AddChatMessage(PlayerName, Message); }
+}
+
+void APP_LobbyHUD::AddSystemMessage(const FString& Message)
+{
+	if (LobbyWidget) { LobbyWidget->AddSystemMessage(Message); }
 }
 
 void APP_LobbyHUD::SetUIInputMode()

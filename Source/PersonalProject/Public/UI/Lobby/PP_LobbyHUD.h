@@ -36,6 +36,15 @@ public:
 	void ShowMainMenu();
 	void HideMainMenu();
 
+	/**
+	 * 当前是否还在房间里
+	 * 判断依据与 BeginPlay 一致：Standalone = 还没进房间（主菜单阶段），
+	 * 非 Standalone（ListenServer / Client）= 正在房间内。
+	 * 导航栏「主菜单」按钮用它决定能不能跳转。
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Lobby|Flow")
+	bool IsInRoom() const;
+
 	void ShowLobby();
 	void HideLobby();
 
@@ -72,8 +81,14 @@ public:
 	/** 游戏即将开始回调 */
 	void OnGameStarting(float Countdown);
 
+	/** 房主迁移中：通知大厅显示迁移提示条 */
+	void NotifyHostMigrating();
+
 	/** 添加聊天消息到大厅聊天区域 */
 	void AddChatMessage(const FString& PlayerName, const FString& Message);
+
+	/** 添加系统消息到大厅聊天区域（加入/创建房间等提示） */
+	void AddSystemMessage(const FString& Message);
 
 	/** 设置待使用的玩家名（主菜单阶段保存，进入Lobby后发送给服务器） */
 	void SetPendingPlayerName(const FString& Name) { PendingPlayerName = Name; }
