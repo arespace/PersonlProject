@@ -171,6 +171,33 @@ private:
 	/** 隐藏所有菜单 Widget */
 	void HideAllMenus();
 
+	/** 创建常驻面板 Widget 并挂到视口（bStartHidden=false 用于主菜单等初始可见页） */
+	template <typename TWidget>
+	void CreatePanelWidget(TObjectPtr<TWidget>& Slot, const TSubclassOf<UUserWidget>& Class, int32 ZOrder, bool bStartHidden = true)
+	{
+		if (!Class) return;
+		Slot = CreateWidget<TWidget>(PlayerOwner, Class);
+		if (Slot)
+		{
+			Slot->AddToViewport(ZOrder);
+			if (bStartHidden)
+			{
+				Slot->SetVisibility(ESlateVisibility::Hidden);
+			}
+		}
+	}
+
+	/** 单页面互斥语义：先隐藏全部页面，再显示指定面板 */
+	template <typename TWidget>
+	void ShowPanel(TObjectPtr<TWidget>& Slot)
+	{
+		HideAllMenus();
+		if (Slot)
+		{
+			Slot->SetVisibility(ESlateVisibility::Visible);
+		}
+	}
+
 	/** 玩家昵称（主菜单输入后暂存） */
 	FString PendingPlayerName;
 

@@ -63,61 +63,13 @@ void APP_LobbyHUD::CreateWidgets()
 	UWorld* World = GetWorld();
 	if (!World || World->bIsTearingDown) return;
 
-	if (MainMenuWidgetClass)
-	{
-		MainMenuWidget = CreateWidget<UPP_MainMenuWidget>(PlayerOwner, MainMenuWidgetClass);
-		if (MainMenuWidget) MainMenuWidget->AddToViewport(ZOrder_MainMenu);
-	}
-
-	if (LobbyWidgetClass)
-	{
-		LobbyWidget = CreateWidget<UPP_LobbyWidget>(PlayerOwner, LobbyWidgetClass);
-		if (LobbyWidget)
-		{
-			LobbyWidget->AddToViewport(ZOrder_Lobby);
-			LobbyWidget->SetVisibility(ESlateVisibility::Hidden);
-		}
-	}
-
-	if (HostSettingsWidgetClass)
-	{
-		HostSettingsWidget = CreateWidget<UPP_HostSettingsWidget>(PlayerOwner, HostSettingsWidgetClass);
-		if (HostSettingsWidget)
-		{
-			HostSettingsWidget->AddToViewport(ZOrder_Settings);
-			HostSettingsWidget->SetVisibility(ESlateVisibility::Hidden);
-		}
-	}
-
-	if (CharacterSelectWidgetClass)
-	{
-		CharacterSelectWidget = CreateWidget<UPP_CharacterSelectWidget>(PlayerOwner, CharacterSelectWidgetClass);
-		if (CharacterSelectWidget)
-		{
-			CharacterSelectWidget->AddToViewport(ZOrder_CharacterSelect);
-			CharacterSelectWidget->SetVisibility(ESlateVisibility::Hidden);
-		}
-	}
-
-	if (RoomSettingsWidgetClass)
-	{
-		RoomSettingsWidget = CreateWidget<UPP_RoomSettingsWidget>(PlayerOwner, RoomSettingsWidgetClass);
-		if (RoomSettingsWidget)
-		{
-			RoomSettingsWidget->AddToViewport(ZOrder_Settings);
-			RoomSettingsWidget->SetVisibility(ESlateVisibility::Hidden);
-		}
-	}
-
-	if (SettingsWidgetClass)
-	{
-		SettingsWidget = CreateWidget<UPP_SettingsWidget>(PlayerOwner, SettingsWidgetClass);
-		if (SettingsWidget)
-		{
-			SettingsWidget->AddToViewport(ZOrder_Settings);
-			SettingsWidget->SetVisibility(ESlateVisibility::Hidden);
-		}
-	}
+	// 主菜单初始可见（房主迁移等不经过 ShowMainMenu 的分支需要它兜底显示）
+	CreatePanelWidget(MainMenuWidget, MainMenuWidgetClass, ZOrder_MainMenu, /*bStartHidden=*/false);
+	CreatePanelWidget(LobbyWidget, LobbyWidgetClass, ZOrder_Lobby);
+	CreatePanelWidget(HostSettingsWidget, HostSettingsWidgetClass, ZOrder_Settings);
+	CreatePanelWidget(CharacterSelectWidget, CharacterSelectWidgetClass, ZOrder_CharacterSelect);
+	CreatePanelWidget(RoomSettingsWidget, RoomSettingsWidgetClass, ZOrder_Settings);
+	CreatePanelWidget(SettingsWidget, SettingsWidgetClass, ZOrder_Settings);
 }
 
 void APP_LobbyHUD::HideAllMenus()
@@ -132,12 +84,11 @@ void APP_LobbyHUD::HideAllMenus()
 
 void APP_LobbyHUD::ShowMainMenu()
 {
-	HideAllMenus();
+	ShowPanel(MainMenuWidget);
+
+	// 每次显示主菜单自动搜一次房间，避免房间列表初始为空
 	if (MainMenuWidget)
 	{
-		MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
-
-		// 每次显示主菜单自动搜一次房间，避免房间列表初始为空
 		MainMenuWidget->RefreshRoomList();
 	}
 }
@@ -150,20 +101,19 @@ bool APP_LobbyHUD::IsInRoom() const
 
 void APP_LobbyHUD::ShowLobby()
 {
-	HideAllMenus();
+	ShowPanel(LobbyWidget);
 	ShowPreviewActor();
+
+	// 正常进入大厅时清掉上一次的迁移提示
 	if (LobbyWidget)
 	{
-		LobbyWidget->SetVisibility(ESlateVisibility::Visible);
-		// 正常进入大厅时清掉上一次的迁移提示
 		LobbyWidget->SetMigrationBannerVisible(false);
 	}
 }
 
 void APP_LobbyHUD::ShowHostSettings()
 {
-	HideAllMenus();
-	if (HostSettingsWidget) { HostSettingsWidget->SetVisibility(ESlateVisibility::Visible); }
+	ShowPanel(HostSettingsWidget);
 }
 
 void APP_LobbyHUD::HideHostSettings()
@@ -173,9 +123,8 @@ void APP_LobbyHUD::HideHostSettings()
 
 void APP_LobbyHUD::ShowCharacterSelect()
 {
-	HideAllMenus();
+	ShowPanel(CharacterSelectWidget);
 	ShowPreviewActor();
-	if (CharacterSelectWidget) { CharacterSelectWidget->SetVisibility(ESlateVisibility::Visible); }
 }
 
 void APP_LobbyHUD::HideCharacterSelect()
@@ -189,8 +138,7 @@ void APP_LobbyHUD::HideCharacterSelect()
 
 void APP_LobbyHUD::ShowRoomSettings()
 {
-	HideAllMenus();
-	if (RoomSettingsWidget) { RoomSettingsWidget->SetVisibility(ESlateVisibility::Visible); }
+	ShowPanel(RoomSettingsWidget);
 }
 
 void APP_LobbyHUD::HideRoomSettings()
@@ -200,8 +148,7 @@ void APP_LobbyHUD::HideRoomSettings()
 
 void APP_LobbyHUD::ShowSettings()
 {
-	HideAllMenus();
-	if (SettingsWidget) { SettingsWidget->SetVisibility(ESlateVisibility::Visible); }
+	ShowPanel(SettingsWidget);
 }
 
 void APP_LobbyHUD::HideSettings()

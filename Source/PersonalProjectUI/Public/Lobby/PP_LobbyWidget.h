@@ -149,6 +149,9 @@ private:
 	/** 聊天列表是否已滚到底（只有贴底时才自动跟随新消息，避免打断翻看历史） */
 	bool IsChatScrolledToBottom() const;
 
+	/** 聊天区追加一行（bSystem=true 为金色分隔的系统消息；未配置 ChatMessageClass 时退回 TextBlock） */
+	void AppendChatRow(bool bSystem, const FString& PlayerName, const FString& Message);
+
 	/** 倒计时每帧刷新（中央覆盖层 + 底栏小字） */
 	void UpdateCountdown(float InDeltaTime);
 

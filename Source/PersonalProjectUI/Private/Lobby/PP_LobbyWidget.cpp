@@ -279,21 +279,36 @@ void UPP_LobbyWidget::UpdateCountdown(float InDeltaTime)
 
 void UPP_LobbyWidget::AddChatMessage(const FString& PlayerName, const FString& Message)
 {
+	AppendChatRow(false, PlayerName, Message);
+}
+
+void UPP_LobbyWidget::AddSystemMessage(const FString& Message)
+{
+	AppendChatRow(true, FString(), Message);
+}
+
+void UPP_LobbyWidget::AppendChatRow(bool bSystem, const FString& PlayerName, const FString& Message)
+{
 	if (!ChatDisplayArea) return;
 
 	// 用户往上翻看历史时，新消息不要把视图强行拉回底部
 	const bool bWasAtBottom = IsChatScrolledToBottom();
 
-	const APlayerController* PC = GetOwningPlayer();
-	const APlayerState* PS = PC ? PC->GetPlayerState<APlayerState>() : nullptr;
-	const bool bIsLocalPlayer = PS && PS->GetPlayerName() == PlayerName;
-
 	if (ChatMessageClass)
 	{
 		UPP_ChatMessageWidget* MsgWidget = CreateWidget<UPP_ChatMessageWidget>(this, ChatMessageClass);
 		if (MsgWidget)
 		{
-			MsgWidget->SetChatMessage(PlayerName, Message, bIsLocalPlayer);
+			if (bSystem)
+			{
+				MsgWidget->SetSystemMessage(Message);
+			}
+			else
+			{
+				const APlayerController* PC = GetOwningPlayer();
+				const APlayerState* PS = PC ? PC->GetPlayerState<APlayerState>() : nullptr;
+				MsgWidget->SetChatMessage(PlayerName, Message, PS && PS->GetPlayerName() == PlayerName);
+			}
 			ChatDisplayArea->AddChild(MsgWidget);
 			if (bWasAtBottom) ChatDisplayArea->ScrollToEnd();
 			return;
@@ -302,48 +317,22 @@ void UPP_LobbyWidget::AddChatMessage(const FString& PlayerName, const FString& M
 	else
 	{
 		UE_LOG(LogPP, Error,
-			TEXT("[LobbyWidget] ChatMessageClass 未配置：请在 WBP_Lobby 的 Class Defaults 里指向 WBP_ChatMessage"));
+			TEXT("[LobbyWidget] ChatMessageClass 未配置：%s 退回单行 TextBlock 样式"),
+			bSystem ? TEXT("系统消息") : TEXT("聊天消息"));
 	}
 
 	// 回退：未配置 ChatMessageClass 时走旧写法
-	UTextBlock* ChatEntry = NewObject<UTextBlock>(this);
-	if (ChatEntry)
+	UTextBlock* Entry = NewObject<UTextBlock>(this);
+	if (Entry)
 	{
-		ChatEntry->SetText(FText::FromString(FString::Printf(TEXT("%s: %s"), *PlayerName, *Message)));
-		ChatDisplayArea->AddChild(ChatEntry);
-		if (bWasAtBottom) ChatDisplayArea->ScrollToEnd();
-	}
-}
-
-void UPP_LobbyWidget::AddSystemMessage(const FString& Message)
-{
-	if (!ChatDisplayArea) return;
-
-	const bool bWasAtBottom = IsChatScrolledToBottom();
-
-	if (ChatMessageClass)
-	{
-		UPP_ChatMessageWidget* MsgWidget = CreateWidget<UPP_ChatMessageWidget>(this, ChatMessageClass);
-		if (MsgWidget)
+		Entry->SetText(bSystem
+			? FText::FromString(FString::Printf(TEXT("\u2014 %s \u2014"), *Message))
+			: FText::FromString(FString::Printf(TEXT("%s: %s"), *PlayerName, *Message)));
+		if (bSystem)
 		{
-			MsgWidget->SetSystemMessage(Message);
-			ChatDisplayArea->AddChild(MsgWidget);
-			if (bWasAtBottom) ChatDisplayArea->ScrollToEnd();
-			return;
+			Entry->SetColorAndOpacity(FSlateColor(UPP_UIStyle::GetGoldColor()));
 		}
-	}
-	else
-	{
-		UE_LOG(LogPP, Error,
-			TEXT("[LobbyWidget] ChatMessageClass 未配置：系统消息无法使用 WBP_ChatMessage 样式"));
-	}
-
-	UTextBlock* SysEntry = NewObject<UTextBlock>(this);
-	if (SysEntry)
-	{
-		SysEntry->SetText(FText::FromString(FString::Printf(TEXT("\u2014 %s \u2014"), *Message)));
-		SysEntry->SetColorAndOpacity(FSlateColor(UPP_UIStyle::GetGoldColor()));
-		ChatDisplayArea->AddChild(SysEntry);
+		ChatDisplayArea->AddChild(Entry);
 		if (bWasAtBottom) ChatDisplayArea->ScrollToEnd();
 	}
 }
