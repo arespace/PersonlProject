@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Game/PP_ScoreboardTypes.h"
+#include "Framework/PP_ScoreboardTypes.h"
 #include "Player/PP_LobbyPlayerState.h"
 #include "Game/PP_SessionManager.h"
 #include "PP_UIGateway.generated.h"

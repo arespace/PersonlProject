@@ -6,11 +6,11 @@
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
-#include "Game/PP_ScoreboardTypes.h"
+#include "Framework/PP_ScoreboardTypes.h"
 #include "Game/PP_SessionManager.h"
-#include "Dialogue/Data/PP_DialogueData.h"
+#include "Data/PP_DialogueData.h"
 #include "Dialogue/PP_DialogueRequester.h"
-#include "PP_UIGateway.h"
+#include "Player/PP_UIGateway.h"
 #include "PP_PlayerController.generated.h"
 
 class UInputMappingContext;

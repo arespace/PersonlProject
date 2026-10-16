@@ -3,7 +3,7 @@
 #include "AbilitySystem/Abilities/Gather/PP_GatherAbility.h"
 
 #include "AbilitySystemComponent.h"
-#include "Gather/Actor/PP_GatherableActor.h"
+#include "Gather/PP_GatherableActor.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
 

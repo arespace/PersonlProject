@@ -5,8 +5,8 @@
 
 #include "AbilitySystem/PP_AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
-#include "Inventory/Component/PP_InventoryComponent.h"
-#include "Quest/Component/PP_QuestComponent.h"
+#include "Inventory/PP_InventoryComponent.h"
+#include "Quest/PP_QuestComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APP_PlayerState::APP_PlayerState()

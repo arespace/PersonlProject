@@ -18,13 +18,10 @@ public class PersonalProject : ModuleRules
 			"GameplayAbilities",
 			"GameplayTasks",
 			"GameplayTags",
+			// Public 头 PP_PlayerController.h 持有 TSubclassOf<UUserWidget>，UMG 必须公开（Slate/SlateCore 由 UMG 传递）
 			"UMG",
-			"Slate",
-			"SlateCore",
+			// Public 头 PP_SessionManager.h 持有 IOnlineSessionPtr，OnlineSubsystem 必须公开
 			"OnlineSubsystem",
-			"OnlineSubsystemUtils",
-			"UnLua",
-			"Lua",
 			"PersonalProjectCore",
 			"PersonalProjectInventory",
 			"PersonalProjectQuest"

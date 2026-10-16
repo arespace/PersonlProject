@@ -23,6 +23,30 @@ Content/*
 # 插件只入库源码（.uplugin / Source / Content），不入库构建产物。
 # 下面是排除规则，写在 !/Plugins/ 之后才能生效（Git 是「后匹配的规则胜出」）。
 !/Plugins/
+
+# ===== 例外 4：工程文件与配置（纯文本，既非资产也非生成物）=====
+#
+# .uproject 声明五个模块；Config/*.ini 承载 79 条 CoreRedirects、
+# DataManager 数据表路径、GameMode/Map 配置。它们不属于上面排除的
+# 「美术/蓝图资产」，也不是构建产物——之前被 /* 连带排除属于疏漏：
+# 一旦丢失，clone 后无法构建、蓝图全部加载失败（已实际踩过）。
+!/PersonalProject.uproject
+!/Config/
+# .gitattributes 属于规则文件自身，必须入库（否则 LFS 规则跟着丢）
+!/.gitattributes
+
+# ===== 例外 5：自有蓝图资产（体积可控，需版本控制兜底）=====
+#
+# 只放行自己产出的蓝图/地图/外部 Actor 数据（合计约 62 MB），
+# 为蓝图提供回滚兜底；第三方素材包（Fantastic_Dungeon_Pack / Paragon* /
+# Scifi_desert_city 等，合计约 15 GB）仍不入库，它们可从市场重新获取。
+!/Content/PersonalProject/
+!/Content/Maps/
+!/Content/UI/
+!/Content/CrashCourse/
+!/Content/__ExternalActors__/
+!/Content/__ExternalObjects__/
+
 # ===== 构建产物：任何深度都不入库 =====
 #
 # 这 4 个目录占了 Plugins 总体积 3.5 GB 中的 3.46 GB，

@@ -7,7 +7,7 @@
 #include "Characters/PP_PlayerCharacter.h"
 #include "Player/PP_PlayerState.h"
 #include "AbilitySystemComponent.h"
-#include "Quest/Bridge/PP_QuestEventBridge.h"
+#include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_GameInstance.h"
 #include "Game/PP_SessionManager.h"
 

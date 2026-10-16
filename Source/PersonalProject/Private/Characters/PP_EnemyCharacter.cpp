@@ -7,11 +7,11 @@
 #include "AbilitySystem/PP_AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "GameplayTags/PPTags.h"
-#include "Inventory/Component/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryComponent.h"
 #include "Player/PP_PlayerState.h"
 #include "Runtime/AIModule/Classes/AIController.h"
 #include "Net/UnrealNetwork.h"
-#include "Quest/Bridge/PP_QuestEventBridge.h"
+#include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_CrashGameMode.h"
 
 

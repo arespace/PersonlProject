@@ -1,0 +1,26 @@
+# ===== Git LFS：二进制资产交给 LFS =====
+#
+# 目的：给自有蓝图/地图提供回滚兜底。二进制 uasset/umap 无法做有意义的
+# diff/merge，放进普通 Git 会让仓库持续膨胀且冲突不可解。
+# 跟踪范围与 .gitignore「例外 5」严格一致——只覆盖自有资产，第三方素材包
+# 不入库、也不占用 LFS 配额。
+#
+# 注意：这里刻意不用全局通配（如 *.uasset），因为 Plugins/UnLua 等已跟踪的
+# 资产会被连带标记为「需 LFS」而全部显示为 modified，需要额外的 migrate 才能收拾。
+
+Content/PersonalProject/**/*.uasset    filter=lfs diff=lfs merge=lfs -text
+Content/PersonalProject/**/*.umap      filter=lfs diff=lfs merge=lfs -text
+Content/Maps/**/*.uasset               filter=lfs diff=lfs merge=lfs -text
+Content/Maps/**/*.umap                 filter=lfs diff=lfs merge=lfs -text
+Content/UI/**/*.uasset                 filter=lfs diff=lfs merge=lfs -text
+Content/UI/**/*.umap                   filter=lfs diff=lfs merge=lfs -text
+Content/CrashCourse/**/*.uasset        filter=lfs diff=lfs merge=lfs -text
+Content/CrashCourse/**/*.umap          filter=lfs diff=lfs merge=lfs -text
+Content/__ExternalActors__/**/*.uasset filter=lfs diff=lfs merge=lfs -text
+Content/__ExternalObjects__/**/*.uasset filter=lfs diff=lfs merge=lfs -text
+
+# ===== 换行规范化：暂不启用 =====
+#
+# 若加 `*.h text eol=lf` 之类的规则，会让所有已入库源码在下一次 add 时被
+# 重新规范化，产生一次性的全量 diff。需要时可单独执行一次
+# `git add --renormalize .`（并在干净的提交里完成），故此处不默认开启。

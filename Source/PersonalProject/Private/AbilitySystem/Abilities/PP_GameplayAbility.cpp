@@ -1,7 +1,7 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 
-#include "PersonalProject/Public/AbilitySystem/Abilities/PP_GameplayAbility.h"
+#include "AbilitySystem/Abilities/PP_GameplayAbility.h"
 			void UPP_GameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
            	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
            	const FGameplayEventData* TriggerEventData)
