@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "Player/PP_LobbyPlayerState.h"
+#include "Framework/PP_LobbyTypes.h"
 #include "PP_SessionManager.generated.h"
 
 /** 房主迁移数据（存储在 GameInstance 中跨关卡持久化） */
@@ -69,7 +69,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPPDestroySessionComplete, bool, b
  * 生命周期跟随 GameInstance，跨关卡切换不会丢失
  */
 UCLASS()
-class PERSONALPROJECT_API UPP_SessionManager : public UGameInstanceSubsystem
+class PERSONALPROJECTCORE_API UPP_SessionManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 

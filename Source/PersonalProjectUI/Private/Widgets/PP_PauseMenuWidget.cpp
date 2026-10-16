@@ -3,8 +3,9 @@
 #include "Widgets/PP_PauseMenuWidget.h"
 
 #include "HUD/PP_HUD.h"
-#include "Game/PP_CrashGameMode.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_GameFlowRequest.h"
+#include "Framework/PP_SessionManager.h"
+#include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/Button.h"
 #include "Blueprint/UserWidget.h"
@@ -100,11 +101,14 @@ void UPP_PauseMenuWidget::OnQuitClicked()
 
 	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
 	{
-		// Host: 使用 ServerTravel 将所有玩家带回大厅
-		APP_CrashGameMode* GM = Cast<APP_CrashGameMode>(World->GetAuthGameMode());
-		if (GM)
+		// Host: 请求 GameMode 返回大厅（经 IPP_GameFlowRequest，UI 不 include 主玩法 GameMode）
+		AGameModeBase* GameMode = World->GetAuthGameMode();
+		if (GameMode)
 		{
-			GM->ReturnToLobby();
+			if (IPP_GameFlowRequest* FlowRequest = Cast<IPP_GameFlowRequest>(GameMode))
+			{
+				IPP_GameFlowRequest::Execute_RequestReturnToLobby(GameMode);
+			}
 		}
 	}
 	else

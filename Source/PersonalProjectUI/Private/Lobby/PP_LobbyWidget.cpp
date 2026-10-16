@@ -5,12 +5,13 @@
 #include "Lobby/PP_PlayerEntryWidget.h"
 #include "Lobby/PP_ChatMessageWidget.h"
 #include "Framework/PP_UIStyle.h"
-#include "Player/PP_PlayerController.h"
+#include "Framework/PP_LobbyActions.h"
+#include "Framework/PP_LobbyPlayerInfo.h"
 #include "GameFramework/PlayerState.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "UObject/UnrealType.h"
@@ -33,9 +34,11 @@ void UPP_LobbyWidget::UpdatePlayerList(const TArray<FLobbyPlayerInfo>& Players)
 	UWorld* World = GetWorld();
 	if (!World || World->bIsTearingDown) return;
 
-	const APlayerController* LocalPC = GetOwningPlayer();
-	const APP_LobbyPlayerState* LocalPS = LocalPC ? LocalPC->GetPlayerState<APP_LobbyPlayerState>() : nullptr;
-	const bool bLocalIsHost = LocalPS && LocalPS->IsHost();
+	// 本地玩家状态经 IPP_LobbyPlayerInfo 读取（UI 不 include 主玩法 PlayerState）
+	APlayerController* LocalPC = GetOwningPlayer();
+	APlayerState* LocalPSObject = LocalPC ? LocalPC->GetPlayerState<APlayerState>() : nullptr;
+	IPP_LobbyPlayerInfo* LocalPS = Cast<IPP_LobbyPlayerInfo>(LocalPSObject);
+	const bool bLocalIsHost = LocalPS && IPP_LobbyPlayerInfo::Execute_IsLobbyHost(LocalPSObject);
 
 	int32 ReadyCount = 0;
 	for (const FLobbyPlayerInfo& PlayerInfo : Players)
@@ -52,7 +55,7 @@ void UPP_LobbyWidget::UpdatePlayerList(const TArray<FLobbyPlayerInfo>& Players)
 
 		for (const FLobbyPlayerInfo& PlayerInfo : Players)
 		{
-			const bool bIsLocalEntry = LocalPS && (PlayerInfo.PlayerIndex == LocalPS->GetPlayerIndex());
+			const bool bIsLocalEntry = LocalPS && (PlayerInfo.PlayerIndex == IPP_LobbyPlayerInfo::Execute_GetLobbyPlayerIndex(LocalPSObject));
 
 			UPP_PlayerEntryWidget* EntryWidget = nullptr;
 			if (PlayerEntryClass)
@@ -423,19 +426,26 @@ void UPP_LobbyWidget::OnReadyClicked()
 	APlayerController* PC = GetOwningPlayer();
 	if (!PC) return;
 
-	APP_PlayerController* LobbyPC = Cast<APP_PlayerController>(PC);
-	if (!LobbyPC) return;
+	IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC);
+	if (!Actions) return;
 
-	// 从 PlayerState 获取当前准备状态并反转
-	APP_LobbyPlayerState* PS = PC->GetPlayerState<APP_LobbyPlayerState>();
-	bool bCurrentReady = PS ? PS->IsReady() : false;
-	LobbyPC->Server_SetReady(!bCurrentReady);
+	// 从 PlayerState 获取当前准备状态并反转（经 IPP_LobbyPlayerInfo）
+	APlayerState* PSObject = PC->GetPlayerState<APlayerState>();
+	IPP_LobbyPlayerInfo* PS = Cast<IPP_LobbyPlayerInfo>(PSObject);
+	bool bCurrentReady = PS ? IPP_LobbyPlayerInfo::Execute_IsLobbyReady(PSObject) : false;
+	IPP_LobbyActions::Execute_RequestSetReady(PC, !bCurrentReady);
 }
 
 void UPP_LobbyWidget::OnStartClicked()
 {
-	APP_PlayerController* PC = GetOwningPlayer<APP_PlayerController>();
-	if (PC) PC->Server_StartGame();
+	APlayerController* PC = GetOwningPlayer();
+	if (PC)
+	{
+		if (IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC))
+		{
+			IPP_LobbyActions::Execute_RequestStartGame(PC);
+		}
+	}
 }
 
 void UPP_LobbyWidget::OnCharacterSelectClicked()
@@ -459,16 +469,16 @@ void UPP_LobbyWidget::OnLeaveClicked()
 	APlayerController* PC = GetOwningPlayer();
 	if (!PC) return;
 
-	APP_LobbyPlayerState* PS = PC->GetPlayerState<APP_LobbyPlayerState>();
+	APlayerState* PSObject = PC->GetPlayerState<APlayerState>();
+	IPP_LobbyPlayerInfo* PS = Cast<IPP_LobbyPlayerInfo>(PSObject);
 
-	if (PS && PS->IsHost())
+	if (PS && IPP_LobbyPlayerInfo::Execute_IsLobbyHost(PSObject))
 	{
 		// 房主离开 - 触发迁移（不立即断开，由服务端延迟处理）
-		APP_PlayerController* LobbyPC = Cast<APP_PlayerController>(PC);
-		if (LobbyPC)
+		if (IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC))
 		{
 			UE_LOG(LogPP, Log, TEXT("[LobbyWidget] Host leaving - requesting host migration"));
-			LobbyPC->Server_RequestHostMigration();
+			IPP_LobbyActions::Execute_RequestHostMigration(PC);
 		}
 	}
 	else
@@ -518,8 +528,13 @@ void UPP_LobbyWidget::OnChatTextCommitted(const FText& Text, ETextCommit::Type C
 		FString Message = Text.ToString();
 		if (!Message.IsEmpty())
 		{
-			APP_PlayerController* PC = GetOwningPlayer<APP_PlayerController>();
-			if (PC) PC->Server_SendChatMessage(Message);
+			if (APlayerController* PC = GetOwningPlayer())
+			{
+				if (IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC))
+				{
+					IPP_LobbyActions::Execute_RequestSendChatMessage(PC, Message);
+				}
+			}
 			if (ChatInputBox) ChatInputBox->SetText(FText::GetEmpty());
 		}
 	}

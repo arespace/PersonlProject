@@ -17,7 +17,11 @@ public class PersonalProjectCore : ModuleRules
 			"Engine",
 			"GameplayTags",
 			// ItemData 数据资产引用 GameplayEffect 类型（药水回复等），Core 允许依赖 GAS
-			"GameplayAbilities"
+			// UPP_AbilitySystemComponent 下沉 Core 后，其基类 UAbilitySystemComponent 经接口依赖 GameplayTasks
+			"GameplayAbilities",
+			"GameplayTasks",
+			// Public 头 PP_SessionManager.h 持有 IOnlineSessionPtr，OnlineSubsystem 必须公开
+			"OnlineSubsystem"
 		});
 	}
 }

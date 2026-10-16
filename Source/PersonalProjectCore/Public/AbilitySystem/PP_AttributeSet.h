@@ -18,7 +18,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAttributesInitialized);
 
 UCLASS()
-class PERSONALPROJECT_API UPP_AttributeSet : public UAttributeSet
+class PERSONALPROJECTCORE_API UPP_AttributeSet : public UAttributeSet
 {
 	GENERATED_BODY()
 	

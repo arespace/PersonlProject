@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
-#include "Player/PP_LobbyPlayerState.h"
+#include "Framework/PP_LobbyTypes.h"
 #include "PP_LobbyGameMode.generated.h"
 
 /**

@@ -1,8 +1,9 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #include "Lobby/PP_RoomSettingsWidget.h"
 #include "Lobby/PP_LobbyHUD.h"
-#include "Player/PP_PlayerController.h"
+#include "Framework/PP_LobbyActions.h"
+#include "GameFramework/PlayerController.h"
 
 void UPP_RoomSettingsWidget::NativeOnInitialized()
 {
@@ -27,8 +28,14 @@ void UPP_RoomSettingsWidget::OnApplyClicked()
 	if (MapSelector) NewSettings.MapName = MapSelector->GetSelectedOption();
 	if (MaxPlayersSpinBox) NewSettings.MaxPlayers = static_cast<int32>(MaxPlayersSpinBox->GetValue());
 	if (GameModeSelector) NewSettings.GameModeName = GameModeSelector->GetSelectedOption();
-	APP_PlayerController* PC = GetOwningPlayer<APP_PlayerController>();
-	if (PC) PC->Server_UpdateRoomSettings(NewSettings);
+	// 经 IPP_LobbyActions 接口提交房间设置，避免 UI 模块 include 主玩法 PlayerController 头文件
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC))
+		{
+			IPP_LobbyActions::Execute_RequestUpdateRoomSettings(PC, NewSettings);
+		}
+	}
 }
 
 void UPP_RoomSettingsWidget::OnCloseClicked()

@@ -2,7 +2,7 @@
 
 #include "Game/PP_LobbyGameMode.h"
 #include "Game/PP_GameInstance.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "Player/PP_LobbyPlayerState.h"
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"

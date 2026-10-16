@@ -2,7 +2,7 @@
 
 #include "Lobby/PP_HostSettingsWidget.h"
 #include "Lobby/PP_LobbyHUD.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
 #include "Framework/PP_Log.h"

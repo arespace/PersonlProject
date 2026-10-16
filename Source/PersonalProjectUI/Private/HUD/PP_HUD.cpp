@@ -13,7 +13,7 @@
 #include "Quest/PP_QuestListWidget.h"
 #include "Quest/PP_QuestTrackerWidget.h"
 #include "Quest/PP_QuestComponent.h"
-#include "Player/PP_PlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/CanvasPanelSlot.h"
 #include "GameFramework/PlayerController.h"
@@ -137,12 +137,15 @@ void APP_HUD::CreateHUDWidgets()
 	// 计分板、暂停菜单、死亡画面改为按需创建（Show 时 CreateWidget，Hide 时 PopWidget）
 	// 不再预创建隐藏 — 由 UIManager 管理完整 Push/Pop 生命周期
 
-	// 获取 QuestComponent（挂载在 PlayerState 上）
+	// 获取 QuestComponent（挂载在 PlayerState 上）；用基类 APlayerState + FindComponentByClass，
+	// 避免 UI 模块 include 主玩法 PlayerState 头文件
 	UPP_QuestComponent* QC = nullptr;
-	APP_PlayerState* PS = PlayerOwner ? PlayerOwner->GetPlayerState<APP_PlayerState>() : nullptr;
-	if (PS)
+	if (PlayerOwner)
 	{
-		QC = PS->GetQuestComponent();
+		if (APlayerState* PS = PlayerOwner->GetPlayerState<APlayerState>())
+		{
+			QC = PS->FindComponentByClass<UPP_QuestComponent>();
+		}
 	}
 
 	// 创建任务追踪器（HUD右侧常驻显示当前追踪任务）
@@ -451,14 +454,13 @@ void APP_HUD::ToggleInventory()
 
 		if (InventoryWidget)
 		{
-			// 绑定库存组件
+			// 绑定库存组件（基类 APlayerState + FindComponentByClass）
 			UPP_InventoryComponent* InvComp = nullptr;
 			if (PlayerOwner)
 			{
-				APP_PlayerState* PS = PlayerOwner->GetPlayerState<APP_PlayerState>();
-				if (PS)
+				if (APlayerState* PS = PlayerOwner->GetPlayerState<APlayerState>())
 				{
-					InvComp = PS->GetInventoryComponent();
+					InvComp = PS->FindComponentByClass<UPP_InventoryComponent>();
 				}
 			}
 

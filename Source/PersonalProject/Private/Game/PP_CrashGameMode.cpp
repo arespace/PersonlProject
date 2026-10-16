@@ -9,7 +9,7 @@
 #include "AbilitySystemComponent.h"
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_GameInstance.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "Framework/PP_Log.h"
 
 APP_CrashGameMode::APP_CrashGameMode()
@@ -164,4 +164,9 @@ void APP_CrashGameMode::ReturnToLobby()
 	// 使用 ProcessServerTravel 将所有玩家带回大厅（与 StartGame 保持一致）
 	FString TravelURL = TEXT("/Game/PersonalProject/Maps/LobbyMap?Listen");
 	ProcessServerTravel(*TravelURL);
+}
+
+void APP_CrashGameMode::RequestReturnToLobby_Implementation()
+{
+	ReturnToLobby();
 }

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
+#include "Framework/PP_GameFlowRequest.h"
 #include "PP_CrashGameMode.generated.h"
 
 class UPP_QuestEventBridge;
@@ -29,12 +30,15 @@ struct FCharacterAbilityList
  * - 根据角色ID授予对应GAS能力和初始化效果
  */
 UCLASS()
-class PERSONALPROJECT_API APP_CrashGameMode : public AGameMode
+class PERSONALPROJECT_API APP_CrashGameMode : public AGameMode, public IPP_GameFlowRequest
 {
 	GENERATED_BODY()
 
 public:
 	APP_CrashGameMode();
+
+	// ===== IPP_GameFlowRequest 接口实现（UI 经 Execute_ 调用，内部转发到 ReturnToLobby）=====
+	virtual void RequestReturnToLobby_Implementation() override;
 
 	// ===== SeamlessTravel桥接 =====
 

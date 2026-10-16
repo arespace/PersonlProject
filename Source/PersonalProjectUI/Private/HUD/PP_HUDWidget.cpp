@@ -8,7 +8,7 @@
 #include "Widgets/PP_CrosshairWidget.h"
 #include "Quest/PP_QuestTrackerWidget.h"
 #include "Quest/PP_QuestComponent.h"
-#include "Player/PP_PlayerState.h"
+#include "GameFramework/PlayerState.h"
 #include "Components/PanelWidget.h"
 #include "GameplayTags/PPTags.h"
 #include "Framework/PP_Log.h"
@@ -119,14 +119,15 @@ void UPP_HUDWidget::InitializeQuestTracker()
 		return;
 	}
 
-	APP_PlayerState* PS = PC->GetPlayerState<APP_PlayerState>();
+	// 用基类 APlayerState + FindComponentByClass，避免 UI 模块 include 主玩法 PlayerState 头文件
+	APlayerState* PS = PC->GetPlayerState<APlayerState>();
 	if (!PS)
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No PlayerState"));
 		return;
 	}
 
-	UPP_QuestComponent* QuestComp = PS->GetQuestComponent();
+	UPP_QuestComponent* QuestComp = PS->FindComponentByClass<UPP_QuestComponent>();
 	if (!QuestComp)
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No QuestComponent on PlayerState"));

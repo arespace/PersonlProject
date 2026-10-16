@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PP_BaseCharacter.h"
+#include "Characters/PP_BaseCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Characters/PP_CharacterData.h"
 #include "PP_PlayerCharacter.generated.h"

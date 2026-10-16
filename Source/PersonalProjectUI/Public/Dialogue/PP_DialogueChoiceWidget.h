@@ -1,4 +1,4 @@
-﻿// NPC对话系统 — 对话结束选项面板 UMG 基类
+// NPC对话系统 — 对话结束选项面板 UMG 基类
 // 根据 EPP_DialogueEndAction 显示对应按钮，点击按钮通过 PlayerController 上报服务器
 
 #pragma once
@@ -11,7 +11,7 @@
 class UButton;
 class UTextBlock;
 class APP_NPCActor;
-class APP_PlayerController;
+class APlayerController;
 
 /**
  * 对话结束选项面板 Widget 基类
@@ -46,7 +46,7 @@ public:
 	 * @param InOwnerPC    本地玩家控制器
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
-	void SetupChoices(EPP_DialogueEndAction InAction, APP_NPCActor* InOwningNPC, FName InDialogueID, APP_PlayerController* InOwnerPC);
+	void SetupChoices(EPP_DialogueEndAction InAction, APP_NPCActor* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC);
 
 	/** 关闭选项面板（移除自身） */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
@@ -89,7 +89,7 @@ protected:
 	TWeakObjectPtr<APP_NPCActor> OwningNPC;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
-	TWeakObjectPtr<APP_PlayerController> OwnerPC;
+	TWeakObjectPtr<APlayerController> OwnerPC;
 
 private:
 	/** 上报服务器并关闭本面板 */

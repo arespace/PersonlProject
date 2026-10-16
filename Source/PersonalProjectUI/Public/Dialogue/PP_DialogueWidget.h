@@ -1,4 +1,4 @@
-﻿// NPC对话系统 — 对话框 UMG 基类
+// NPC对话系统 — 对话框 UMG 基类
 // 显示当前台词，提供「下一句」按钮逐条推进，最后一行后切换到选项面板
 
 #pragma once
@@ -11,7 +11,7 @@
 class UTextBlock;
 class UButton;
 class APP_NPCActor;
-class APP_PlayerController;
+class APlayerController;
 class UPP_DialogueChoiceWidget;
 
 /**
@@ -50,7 +50,7 @@ public:
 	 * @param InOwnerPC   本地玩家控制器（用于 ChoiceWidget 上报 ServerRPC）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
-	void SetupDialogue(const FPP_DialogueData& InData, APP_NPCActor* InOwningNPC, APP_PlayerController* InOwnerPC);
+	void SetupDialogue(const FPP_DialogueData& InData, APP_NPCActor* InOwningNPC, APlayerController* InOwnerPC);
 
 	/** 推进到下一行台词；若已到最后一行则切换到结束选项面板 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
@@ -107,9 +107,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
 	TWeakObjectPtr<APP_NPCActor> OwningNPC;
 
-	/** 本地玩家控制器（ChoiceWidget 上报服务器时使用） */
+	/** 本地玩家控制器（ChoiceWidget 上报服务器时使用；类型用基类，UI 模块不依赖主玩法 PlayerController） */
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
-	TWeakObjectPtr<APP_PlayerController> OwnerPC;
+	TWeakObjectPtr<APlayerController> OwnerPC;
 
 private:
 	/** 渲染当前 CurrentLineIndex 指向的台词到 LineText */

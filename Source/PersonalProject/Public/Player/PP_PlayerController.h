@@ -7,7 +7,8 @@
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/PP_ScoreboardTypes.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
+#include "Framework/PP_LobbyActions.h"
 #include "Data/PP_DialogueData.h"
 #include "Dialogue/PP_DialogueRequester.h"
 #include "Player/PP_UIGateway.h"
@@ -30,7 +31,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueLineAdvanced, int32, NewL
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDialogueEnded, FName, DialogueID, FName, RelatedQuestID);
 
 UCLASS()
-class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester
+class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester, public IPP_LobbyActions
 {
 	GENERATED_BODY()
 
@@ -38,6 +39,17 @@ public:
 	// ===== IPP_DialogueRequester 接口实现（实现体在本类 PP_PlayerController.cpp，转发到自身 RPC）=====
 	virtual void RequestStartDialogue_Implementation(APP_NPCActor* NPC) override;
 	virtual void OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID) override;
+	virtual void ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action) override;
+	virtual void NotifyDialogueLineAdvanced_Implementation(int32 NewLineIndex) override;
+	virtual void NotifyDialogueEnded_Implementation(FName DialogueID, FName RelatedQuestID) override;
+
+	// ===== IPP_LobbyActions 接口实现（UI 大厅 Widget 经 Execute_ 调用，转发到自身 Server RPC）=====
+	virtual void RequestSetReady_Implementation(bool bReady) override;
+	virtual void RequestStartGame_Implementation() override;
+	virtual void RequestHostMigration_Implementation() override;
+	virtual void RequestSendChatMessage_Implementation(const FString& Message) override;
+	virtual void RequestUpdateRoomSettings_Implementation(const FRoomSettings& Settings) override;
+	virtual void RequestSelectCharacter_Implementation(FName CharacterId) override;
 
 protected:
 	virtual void SetupInputComponent() override;

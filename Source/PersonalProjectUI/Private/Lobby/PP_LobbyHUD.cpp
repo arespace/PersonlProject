@@ -10,7 +10,7 @@
 #include "Characters/PP_CharacterPreviewActor.h"
 #include "Characters/PP_CharacterData.h"
 #include "Framework/PP_DataManager.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "Blueprint/UserWidget.h"
 
 APP_LobbyHUD::APP_LobbyHUD() {}

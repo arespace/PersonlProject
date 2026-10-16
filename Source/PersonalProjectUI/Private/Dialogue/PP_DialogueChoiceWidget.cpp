@@ -6,9 +6,10 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Dialogue/PP_NPCActor.h"
+#include "Dialogue/PP_DialogueRequester.h"
 #include "Framework/PP_DataManager.h"
-#include "Player/PP_PlayerController.h"
-#include "Player/PP_PlayerState.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Quest/PP_QuestComponent.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -42,7 +43,7 @@ void UPP_DialogueChoiceWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_NPCActor* InOwningNPC, FName InDialogueID, APP_PlayerController* InOwnerPC)
+void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_NPCActor* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC)
 {
 	CurrentAction = InAction;
 	CurrentDialogueID = InDialogueID;
@@ -103,11 +104,14 @@ void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_
 			}
 
 			// 从任务数据表查找任务名（统一走 DataManager 全局任务表）
-			if (!RelatedQuestID.IsNone() && OwnerPC.IsValid())
+			// QuestComponent 用基类 APlayerState + FindComponentByClass 获取，避免依赖主玩法 PlayerState 类型
+			if (!RelatedQuestID.IsNone())
 			{
-				if (APP_PlayerState* PPPS = OwnerPC->GetPlayerState<APP_PlayerState>())
+				APlayerController* OwnerController = OwnerPC.Get();
+				APlayerState* PPPS = OwnerController ? OwnerController->GetPlayerState<APlayerState>() : nullptr;
+				if (PPPS)
 				{
-					if (UPP_QuestComponent* QC = PPPS->GetQuestComponent())
+					if (UPP_QuestComponent* QC = PPPS->FindComponentByClass<UPP_QuestComponent>())
 					{
 						if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 						{
@@ -136,9 +140,9 @@ void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_
 void UPP_DialogueChoiceWidget::CloseChoices()
 {
 	// 先保存 PlayerController 引用（RemoveFromParent 后 this 可能处于析构中）
-	APP_PlayerController* PC = OwnerPC.Get();
+	APlayerController* PC = OwnerPC.Get();
 
-	// 触发 PC 侧对话结束委托
+	// 触发 PC 侧对话结束委托（经 IPP_DialogueRequester 接口，UI 不直连 PC）
 	if (PC)
 	{
 		FName RelatedQuest = NAME_None;
@@ -152,7 +156,10 @@ void UPP_DialogueChoiceWidget::CloseChoices()
 				}
 			}
 		}
-		PC->OnDialogueEnded.Broadcast(CurrentDialogueID, RelatedQuest);
+		if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
+		{
+			IPP_DialogueRequester::Execute_NotifyDialogueEnded(PC, CurrentDialogueID, RelatedQuest);
+		}
 	}
 
 	// 通过 UIManager 统一弹出，避免 RemoveFromParent 与 PopWidget 重复调用导致 Slate 输入状态混乱
@@ -186,9 +193,15 @@ void UPP_DialogueChoiceWidget::CloseChoices()
 
 void UPP_DialogueChoiceWidget::ReportAndClose(EPP_DialogueEndAction Action)
 {
-	if (OwnerPC.IsValid() && OwningNPC.IsValid())
+	if (OwningNPC.IsValid())
 	{
-		OwnerPC->Server_ConfirmDialogueEndAction(OwningNPC.Get(), CurrentDialogueID, Action);
+		if (APlayerController* PC = OwnerPC.Get())
+		{
+			if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
+			{
+				IPP_DialogueRequester::Execute_ConfirmDialogueEndAction(PC, OwningNPC.Get(), CurrentDialogueID, Action);
+			}
+		}
 	}
 
 	CloseChoices();

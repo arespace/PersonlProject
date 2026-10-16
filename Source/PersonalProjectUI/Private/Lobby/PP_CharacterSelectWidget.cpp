@@ -3,7 +3,8 @@
 #include "Lobby/PP_CharacterSelectWidget.h"
 #include "Lobby/PP_LobbyHUD.h"
 #include "Framework/PP_DataManager.h"
-#include "Player/PP_PlayerController.h"
+#include "Framework/PP_LobbyActions.h"
+#include "GameFramework/PlayerController.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
@@ -38,8 +39,14 @@ void UPP_CharacterSelectWidget::NativeOnInitialized()
 void UPP_CharacterSelectWidget::OnConfirmClicked()
 {
 	if (CurrentlySelected.IsNone()) return;
-	APP_PlayerController* PC = GetOwningPlayer<APP_PlayerController>();
-	if (PC) PC->Server_SelectCharacter(CurrentlySelected);
+	// 经 IPP_LobbyActions 接口请求选角，避免 UI 模块 include 主玩法 PlayerController 头文件
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC))
+		{
+			IPP_LobbyActions::Execute_RequestSelectCharacter(PC, CurrentlySelected);
+		}
+	}
 	if (APP_LobbyHUD* LobbyHUD = GetLobbyHUD()) LobbyHUD->HideCharacterSelect();
 }
 

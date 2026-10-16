@@ -96,7 +96,7 @@ void UPP_ItemTooltipWidget::SetupTooltip(UPP_InventoryComponent* InInventory,
         StatsContainer->ClearChildren();
         if (InItemInfo.EquipEffectClass)
         {
-            TArray<FPP_ModifierSummary> Mods = UPP_BlueprintLibrary::GetModifierSummaries(InItemInfo.EquipEffectClass);
+            TArray<FPP_ModifierSummary> Mods = UPP_ItemUILibrary::GetModifierSummaries(InItemInfo.EquipEffectClass);
             BuildStatsList(Mods);
         }
     }
@@ -147,7 +147,7 @@ void UPP_ItemTooltipWidget::BuildComparison(UPP_InventoryComponent* Inventory, c
     if (!EquippedInfo || !EquippedInfo->EquipEffectClass) return;
 
     TArray<FPP_ModifierSummary> Better, Worse, NewMods, LostMods;
-    UPP_BlueprintLibrary::CompareModifiers(
+    UPP_ItemUILibrary::CompareModifiers(
         EquippedInfo->EquipEffectClass,
         HoveredInfo.EquipEffectClass,
         Better, Worse, NewMods, LostMods);

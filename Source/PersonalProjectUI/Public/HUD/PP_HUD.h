@@ -42,8 +42,8 @@ public:
 	virtual void PushNotification_Implementation(const FString& Message) override;
 	virtual void PushChatMessage_Implementation(const FString& PlayerName, const FString& Message) override;
 	virtual void RequestUpdateScoreboard_Implementation(const TArray<FScoreboardEntry>& Entries) override;
-	virtual void RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName DialogueID) override;
-	virtual void RequestOpenShop_Implementation(APP_NPCActor* NPC) override;
+	virtual void RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass) override;
+	virtual void RequestOpenShop_Implementation(APP_NPCActor* NPC, TSubclassOf<UUserWidget> ShopWidgetClass) override;
 	virtual void HandlePlayerListUpdated_Implementation(const TArray<FLobbyPlayerInfo>& Players) override;
 	virtual void HandleRoomSettingsUpdated_Implementation(const FRoomSettings& Settings) override;
 	virtual void HandleGameStarting_Implementation(float Countdown) override;

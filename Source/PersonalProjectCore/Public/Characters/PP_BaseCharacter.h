@@ -11,7 +11,7 @@
 
 namespace PersonalTags
 {
-	extern PERSONALPROJECT_API const FName Player;
+	extern PERSONALPROJECTCORE_API const FName Player;
 }
 
 class UAttributeSet;
@@ -21,7 +21,7 @@ struct FOnAttributeChangeData;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FASCInitialized, UAbilitySystemComponent*, ASC, UAttributeSet*, AS);
 
 UCLASS(Abstract)
-class PERSONALPROJECT_API APP_BaseCharacter : public ACharacter, public IAbilitySystemInterface 
+class PERSONALPROJECTCORE_API APP_BaseCharacter : public ACharacter, public IAbilitySystemInterface 
 {
 	GENERATED_BODY()
 

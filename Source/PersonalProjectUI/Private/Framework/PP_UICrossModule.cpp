@@ -6,8 +6,6 @@
 //   - APP_LobbyHUD：大厅推送方法（玩家列表 / 房间设置 / 开局倒计时 / 房主迁移 / 聊天）
 // PC 的 Client RPC 实现体位于主玩法模块，仅做 Cast<IPP_UIGateway>(GetHUD()) 转发。
 
-#include "Player/PP_PlayerController.h"
-
 #include "HUD/PP_HUD.h"
 #include "Framework/PP_UIUserWidget.h"
 #include "Lobby/PP_LobbyHUD.h"
@@ -18,6 +16,9 @@
 #include "Data/PP_DialogueData.h"
 #include "Inventory/PP_InventoryComponent.h"
 #include "Shop/PP_ShopComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "Engine/DataTable.h"
 #include "Framework/PP_Log.h"
 
@@ -102,7 +103,7 @@ void APP_HUD::HandleHostMigrating_Implementation(const FHostMigrationData& Migra
 	// 战斗 HUD 不处理房主迁移提示
 }
 
-void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName DialogueID)
+void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass)
 {
 	if (!IsValid(NPC))
 	{
@@ -132,15 +133,15 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 		DataCopy.DialogueID = DialogueID;
 	}
 
-	// Widget 蓝图类配置在 PlayerController 蓝图子类上（以 UUserWidget 基类类型存储）
-	APP_PlayerController* PC = Cast<APP_PlayerController>(GetOwningPlayerController());
-	if (!PC || !PC->DialogueWidgetClass)
+	// Widget 蓝图类由调用方（PlayerController）随网关调用传入，避免 HUD（UI 模块）反向依赖 PlayerController
+	if (!WidgetClass)
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - DialogueWidgetClass not configured"));
 		return;
 	}
 
-	UPP_DialogueWidget* DialogueWidget = Cast<UPP_DialogueWidget>(CreateWidget(GetOwningPlayerController(), PC->DialogueWidgetClass));
+	APlayerController* PC = GetOwningPlayerController();
+	UPP_DialogueWidget* DialogueWidget = Cast<UPP_DialogueWidget>(CreateWidget(PC, WidgetClass));
 	if (!DialogueWidget)
 	{
 		UE_LOG(LogPP, Error, TEXT("[HUD Gateway] OpenDialogue - Failed to create DialogueWidget"));
@@ -154,7 +155,7 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 		*DialogueID.ToString(), *NPC->GetName());
 }
 
-void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC)
+void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC, TSubclassOf<UUserWidget> ShopWidgetClass)
 {
 	if (!IsValid(NPC))
 	{
@@ -169,25 +170,29 @@ void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC)
 		return;
 	}
 
-	APP_PlayerController* PC = Cast<APP_PlayerController>(GetOwningPlayerController());
-	if (!PC || !PC->ShopWidgetClass)
+	// Widget 蓝图类由调用方（PlayerController）传入
+	if (!ShopWidgetClass)
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenShop - ShopWidgetClass not configured"));
 		return;
 	}
 
-	UPP_ShopWidget* ShopWidget = Cast<UPP_ShopWidget>(CreateWidget(GetOwningPlayerController(), PC->ShopWidgetClass));
+	APlayerController* PC = GetOwningPlayerController();
+	UPP_ShopWidget* ShopWidget = Cast<UPP_ShopWidget>(CreateWidget(PC, ShopWidgetClass));
 	if (!ShopWidget)
 	{
 		UE_LOG(LogPP, Error, TEXT("[HUD Gateway] OpenShop - Failed to create ShopWidget"));
 		return;
 	}
 
-	// 获取玩家的 InventoryComponent（挂在 PlayerState 上，通过 PC 获取）
+	// 获取玩家的 InventoryComponent（挂在 PlayerState 上；用基类 APlayerState，避免依赖主玩法 PlayerState 类型）
 	UPP_InventoryComponent* Inventory = nullptr;
-	if (PC->PlayerState)
+	if (PC)
 	{
-		Inventory = PC->PlayerState->FindComponentByClass<UPP_InventoryComponent>();
+		if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+		{
+			Inventory = PS->FindComponentByClass<UPP_InventoryComponent>();
+		}
 	}
 
 	ShopWidget->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));

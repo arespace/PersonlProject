@@ -4,9 +4,9 @@
 
 #include "AbilitySystem/PP_AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
+#include "AbilitySystemInterface.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Characters/PP_BaseCharacter.h"
 
 void UPP_UIViewModel::Initialize(APlayerController* InOwner)
 {

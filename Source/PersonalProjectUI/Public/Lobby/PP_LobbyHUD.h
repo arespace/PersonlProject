@@ -1,10 +1,10 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
-#include "Player/PP_LobbyPlayerState.h"
+#include "Framework/PP_LobbyTypes.h"
 #include "Player/PP_UIGateway.h"
 #include "PP_LobbyHUD.generated.h"
 

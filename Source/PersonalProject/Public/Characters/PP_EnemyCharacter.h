@@ -1,9 +1,9 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PP_BaseCharacter.h"
+#include "Characters/PP_BaseCharacter.h"
 #include "PP_EnemyCharacter.generated.h"
 
 class UAbilitySystemComponent;

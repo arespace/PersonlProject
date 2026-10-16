@@ -1,11 +1,11 @@
-﻿// 物品提示框控件 — 鼠标悬停显示物品详细信息 + 装备属性对比
+// 物品提示框控件 — 鼠标悬停显示物品详细信息 + 装备属性对比
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Framework/PP_UIUserWidget.h"
 #include "Data/PP_ItemData.h"
-#include "Utils/PP_BlueprintLibrary.h"
+#include "Framework/PP_ItemUILibrary.h"
 #include "PP_ItemTooltipWidget.generated.h"
 
 class UImage;

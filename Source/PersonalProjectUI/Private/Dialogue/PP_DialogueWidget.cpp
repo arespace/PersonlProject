@@ -7,7 +7,8 @@
 #include "Components/PanelSlot.h"
 #include "Components/TextBlock.h"
 #include "Dialogue/PP_NPCActor.h"
-#include "Player/PP_PlayerController.h"
+#include "Dialogue/PP_DialogueRequester.h"
+#include "GameFramework/PlayerController.h"
 #include "Shop/PP_ShopComponent.h"
 #include "Dialogue/PP_DialogueChoiceWidget.h"
 #include "Framework/Application/SlateApplication.h"
@@ -62,7 +63,7 @@ void UPP_DialogueWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UPP_DialogueWidget::SetupDialogue(const FPP_DialogueData& InData, APP_NPCActor* InOwningNPC, APP_PlayerController* InOwnerPC)
+void UPP_DialogueWidget::SetupDialogue(const FPP_DialogueData& InData, APP_NPCActor* InOwningNPC, APlayerController* InOwnerPC)
 {
 	CurrentData = InData;
 	OwningNPC = InOwningNPC;
@@ -100,10 +101,13 @@ void UPP_DialogueWidget::AdvanceLine()
 			// 无后续动作，直接关闭对话
 			CloseDialogue();
 
-			// 触发 PC 的对话结束委托
-			if (OwnerPC.IsValid())
+			// 触发 PC 的对话结束委托（经 IPP_DialogueRequester 接口，UI 不直连 PC）
+			if (APlayerController* PC = OwnerPC.Get())
 			{
-				OwnerPC->OnDialogueEnded.Broadcast(CurrentData.DialogueID, CurrentData.RelatedQuestID);
+				if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
+				{
+					IPP_DialogueRequester::Execute_NotifyDialogueEnded(PC, CurrentData.DialogueID, CurrentData.RelatedQuestID);
+				}
 			}
 		}
 		else if (CurrentData.EndAction == EPP_DialogueEndAction::ChainNextDialogue)
@@ -112,14 +116,17 @@ void UPP_DialogueWidget::AdvanceLine()
 			UE_LOG(LogPP, Log, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue: DialogueID=%s, NPC=%s"),
 				*CurrentData.DialogueID.ToString(), OwningNPC.IsValid() ? *OwningNPC->GetName() : TEXT("null"));
 
-			if (OwnerPC.IsValid() && OwningNPC.IsValid())
+			if (APlayerController* PC = OwnerPC.Get())
 			{
-				OwnerPC->Server_ConfirmDialogueEndAction(OwningNPC.Get(), CurrentData.DialogueID, EPP_DialogueEndAction::ChainNextDialogue);
-			}
-			else
-			{
-				UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue failed: OwnerPC valid=%d, OwningNPC valid=%d"),
-					OwnerPC.IsValid(), OwningNPC.IsValid());
+				if (OwningNPC.IsValid() && Cast<IPP_DialogueRequester>(PC))
+				{
+					IPP_DialogueRequester::Execute_ConfirmDialogueEndAction(PC, OwningNPC.Get(), CurrentData.DialogueID, EPP_DialogueEndAction::ChainNextDialogue);
+				}
+				else
+				{
+					UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue failed: OwnerPC valid=%d, OwningNPC valid=%d"),
+						OwnerPC.IsValid(), OwningNPC.IsValid());
+				}
 			}
 			// 通过 UIManager 移除当前 Widget（新的 DialogueWidget 会被 ServerRPC → Client_OpenDialogueUI 创建并添加）
 			if (UGameInstance* GI = GetGameInstance())
@@ -158,10 +165,13 @@ void UPP_DialogueWidget::AdvanceLine()
 		OnLineAdvanced.Broadcast(CurrentLineIndex, CurrentData.Lines[CurrentLineIndex]);
 	}
 
-	// 触发 PC 侧的推进委托
-	if (OwnerPC.IsValid())
+	// 触发 PC 侧的推进委托（经接口转发）
+	if (APlayerController* PC = OwnerPC.Get())
 	{
-		OwnerPC->OnDialogueLineAdvanced.Broadcast(CurrentLineIndex);
+		if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
+		{
+			IPP_DialogueRequester::Execute_NotifyDialogueLineAdvanced(PC, CurrentLineIndex);
+		}
 	}
 }
 
@@ -172,9 +182,12 @@ void UPP_DialogueWidget::ShowEndChoices()
 	if (!ChoiceWidgetClass)
 	{
 		UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] ShowEndChoices - ChoiceWidgetClass not set, closing dialogue"));
-		if (OwnerPC.IsValid())
+		if (APlayerController* PC = OwnerPC.Get())
 		{
-			OwnerPC->OnDialogueEnded.Broadcast(CurrentData.DialogueID, CurrentData.RelatedQuestID);
+			if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
+			{
+				IPP_DialogueRequester::Execute_NotifyDialogueEnded(PC, CurrentData.DialogueID, CurrentData.RelatedQuestID);
+			}
 		}
 		CloseDialogue();
 		return;
@@ -213,7 +226,7 @@ void UPP_DialogueWidget::ShowEndChoices()
 
 void UPP_DialogueWidget::CloseDialogue()
 {
-	APP_PlayerController* PC = OwnerPC.Get();
+	APlayerController* PC = OwnerPC.Get();
 
 	// 通过 UIManager 统一弹出，避免 RemoveFromParent 与 PopWidget 重复调用
 	bool bPoppedViaManager = false;
@@ -274,7 +287,13 @@ void UPP_DialogueWidget::OnNextButtonClicked()
 			return;
 		}
 		UE_LOG(LogPP, Log, TEXT("[DialogueWidget] OnNextButtonClicked - OpenShop for NPC '%s'"), *NPC->GetName());
-		OwnerPC->Server_ConfirmDialogueEndAction(NPC, CurrentData.DialogueID, EPP_DialogueEndAction::OpenShop);
+		if (APlayerController* PC = OwnerPC.Get())
+		{
+			if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
+			{
+				IPP_DialogueRequester::Execute_ConfirmDialogueEndAction(PC, NPC, CurrentData.DialogueID, EPP_DialogueEndAction::OpenShop);
+			}
+		}
 		RemoveFromParent();
 	}
 	else

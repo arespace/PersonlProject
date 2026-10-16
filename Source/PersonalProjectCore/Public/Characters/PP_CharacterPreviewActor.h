@@ -16,7 +16,7 @@ class UTextureRenderTarget2D;
  * 由 LobbyHUD 动态 Spawn，SceneCapture2D 渲染到 RenderTarget 供 Widget 显示
  */
 UCLASS()
-class PERSONALPROJECT_API APP_CharacterPreviewActor : public AActor
+class PERSONALPROJECTCORE_API APP_CharacterPreviewActor : public AActor
 {
 	GENERATED_BODY()
 

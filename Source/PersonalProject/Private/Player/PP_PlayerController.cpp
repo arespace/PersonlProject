@@ -14,7 +14,7 @@
 #include "GameFramework/HUD.h"
 #include "GameplayTags/PPTags.h"
 #include "Game/PP_LobbyGameMode.h"
-#include "Game/PP_SessionManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "Player/PP_LobbyPlayerState.h"
 #include "Dialogue/PP_NPCActor.h"
 #include "Data/PP_DialogueData.h"
@@ -255,6 +255,54 @@ void APP_PlayerController::OpenDialogueUI_Implementation(APP_NPCActor* NPC, FNam
 	Client_OpenDialogueUI(NPC, DialogueID);
 }
 
+// UI 侧（对话 Widget）经 Execute_ 调用：转发到 Server RPC / 广播自身委托
+void APP_PlayerController::ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action)
+{
+	Server_ConfirmDialogueEndAction(NPC, DialogueID, Action);
+}
+
+void APP_PlayerController::NotifyDialogueLineAdvanced_Implementation(int32 NewLineIndex)
+{
+	OnDialogueLineAdvanced.Broadcast(NewLineIndex);
+}
+
+void APP_PlayerController::NotifyDialogueEnded_Implementation(FName DialogueID, FName RelatedQuestID)
+{
+	OnDialogueEnded.Broadcast(DialogueID, RelatedQuestID);
+}
+
+// ===== IPP_LobbyActions 接口实现（UI 大厅 Widget 经 Execute_ 调用，转发到 Server RPC）=====
+
+void APP_PlayerController::RequestSetReady_Implementation(bool bReady)
+{
+	Server_SetReady(bReady);
+}
+
+void APP_PlayerController::RequestStartGame_Implementation()
+{
+	Server_StartGame();
+}
+
+void APP_PlayerController::RequestHostMigration_Implementation()
+{
+	Server_RequestHostMigration();
+}
+
+void APP_PlayerController::RequestSendChatMessage_Implementation(const FString& Message)
+{
+	Server_SendChatMessage(Message);
+}
+
+void APP_PlayerController::RequestUpdateRoomSettings_Implementation(const FRoomSettings& Settings)
+{
+	Server_UpdateRoomSettings(Settings);
+}
+
+void APP_PlayerController::RequestSelectCharacter_Implementation(FName CharacterId)
+{
+	Server_SelectCharacter(CharacterId);
+}
+
 // ===== 大厅阶段 RPC 实现 =====
 
 void APP_PlayerController::Server_SetPlayerName_Implementation(const FString& NewName)
@@ -423,14 +471,14 @@ void APP_PlayerController::Client_OpenDialogueUI_Implementation(APP_NPCActor* NP
 {
 	if (!IsLocalController()) return;
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestOpenDialogue, NPC, DialogueID);
+	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestOpenDialogue, NPC, DialogueID, DialogueWidgetClass);
 }
 
 void APP_PlayerController::Client_OpenShopUI_Implementation(APP_NPCActor* NPC)
 {
 	if (!IsLocalController()) return;
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestOpenShop, NPC);
+	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestOpenShop, NPC, ShopWidgetClass);
 }
 
 void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action)

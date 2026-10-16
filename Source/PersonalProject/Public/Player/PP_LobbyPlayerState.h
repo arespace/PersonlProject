@@ -4,45 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "Framework/PP_LobbyTypes.h"
+#include "Framework/PP_LobbyPlayerInfo.h"
 #include "PP_LobbyPlayerState.generated.h"
-
-/** 大厅玩家信息（用于UI显示和网络同步） */
-USTRUCT(BlueprintType)
-struct FLobbyPlayerInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	FString PlayerName;
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	bool bIsReady = false;
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	FName SelectedCharacterId;
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	int32 PlayerIndex = -1;
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	bool bIsHost = false;
-};
-
-/** 房间设置 */
-USTRUCT(BlueprintType)
-struct FRoomSettings
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	FString MapName = TEXT("PPMap");
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	int32 MaxPlayers = 4;
-
-	UPROPERTY(BlueprintReadWrite, Category = "PP|Lobby")
-	FString GameModeName = TEXT("Crash");
-};
 
 /**
  * APP_LobbyPlayerState - 大厅阶段玩家状态
@@ -50,12 +14,17 @@ struct FRoomSettings
  * 复制Ready状态和角色选择到所有客户端
  */
 UCLASS()
-class PERSONALPROJECT_API APP_LobbyPlayerState : public APlayerState
+class PERSONALPROJECT_API APP_LobbyPlayerState : public APlayerState, public IPP_LobbyPlayerInfo
 {
 	GENERATED_BODY()
 
 public:
 	APP_LobbyPlayerState();
+
+	// ===== IPP_LobbyPlayerInfo 接口实现（UI 大厅 Widget 经 Execute_ 读取）=====
+	virtual bool IsLobbyHost_Implementation() override { return bIsHost; }
+	virtual bool IsLobbyReady_Implementation() override { return bIsReady; }
+	virtual int32 GetLobbyPlayerIndex_Implementation() override { return PlayerIndex; }
 
 	// ===== Server RPC =====
 

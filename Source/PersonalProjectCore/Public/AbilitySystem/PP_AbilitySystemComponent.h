@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -8,7 +8,7 @@
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PERSONALPROJECT_API UPP_AbilitySystemComponent : public UAbilitySystemComponent
+class PERSONALPROJECTCORE_API UPP_AbilitySystemComponent : public UAbilitySystemComponent
 {
 	GENERATED_BODY()
 
