@@ -3,7 +3,6 @@
 #include "Game/PP_CrashGameMode.h"
 #include "Engine/PlayerStartPIE.h"
 #include "EngineUtils.h"
-#include "UI/PP_HUD.h"
 #include "Player/PP_PlayerController.h"
 #include "Characters/PP_PlayerCharacter.h"
 #include "Player/PP_PlayerState.h"
@@ -14,8 +13,8 @@
 
 APP_CrashGameMode::APP_CrashGameMode()
 {
-	// 设置 C++ 基类作为默认值，蓝图（BP_CrashGameMode）中可覆盖为对应的蓝图类
-	HUDClass = APP_HUD::StaticClass();
+	// C++ 默认值仅设置玩法侧类；HUDClass 留空由蓝图（BP_CrashGameMode）配置，
+	// 避免主玩法模块 include UI 头文件（模块化拆分：Game 不依赖 UI）
 	PlayerControllerClass = APP_PlayerController::StaticClass();
 	DefaultPawnClass = APP_PlayerCharacter::StaticClass();
 	PlayerStateClass = APP_PlayerState::StaticClass();

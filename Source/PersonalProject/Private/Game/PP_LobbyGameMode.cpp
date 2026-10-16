@@ -6,49 +6,60 @@
 #include "Player/PP_LobbyPlayerState.h"
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"
-#include "UI/Lobby/PP_LobbyHUD.h"
 #include "GameFramework/SpectatorPawn.h"
+#include "GameFramework/HUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
-#include "UObject/ConstructorHelpers.h"
 
 APP_LobbyGameMode::APP_LobbyGameMode()
 {
 	// 大厅使用旁观者Pawn
 	DefaultPawnClass = ASpectatorPawn::StaticClass();
-	// 绑定BP_LobbyPlayerState蓝图到GameMode
-	static ConstructorHelpers::FClassFinder<APlayerState> LobbyPSClassFinder(TEXT("/Game/PersonalProject/UI/LobbyInterface/Components/BP_LobbyPlayerState.BP_LobbyPlayerState_C"));
-	if (LobbyPSClassFinder.Succeeded())
-	{
-		PlayerStateClass = LobbyPSClassFinder.Class;
-	}
-	else
-	{
-		PlayerStateClass = APP_LobbyPlayerState::StaticClass();
-	}
 	// 允许无缝切换
 	bUseSeamlessTravel = true;
 
-	// 绑定BP_LobbyHUD蓝图到GameMode
-	static ConstructorHelpers::FClassFinder<AHUD> LobbyHUDClassFinder(TEXT("/Game/PersonalProject/UI/LobbyInterface/Core/BP_LobbyHUD.BP_LobbyHUD_C"));
-	if (LobbyHUDClassFinder.Succeeded())
+	// 【重要】构造函数中不做任何蓝图同步加载（包括 ConstructorHelpers::FClassFinder）。
+	// 构造函数在 CDO 构造期执行，而 CDO 构造发生在主玩法模块（PersonalProject）加载时，
+	// 此时 UI 模块（PersonalProjectUI）尚未注册；若在此加载引用了 UI 类的蓝图
+	// （如 BP_PP_PlayerController 默认引用了 WBP_DialogueBox / WBP_Shop，
+	//   而这两个 WBP 的父类 PP_DialogueWidget / PP_ShopWidget 属于 UI 模块），
+	// 会导致 /Script/PersonalProjectUI 脚本包找不到，触发
+	// 「VerifyImport: Failed to find script package」+「Failed to load Class ... as Parent」
+	// 及其级联的 WidgetTree 加载失败。因此构造函数仅设置 C++ 兜底类，
+	// 蓝图类改由 InitGame 在运行时（所有模块加载完成后）加载。
+	PlayerStateClass = APP_LobbyPlayerState::StaticClass();
+	PlayerControllerClass = APP_PlayerController::StaticClass();
+
+	// HUDClass 设计上由蓝图（BP_LobbyGameMode）配置——主玩法模块不能 include UI 头文件
+	// （模块化拆分：Game 不依赖 UI），故 C++ 不硬编码 APP_LobbyHUD。
+	// 但蓝图若未配置 HUDClass，大厅会生成默认 AHUD，APP_LobbyHUD 不会生成，
+	// 导致大厅/主菜单界面为空。因此改由 InitGame 运行时兜底（仅在未配置时生效）。
+}
+
+void APP_LobbyGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+
+	// 运行时按路径加载蓝图类：此时所有模块（含 UI）均已注册，蓝图引用可正常解析。
+	// 这里刻意使用字符串路径而非 CDO 默认值，避免把 UI 资产拖进模块加载期的同步加载。
+	if (UClass* LobbyPCClass = LoadClass<APlayerController>(nullptr, TEXT("/Game/PersonalProject/Player/BP_PP_PlayerController.BP_PP_PlayerController_C")))
 	{
-		HUDClass = LobbyHUDClassFinder.Class;
+		PlayerControllerClass = LobbyPCClass;
 	}
-	else
+	if (UClass* LobbyPSClass = LoadClass<APlayerState>(nullptr, TEXT("/Game/PersonalProject/UI/LobbyInterface/Components/BP_LobbyPlayerState.BP_LobbyPlayerState_C")))
 	{
-		HUDClass = APP_LobbyHUD::StaticClass();
+		PlayerStateClass = LobbyPSClass;
 	}
 
-	// 绑定BP_PP_PlayerController蓝图到GameMode
-	static ConstructorHelpers::FClassFinder<APlayerController> LobbyPCClassFinder(TEXT("/Game/PersonalProject/Player/BP_PP_PlayerController.BP_PP_PlayerController_C"));
-	if (LobbyPCClassFinder.Succeeded())
+	// HUD 兜底：蓝图（BP_LobbyGameMode）未配置 HUDClass 时，基类默认是 AHUD::StaticClass()，
+	// 大厅会生成默认 AHUD，APP_LobbyHUD 不会生成，导致主菜单/大厅界面为空。
+	// 这里仅在仍是默认 AHUD（或空）时，运行时加载 BP_LobbyHUD 兜底。
+	if (HUDClass == nullptr || HUDClass == AHUD::StaticClass())
 	{
-		PlayerControllerClass = LobbyPCClassFinder.Class;
-	}
-	else
-	{
-		PlayerControllerClass = APP_PlayerController::StaticClass();
+		if (UClass* LobbyHUDClass = LoadClass<AHUD>(nullptr, TEXT("/Game/PersonalProject/UI/LobbyInterface/Core/BP_LobbyHUD.BP_LobbyHUD_C")))
+		{
+			HUDClass = LobbyHUDClass;
+		}
 	}
 }
 

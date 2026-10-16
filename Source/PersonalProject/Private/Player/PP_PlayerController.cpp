@@ -2,6 +2,7 @@
 
 
 #include "Player/PP_PlayerController.h"
+#include "Player/PP_UIGateway.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
@@ -10,22 +11,17 @@
 #include "Characters/PP_BaseCharacter.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/GameSession.h"
+#include "GameFramework/HUD.h"
 #include "GameplayTags/PPTags.h"
-#include "UI/PP_HUD.h"
-#include "UI/PP_UIViewModel.h"
 #include "Game/PP_LobbyGameMode.h"
 #include "Game/PP_SessionManager.h"
 #include "Player/PP_LobbyPlayerState.h"
-#include "UI/Lobby/PP_LobbyHUD.h"
 #include "Dialogue/Actor/PP_NPCActor.h"
 #include "Dialogue/Data/PP_DialogueData.h"
 #include "Gather/Actor/PP_GatherableActor.h"
 #include "Interaction/PP_InteractableInterface.h"
-#include "UI/Dialogue/PP_DialogueWidget.h"
-#include "UI/Shop/PP_ShopWidget.h"
 #include "Shop/Component/PP_ShopComponent.h"
 #include "Inventory/Component/PP_InventoryComponent.h"
-#include "UI/PP_UIManager.h"
 #include "Engine/DataTable.h"
 #include "Quest/Component/PP_QuestComponent.h"
 #include "Quest/Bridge/PP_QuestEventBridge.h"
@@ -173,52 +169,37 @@ bool APP_PlayerController::IsAlive() const
 	return BaseCharacter->IsAlive();
 }
 
+// ===== UI 网关转发（实现体在 UI 模块的 APP_HUD / APP_LobbyHUD，通过 IPP_UIGateway 接口调用） =====
+
 void APP_PlayerController::TogglePauseMenu()
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (!HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] TogglePauseMenu - HUD is NULL"));
-		return;
-	}
-
-	// 暂停菜单应始终可用，无需检查存活状态
-	if (HUD->IsPauseMenuVisible())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[PlayerController] TogglePauseMenu - Hiding pause menu"));
-		HUD->HidePauseMenu();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("[PlayerController] TogglePauseMenu - Showing pause menu"));
-		HUD->ShowPauseMenu();
+		IPP_UIGateway::Execute_RequestTogglePauseMenu(GetHUD());
 	}
 }
 
 void APP_PlayerController::ShowScoreboard()
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		HUD->ShowScoreboard();
+		IPP_UIGateway::Execute_RequestShowScoreboard(GetHUD());
 	}
 }
 
 void APP_PlayerController::HideScoreboard()
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		HUD->HideScoreboard();
+		IPP_UIGateway::Execute_RequestHideScoreboard(GetHUD());
 	}
 }
 
 void APP_PlayerController::ToggleHUD()
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		HUD->ToggleMainHUD();
+		IPP_UIGateway::Execute_RequestToggleMainHUD(GetHUD());
 	}
 }
 
@@ -255,42 +236,48 @@ void APP_PlayerController::Server_SendChatMessage_Implementation(const FString& 
 
 void APP_PlayerController::Client_ReceiveChatMessage_Implementation(const FString& PlayerName, const FString& Message)
 {
-	// 尝试路由到大厅HUD
-	APP_LobbyHUD* LobbyHUD = GetLobbyHUD();
-	if (LobbyHUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		LobbyHUD->AddChatMessage(PlayerName, Message);
-		return;
-	}
-
-	// 回退到战斗HUD
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
-	{
-		HUD->AddNotification(FString::Printf(TEXT("[%s]: %s"), *PlayerName, *Message));
+		IPP_UIGateway::Execute_PushChatMessage(GetHUD(), PlayerName, Message);
 	}
 }
 
 void APP_PlayerController::Client_ReceiveNotification_Implementation(const FString& Message)
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		HUD->AddNotification(Message);
+		IPP_UIGateway::Execute_PushNotification(GetHUD(), Message);
 	}
 }
 
 void APP_PlayerController::Client_UpdateScoreboard_Implementation(const TArray<FScoreboardEntry>& Entries)
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		UPP_ScoreboardWidget* Scoreboard = HUD->GetScoreboardWidget();
-		if (Scoreboard)
-		{
-			Scoreboard->UpdateScoreboard(Entries);
-		}
+		IPP_UIGateway::Execute_RequestUpdateScoreboard(GetHUD(), Entries);
 	}
+}
+
+void APP_PlayerController::Client_NotifyQuestMessage_Implementation(const FString& Message)
+{
+	if (!IsLocalController()) return;
+
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
+	{
+		IPP_UIGateway::Execute_PushNotification(GetHUD(), Message);
+	}
+}
+
+// ===== IPP_DialogueRequester 接口实现（NPC 通过接口请求对话，转发到自身 RPC） =====
+
+void APP_PlayerController::RequestStartDialogue_Implementation(APP_NPCActor* NPC)
+{
+	Server_RequestStartDialogue(NPC);
+}
+
+void APP_PlayerController::OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID)
+{
+	Client_OpenDialogueUI(NPC, DialogueID);
 }
 
 // ===== 大厅阶段 RPC 实现 =====
@@ -369,47 +356,26 @@ void APP_PlayerController::Server_KickPlayer_Implementation(int32 PlayerId)
 
 void APP_PlayerController::Client_OnLobbyPlayerListUpdated_Implementation(const TArray<FLobbyPlayerInfo>& Players)
 {
-	// World销毁期间收到RPC属正常情况，直接跳过
-	if (!GetWorld() || GetWorld()->bIsTearingDown)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		return;
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OnLobbyPlayerListUpdated - Players: %d"), Players.Num());
-
-	APP_LobbyHUD* LobbyHUD = GetLobbyHUD();
-	if (LobbyHUD)
-	{
-		LobbyHUD->OnPlayerListUpdated(Players);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Verbose, TEXT("[PlayerController] Client_OnLobbyPlayerListUpdated - LobbyHUD is NULL"));
+		IPP_UIGateway::Execute_HandlePlayerListUpdated(GetHUD(), Players);
 	}
 }
 
 void APP_PlayerController::Client_OnLobbySettingsUpdated_Implementation(const FRoomSettings& Settings)
 {
-	APP_LobbyHUD* LobbyHUD = GetLobbyHUD();
-	if (LobbyHUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		LobbyHUD->OnRoomSettingsUpdated(Settings);
+		IPP_UIGateway::Execute_HandleRoomSettingsUpdated(GetHUD(), Settings);
 	}
 }
 
 void APP_PlayerController::Client_OnGameStartingCountdown_Implementation(float Countdown)
 {
-	APP_LobbyHUD* LobbyHUD = GetLobbyHUD();
-	if (LobbyHUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		LobbyHUD->OnGameStarting(Countdown);
+		IPP_UIGateway::Execute_HandleGameStarting(GetHUD(), Countdown);
 	}
-}
-
-APP_LobbyHUD* APP_PlayerController::GetLobbyHUD() const
-{
-	if (!IsLocalController()) return nullptr;
-	return Cast<APP_LobbyHUD>(GetHUD());
 }
 
 // ===== 房主迁移 RPC 实现 =====
@@ -442,6 +408,7 @@ void APP_PlayerController::Client_PrepareHostMigration_Implementation(const FHos
 	}
 }
 
+// Client_NotifyHostMigrating：大厅提示条推送
 void APP_PlayerController::Client_NotifyHostMigrating_Implementation(const FHostMigrationData& MigrationData)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_NotifyHostMigrating - host is migrating to: %s"), *MigrationData.NewHostPlayerName);
@@ -452,10 +419,9 @@ void APP_PlayerController::Client_NotifyHostMigrating_Implementation(const FHost
 		SM->SetMigrationData(MigrationData);
 	}
 
-	// 给玩家一个明确反馈：大厅顶部弹出「房主迁移中」提示条
-	if (APP_LobbyHUD* LobbyHUD = GetLobbyHUD())
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		LobbyHUD->NotifyHostMigrating();
+		IPP_UIGateway::Execute_HandleHostMigrating(GetHUD(), MigrationData);
 	}
 }
 
@@ -489,57 +455,25 @@ void APP_PlayerController::Server_RequestStartDialogue_Implementation(APP_NPCAct
 	NPC->StartDialogue(this);
 }
 
+// Client_OpenDialogueUI / Client_OpenShopUI：通过 UI 网关接口转发（实现体在 UI 模块）
 void APP_PlayerController::Client_OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID)
 {
 	if (!IsLocalController()) return;
 
-	if (!IsValid(NPC))
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenDialogueUI - NPC is null"));
-		return;
+		IPP_UIGateway::Execute_RequestOpenDialogue(GetHUD(), NPC, DialogueID);
 	}
+}
 
-	// 从 NPC 的对话表中查找行数据
-	UDataTable* DT = NPC->GetDialogueTable();
-	if (!IsValid(DT))
+void APP_PlayerController::Client_OpenShopUI_Implementation(APP_NPCActor* NPC)
+{
+	if (!IsLocalController()) return;
+
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenDialogueUI - NPC DialogueTable is null"));
-		return;
+		IPP_UIGateway::Execute_RequestOpenShop(GetHUD(), NPC);
 	}
-
-	FPP_DialogueData* Row = DT->FindRow<FPP_DialogueData>(DialogueID, TEXT("Client_OpenDialogueUI"));
-	if (!Row)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenDialogueUI - DialogueID '%s' not found in table"), *DialogueID.ToString());
-		return;
-	}
-
-	// 确保 DialogueID 字段被正确填充（DataTable 行键可能已设置，但成员变量可能为空）
-	FPP_DialogueData DataCopy = *Row;
-	if (DataCopy.DialogueID.IsNone())
-	{
-		DataCopy.DialogueID = DialogueID;
-	}
-
-	// 创建对话 Widget
-	if (!DialogueWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenDialogueUI - DialogueWidgetClass not configured"));
-		return;
-	}
-
-	UPP_DialogueWidget* DialogueWidget = CreateWidget<UPP_DialogueWidget>(this, DialogueWidgetClass);
-	if (!DialogueWidget)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayerController] Client_OpenDialogueUI - Failed to create DialogueWidget"));
-		return;
-	}
-
-	DialogueWidget->AddToViewport(90);
-	DialogueWidget->SetupDialogue(DataCopy, NPC, this);
-
-	UE_LOG(LogTemp, Log, TEXT("[PlayerController] Client_OpenDialogueUI - Opened dialogue '%s' with NPC '%s'"),
-		*DialogueID.ToString(), *NPC->GetName());
 }
 
 void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action)
@@ -662,59 +596,6 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 	}
 }
 
-void APP_PlayerController::Client_OpenShopUI_Implementation(APP_NPCActor* NPC)
-{
-	if (!IsLocalController()) return;
-
-	if (!IsValid(NPC))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenShopUI - NPC is null"));
-		return;
-	}
-
-	UPP_ShopComponent* Shop = NPC->GetShopComponent();
-	if (!IsValid(Shop))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenShopUI - NPC ShopComponent is null"));
-		return;
-	}
-
-	if (!ShopWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Client_OpenShopUI - ShopWidgetClass not configured"));
-		return;
-	}
-
-	UPP_ShopWidget* ShopWidget = CreateWidget<UPP_ShopWidget>(this, ShopWidgetClass);
-	if (!ShopWidget)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayerController] Client_OpenShopUI - Failed to create ShopWidget"));
-		return;
-	}
-
-	// 获取玩家的 InventoryComponent（假定挂在 PlayerState 上）
-	UPP_InventoryComponent* Inventory = nullptr;
-	if (PlayerState)
-	{
-		Inventory = PlayerState->FindComponentByClass<UPP_InventoryComponent>();
-	}
-
-	ShopWidget->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));
-	ShopWidget->InitializeShop(Shop, Inventory);
-
-	UE_LOG(LogTemp, Log, TEXT("[PlayerController] Client_OpenShopUI - Opened shop for NPC '%s'"), *NPC->GetName());
-}
-
-void APP_PlayerController::Client_NotifyQuestMessage_Implementation(const FString& Message)
-{
-	if (!IsLocalController()) return;
-
-	if (APP_HUD* HUD = Cast<APP_HUD>(GetHUD()))
-	{
-		HUD->AddNotification(Message);
-	}
-}
-
 void APP_PlayerController::Interact()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Interact called"));
@@ -805,18 +686,16 @@ void APP_PlayerController::Server_InteractGather_Implementation(APP_GatherableAc
 
 void APP_PlayerController::ToggleQuestLog()
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		HUD->ToggleQuestLog();
+		IPP_UIGateway::Execute_RequestToggleQuestLog(GetHUD());
 	}
 }
 
 void APP_PlayerController::ToggleInventory()
 {
-	APP_HUD* HUD = Cast<APP_HUD>(GetHUD());
-	if (HUD)
+	if (IPP_UIGateway* GW = Cast<IPP_UIGateway>(GetHUD()))
 	{
-		HUD->ToggleInventory();
+		IPP_UIGateway::Execute_RequestToggleInventory(GetHUD());
 	}
 }

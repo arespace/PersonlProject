@@ -4,19 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "InputMappingContext.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
-#include "UI/Widgets/PP_ScoreboardWidget.h"
+#include "Game/PP_ScoreboardTypes.h"
 #include "Game/PP_SessionManager.h"
 #include "Dialogue/Data/PP_DialogueData.h"
+#include "Dialogue/PP_DialogueRequester.h"
+#include "PP_UIGateway.h"
 #include "PP_PlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
-class UPP_UIViewModel;
-class APP_LobbyHUD;
 class APP_NPCActor;
 class APP_GatherableActor;
-class UPP_DialogueWidget;
 struct FInputActionValue;
 struct FGameplayTag;
 struct FLobbyPlayerInfo;
@@ -30,10 +30,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueLineAdvanced, int32, NewL
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDialogueEnded, FName, DialogueID, FName, RelatedQuestID);
 
 UCLASS()
-class PERSONALPROJECT_API APP_PlayerController : public APlayerController
+class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester
 {
 	GENERATED_BODY()
-	
+
+public:
+	// ===== IPP_DialogueRequester 接口实现（实现体在 UI 模块 PP_UICrossModule.cpp，转发到自身 RPC）=====
+	virtual void RequestStartDialogue_Implementation(APP_NPCActor* NPC) override;
+	virtual void OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID) override;
+
 protected:
 	virtual void SetupInputComponent() override;
 
@@ -174,13 +179,13 @@ public:
 
 	// ===== 对话 UI 配置 =====
 
-	/** 对话框 Widget 蓝图类（在 PC 蓝图子类中指定） */
+	/** 对话框 Widget 蓝图类（在 PC 蓝图子类中指定；类型用 UUserWidget 基类避免主玩法模块反向依赖 UI 模块，UI 模块内 Cast 使用） */
 	UPROPERTY(EditDefaultsOnly, Category = "Dialogue|UI")
-	TSubclassOf<UPP_DialogueWidget> DialogueWidgetClass;
+	TSubclassOf<UUserWidget> DialogueWidgetClass;
 
-	/** 商店 Widget 蓝图类（OpenShop 动作回调时使用） */
+	/** 商店 Widget 蓝图类（OpenShop 动作回调时使用；类型说明同上） */
 	UPROPERTY(EditDefaultsOnly, Category = "Dialogue|UI")
-	TSubclassOf<class UPP_ShopWidget> ShopWidgetClass;
+	TSubclassOf<UUserWidget> ShopWidgetClass;
 
 	/** 交互范围（单位：cm），服务端 Server_RequestStartDialogue 距离验证使用 */
 	UPROPERTY(EditDefaultsOnly, Category = "Dialogue", meta = (ClampMin = "0.0"))
@@ -277,6 +282,8 @@ private:
 
 	// ===== 大厅辅助 =====
 
-	/** 获取LobbyHUD（大厅阶段使用） */
-	APP_LobbyHUD* GetLobbyHUD() const;
+	/**
+	 * GetLobbyHUD 已移除（模块化拆分：主玩法模块不得 include UI 类型）。
+	 * UI 侧需要 LobbyHUD 时用 Cast<APP_LobbyHUD>(GetOwningPlayerController()->GetHUD())。
+	 */
 };

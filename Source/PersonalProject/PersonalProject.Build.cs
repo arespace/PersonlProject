@@ -24,7 +24,10 @@ public class PersonalProject : ModuleRules
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils",
 			"UnLua",
-			"Lua"
+			"Lua",
+			"PersonalProjectCore",
+			"PersonalProjectInventory",
+			"PersonalProjectQuest"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule" });
