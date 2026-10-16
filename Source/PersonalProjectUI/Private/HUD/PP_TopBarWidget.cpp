@@ -4,6 +4,7 @@
 #include "Lobby/PP_LobbyHUD.h"
 #include "Components/Button.h"
 #include "GameFramework/PlayerController.h"
+#include "Framework/PP_Log.h"
 
 void UPP_TopBarWidget::NativeOnInitialized()
 {
@@ -32,7 +33,7 @@ void UPP_TopBarWidget::OnMainMenuClicked()
 	// 还在房间里 → 不允许前往主菜单（按钮此时也应该是置灰的）
 	if (HUD->IsInRoom())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TopBar] 还在房间中，请先离开房间再返回主菜单"));
+		UE_LOG(LogPP, Warning, TEXT("[TopBar] 还在房间中，请先离开房间再返回主菜单"));
 		return;
 	}
 

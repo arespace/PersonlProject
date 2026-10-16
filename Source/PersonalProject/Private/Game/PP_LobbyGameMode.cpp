@@ -10,6 +10,7 @@
 #include "GameFramework/HUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "Framework/PP_Log.h"
 
 APP_LobbyGameMode::APP_LobbyGameMode()
 {
@@ -146,7 +147,7 @@ void APP_LobbyGameMode::Logout(AController* Exiting)
 			if (CandidatePS && !CandidatePS->IsHost())
 			{
 				CandidatePS->SetIsHost(true);
-				UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode] Logout - host transferred to: %s"), *CandidatePS->GetPlayerName());
+				UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] Logout - host transferred to: %s"), *CandidatePS->GetPlayerName());
 				break;
 			}
 		}
@@ -220,7 +221,7 @@ void APP_LobbyGameMode::StartGame()
 	GetWorldTimerManager().SetTimer(TravelTimerHandle, [this]()
 	{
 		FString TravelURL = FString::Printf(TEXT("/Game/PersonalProject/Maps/%s?Listen"), *RoomSettings.MapName);
-UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode] StartGame - ServerTravel to: %s"), *TravelURL);
+UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] StartGame - ServerTravel to: %s"), *TravelURL);
 		GetWorld()->ServerTravel(TravelURL);
 	}, 3.f, false);
 }
@@ -296,7 +297,7 @@ void APP_LobbyGameMode::AssignPlayerIndices()
 
 void APP_LobbyGameMode::HandleHostMigration(AController* LeavingHost)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode] HandleHostMigration - host is leaving"));
+	UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] HandleHostMigration - host is leaving"));
 
 	// 找到下一个非离开的玩家作为新房主
 	APP_PlayerController* NewHostPC = nullptr;
@@ -317,7 +318,7 @@ void APP_LobbyGameMode::HandleHostMigration(AController* LeavingHost)
 
 	if (!NewHostPC || !NewHostPS)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode] HandleHostMigration - no other players, just disconnecting"));
+		UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] HandleHostMigration - no other players, just disconnecting"));
 		// 没有其他玩家，直接断开
 		APlayerController* HostPC = Cast<APlayerController>(LeavingHost);
 		if (HostPC)
@@ -341,7 +342,7 @@ void APP_LobbyGameMode::HandleHostMigration(AController* LeavingHost)
 
 	// 向新房主发送迁移数据
 	NewHostPC->Client_PrepareHostMigration(NewHostData);
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode] HandleHostMigration - new host: %s"), *NewHostName);
+	UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] HandleHostMigration - new host: %s"), *NewHostName);
 
 	// 向其他客户端发送迁移通知
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
@@ -373,7 +374,7 @@ void APP_LobbyGameMode::HandleHostMigration(AController* LeavingHost)
 
 void APP_LobbyGameMode::ExecuteHostDisconnect()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyGameMode] ExecuteHostDisconnect - shutting down server"));
+	UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] ExecuteHostDisconnect - shutting down server"));
 
 	APlayerController* HostPC = GetWorld()->GetFirstPlayerController();
 	if (HostPC)

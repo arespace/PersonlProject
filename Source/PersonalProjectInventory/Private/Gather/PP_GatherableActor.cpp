@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Framework/PP_Log.h"
 
 APP_GatherableActor::APP_GatherableActor()
 {
@@ -104,13 +105,13 @@ void APP_GatherableActor::Server_StartGather_Implementation(AActor* Gatherer)
 
 	if (!IsAvailable())
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[Gather] Server_StartGather refused: actor=%s available=false"),
+		UE_LOG(LogPP, Verbose, TEXT("[Gather] Server_StartGather refused: actor=%s available=false"),
 			*GetName());
 		return;
 	}
 
 	CurrentGatherer = Gatherer;
-	UE_LOG(LogTemp, Log, TEXT("[Gather] Server_StartGather accepted: actor=%s gatherer=%s remaining=%d"),
+	UE_LOG(LogPP, Log, TEXT("[Gather] Server_StartGather accepted: actor=%s gatherer=%s remaining=%d"),
 		*GetName(), *Gatherer->GetName(), RemainingGatherTimes);
 }
 
@@ -124,7 +125,7 @@ void APP_GatherableActor::Server_CancelGather_Implementation(AActor* Gatherer)
 	// 仅当前采集者本人可取消
 	if (CurrentGatherer == Gatherer)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Gather] Server_CancelGather: actor=%s gatherer=%s"),
+		UE_LOG(LogPP, Log, TEXT("[Gather] Server_CancelGather: actor=%s gatherer=%s"),
 			*GetName(), Gatherer ? *Gatherer->GetName() : TEXT("null"));
 		CurrentGatherer = nullptr;
 	}
@@ -134,12 +135,12 @@ void APP_GatherableActor::NotifyPickup(AActor* Gatherer)
 {
 	if (!HasAuthority() || !Gatherer)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Gather] NotifyPickup SKIP - HasAuthority=%d Gatherer=%s"),
+		UE_LOG(LogPP, Warning, TEXT("[Gather] NotifyPickup SKIP - HasAuthority=%d Gatherer=%s"),
 			HasAuthority() ? 1 : 0, *GetNameSafe(Gatherer));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[Gather] NotifyPickup: actor=%s ItemID=%s GatherCount=%d Gatherer=%s"),
+	UE_LOG(LogPP, Verbose, TEXT("[Gather] NotifyPickup: actor=%s ItemID=%s GatherCount=%d Gatherer=%s"),
 		*GetName(), *ItemID.ToString(), GatherCount, *Gatherer->GetName());
 
 	// 广播采集完成事件（任务系统等通过 EventBus 订阅）
@@ -174,7 +175,7 @@ void APP_GatherableActor::CompleteGather(AActor* Gatherer)
 {
 	if (!HasAuthority() || !Gatherer)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Gather] CompleteGather SKIP - HasAuthority=%d Gatherer=%s"),
+		UE_LOG(LogPP, Warning, TEXT("[Gather] CompleteGather SKIP - HasAuthority=%d Gatherer=%s"),
 			HasAuthority() ? 1 : 0, *GetNameSafe(Gatherer));
 		return;
 	}
@@ -182,13 +183,13 @@ void APP_GatherableActor::CompleteGather(AActor* Gatherer)
 	// 校验：当前采集者必须是发起者，且仍有剩余次数
 	if (CurrentGatherer != Gatherer || RemainingGatherTimes <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Gather] CompleteGather rejected: actor=%s mismatch=%d depleted=%d (CurrentGatherer=%s Remaining=%d)"),
+		UE_LOG(LogPP, Warning, TEXT("[Gather] CompleteGather rejected: actor=%s mismatch=%d depleted=%d (CurrentGatherer=%s Remaining=%d)"),
 			*GetName(), (CurrentGatherer != Gatherer) ? 1 : 0, (RemainingGatherTimes <= 0) ? 1 : 0,
 			*GetNameSafe(CurrentGatherer), RemainingGatherTimes);
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[Gather] CompleteGather START: actor=%s ItemID=%s GatherCount=%d"),
+	UE_LOG(LogPP, Verbose, TEXT("[Gather] CompleteGather START: actor=%s ItemID=%s GatherCount=%d"),
 		*GetName(), *ItemID.ToString(), GatherCount);
 
 	// 1. 通过玩家PlayerState上的库存组件添加物品（引擎基类 + 组件查找，解耦具体类型）
@@ -204,12 +205,12 @@ void APP_GatherableActor::CompleteGather(AActor* Gatherer)
 	if (Inventory)
 	{
 		const bool bAdded = Inventory->AddItem(ItemID, GatherCount);
-		UE_LOG(LogTemp, Log, TEXT("[Gather] CompleteGather AddItem: itemID=%s count=%d success=%d"),
+		UE_LOG(LogPP, Log, TEXT("[Gather] CompleteGather AddItem: itemID=%s count=%d success=%d"),
 			*ItemID.ToString(), GatherCount, bAdded ? 1 : 0);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Gather] CompleteGather: gatherer=%s missing InventoryComponent"),
+		UE_LOG(LogPP, Warning, TEXT("[Gather] CompleteGather: gatherer=%s missing InventoryComponent"),
 			*Gatherer->GetName());
 	}
 
@@ -229,7 +230,7 @@ void APP_GatherableActor::CompleteGather(AActor* Gatherer)
 
 void APP_GatherableActor::Deplete()
 {
-	UE_LOG(LogTemp, Log, TEXT("[Gather] Deplete: actor=%s scheduling respawn in %.1fs"),
+	UE_LOG(LogPP, Log, TEXT("[Gather] Deplete: actor=%s scheduling respawn in %.1fs"),
 		*GetName(), RespawnTime);
 
 	// 隐藏网格 + 关闭交互范围检测
@@ -257,7 +258,7 @@ void APP_GatherableActor::Respawn()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Gather] Respawn: actor=%s"), *GetName());
+	UE_LOG(LogPP, Log, TEXT("[Gather] Respawn: actor=%s"), *GetName());
 
 	// 恢复采集次数
 	RemainingGatherTimes = MaxGatherTimes;
@@ -284,7 +285,7 @@ void APP_GatherableActor::OnInteractionRangeBeginOverlap(UPrimitiveComponent* Ov
 		return;
 	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[Gather] BeginOverlap: actor=%s pawn=%s"),
+	UE_LOG(LogPP, Verbose, TEXT("[Gather] BeginOverlap: actor=%s pawn=%s"),
 		*GetName(), *OtherActor->GetName());
 	// 注：UI提示由PlayerController监听Overlap事件或通过GameplayCue实现，此处仅做日志记录
 }
@@ -298,6 +299,6 @@ void APP_GatherableActor::OnInteractionRangeEndOverlap(UPrimitiveComponent* Over
 		return;
 	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[Gather] EndOverlap: actor=%s pawn=%s"),
+	UE_LOG(LogPP, Verbose, TEXT("[Gather] EndOverlap: actor=%s pawn=%s"),
 		*GetName(), *OtherActor->GetName());
 }

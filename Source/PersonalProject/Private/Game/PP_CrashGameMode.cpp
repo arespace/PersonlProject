@@ -10,6 +10,7 @@
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_GameInstance.h"
 #include "Game/PP_SessionManager.h"
+#include "Framework/PP_Log.h"
 
 APP_CrashGameMode::APP_CrashGameMode()
 {
@@ -44,7 +45,7 @@ void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
 		if (!CharId.IsNone())
 		{
 			PS->SetSelectedCharacterId(CharId);
-			UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection for %s: %s"),
+			UE_LOG(LogPP, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection for %s: %s"),
 				*PS->GetPlayerName(), *CharId.ToString());
 		}
 	}
@@ -70,7 +71,7 @@ AActor* APP_CrashGameMode::ChoosePlayerStart_Implementation(AController* Player)
 			APlayerStart* PS = *It;
 			if (PS && !PS->IsA<APlayerStartPIE>())
 			{
-				UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] ChoosePlayerStart: %s at %s"),
+				UE_LOG(LogPP, Log, TEXT("[CrashGameMode] ChoosePlayerStart: %s at %s"),
 					*PS->GetName(), *PS->GetActorLocation().ToString());
 				return PS;
 			}
@@ -106,12 +107,12 @@ void APP_CrashGameMode::RestartPlayer(AController* NewPlayer)
 
 	if (!CharId.IsNone())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CrashGameMode] RestartPlayer - Applying appearance: %s"), *CharId.ToString());
+		UE_LOG(LogPP, Log, TEXT("[CrashGameMode] RestartPlayer - Applying appearance: %s"), *CharId.ToString());
 		PlayerChar->ApplyCharacterAppearance(CharId);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CrashGameMode] RestartPlayer - No character selection found!"));
+		UE_LOG(LogPP, Warning, TEXT("[CrashGameMode] RestartPlayer - No character selection found!"));
 	}
 }
 
@@ -158,7 +159,7 @@ void APP_CrashGameMode::GrantAbilitiesForCharacter(APP_PlayerState* PS)
 
 void APP_CrashGameMode::ReturnToLobby()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[CrashGameMode] ReturnToLobby - ServerTravel to LobbyMap"));
+	UE_LOG(LogPP, Verbose, TEXT("[CrashGameMode] ReturnToLobby - ServerTravel to LobbyMap"));
 
 	// 使用 ProcessServerTravel 将所有玩家带回大厅（与 StartGame 保持一致）
 	FString TravelURL = TEXT("/Game/PersonalProject/Maps/LobbyMap?Listen");

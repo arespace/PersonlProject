@@ -61,7 +61,6 @@ void UPP_UIViewModel::Deinitialize()
 	OnHealthChanged.Clear();
 	OnManaChanged.Clear();
 	OnDamageReceived.Clear();
-	OnAbilityCooldownChanged.Clear();
 	OnPlayerDeath.Clear();
 	OnPlayerRespawn.Clear();
 

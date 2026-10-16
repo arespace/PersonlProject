@@ -1,5 +1,5 @@
-﻿// UI系统 — UIManager子系统
-// 管理所有屏幕空间Widget的层级栈、对象池、输入模式
+// UI系统 — UIManager子系统
+// 管理所有屏幕空间Widget的层级栈与输入模式
 
 #pragma once
 
@@ -38,9 +38,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputModeChangedEvent, FName, New
  *
  * 职责：
  *   1. 维护6层 Widget 栈（Background → Debug），管理Z序
- *   2. Widget对象池（高频创建/销毁的浮层控件复用）
- *   3. 输入模式栈（感知Widget push/pop自动切换Game/UI/GameAndUI）
- *   4. 广播层级变化事件（OnWidgetPushed/Popped, OnInputModeChanged）
+ *   2. 输入模式栈（感知Widget push/pop自动切换Game/UI/GameAndUI）
+ *   3. 广播层级变化事件（OnWidgetPushed/Popped, OnInputModeChanged）
  *
  * 单例：通过 GetGameInstance()->GetSubsystem<UPP_UIManager>() 获取
  */
@@ -73,23 +72,6 @@ public:
     /** 判断指定 Widget 是否在栈中 */
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "UI|Manager")
     bool IsWidgetInStack(UPP_UIUserWidget* Widget) const;
-
-    // ===== Widget 对象池 =====
-
-    /**
-     * 从对象池获取 Widget（不存在则 CreateWidget）
-     * @param WidgetClass Widget 类
-     * @return 可用的 Widget 实例
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI|Pool")
-    UUserWidget* AcquireFromPool(TSubclassOf<UUserWidget> WidgetClass);
-
-    /**
-     * 归还 Widget 到对象池（隐藏并缓存，不销毁）
-     * @param Widget 要归还的 Widget
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI|Pool")
-    void ReleaseToPool(UUserWidget* Widget);
 
     // ===== 输入模式管理 =====
 
@@ -137,9 +119,6 @@ private:
 
     /** Widget → Layer 反向索引，O(1) 查找 Widget 所在层级 */
     TMap<TWeakObjectPtr<UPP_UIUserWidget>, EPP_UILayer> WidgetToLayer;
-
-    /** Widget 对象池：WidgetClass → 已缓存但未显示的 Widget 实例 */
-    TMap<TSubclassOf<UUserWidget>, TArray<TObjectPtr<UUserWidget>>> WidgetPool;
 
     /** 当前激活的输入模式名称（Gameplay/UI/GameAndUI） */
     FName CurrentInputMode;

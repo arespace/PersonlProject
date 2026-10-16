@@ -2,21 +2,13 @@
 
 #include "Widgets/PP_AbilitySlotWidget.h"
 
-#include "Framework/PP_UIViewModel.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
 
-void UPP_AbilitySlotWidget::InitializeSlot(UPP_UIViewModel* InViewModel, const FGameplayTag& InAbilityTag)
+void UPP_AbilitySlotWidget::InitializeSlot(const FGameplayTag& InAbilityTag)
 {
-	ViewModel = InViewModel;
 	AbilityTag = InAbilityTag;
-
-	// 绑定ViewModel冷却变更委托
-	if (ViewModel)
-	{
-		ViewModel->OnAbilityCooldownChanged.AddDynamic(this, &UPP_AbilitySlotWidget::OnCooldownChanged);
-	}
 }
 
 void UPP_AbilitySlotWidget::UpdateCooldown(float Remaining, float Duration)
@@ -54,18 +46,4 @@ void UPP_AbilitySlotWidget::UpdateCooldown(float Remaining, float Duration)
 
 	// 通知蓝图更新动画
 	BP_OnCooldownUpdated(Percent);
-}
-
-void UPP_AbilitySlotWidget::OnCooldownChanged(FGameplayTag Tag, float RemainingTime, float Duration)
-{
-	// 只响应自己绑定的能力Tag
-	if (Tag.MatchesTagExact(AbilityTag))
-	{
-		UpdateCooldown(RemainingTime, Duration);
-
-		if (RemainingTime <= 0.f)
-		{
-			BP_OnAbilityActivated();
-		}
-	}
 }

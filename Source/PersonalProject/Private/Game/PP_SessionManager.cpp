@@ -8,22 +8,23 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Framework/PP_Log.h"
 
 void UPP_SessionManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	UE_LOG(LogTemp, Log, TEXT("[SessionManager] Subsystem Initialized - lifetime follows GameInstance"));
+	UE_LOG(LogPP, Log, TEXT("[SessionManager] Subsystem Initialized - lifetime follows GameInstance"));
 
 	// 验证 SessionInterface 可用性
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (SessionInterface.IsValid())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SessionManager] Online Session Interface available"));
+		UE_LOG(LogPP, Log, TEXT("[SessionManager] Online Session Interface available"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Online Session Interface NOT available at initialization!"));
+		UE_LOG(LogPP, Warning, TEXT("[SessionManager] Online Session Interface NOT available at initialization!"));
 	}
 }
 
@@ -36,7 +37,7 @@ UPP_SessionManager* UPP_SessionManager::Get(const UWorld* World)
 
 void UPP_SessionManager::Deinitialize()
 {
-	UE_LOG(LogTemp, Log, TEXT("[SessionManager] Subsystem Deinitializing"));
+	UE_LOG(LogPP, Log, TEXT("[SessionManager] Subsystem Deinitializing"));
 
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (SessionInterface.IsValid())
@@ -52,11 +53,11 @@ void UPP_SessionManager::Deinitialize()
 			{
 				// Client 断开时清理本地 Session 状态
 				SessionInterface->DestroySession(NAME_GameSession);
-				UE_LOG(LogTemp, Log, TEXT("[SessionManager] Client session destroyed during Deinitialize"));
+				UE_LOG(LogPP, Log, TEXT("[SessionManager] Client session destroyed during Deinitialize"));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Host session preserved during Deinitialize"));
+				UE_LOG(LogPP, Verbose, TEXT("[SessionManager] Host session preserved during Deinitialize"));
 			}
 		}
 	}
@@ -79,7 +80,7 @@ void UPP_SessionManager::CreateSession(const FString& PlayerName, int32 MaxPlaye
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (!SessionInterface.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SessionManager] Online Subsystem Session interface not available!"));
+		UE_LOG(LogPP, Error, TEXT("[SessionManager] Online Subsystem Session interface not available!"));
 		OnCreateSessionComplete.Broadcast(false);
 		return;
 	}
@@ -118,7 +119,14 @@ void UPP_SessionManager::OnCreateSessionCompleteInternal(FName SessionName, bool
 		SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionDelegateHandle);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[SessionManager] CreateSession %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+	if (bSuccess)
+	{
+		UE_LOG(LogPP, Log, TEXT("[SessionManager] CreateSession SUCCESS"));
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[SessionManager] CreateSession FAILED"));
+	}
 	OnCreateSessionComplete.Broadcast(bSuccess);
 }
 
@@ -127,14 +135,14 @@ void UPP_SessionManager::FindSessions()
 #if WITH_EDITOR
 	if (GetGameInstance() && GetGameInstance()->GetWorld() && GetGameInstance()->GetWorld()->IsPlayInEditor())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Running in PIE mode - LAN session discovery requires separate processes. Set 'Run Under One Process = false' in Play settings."));
+		UE_LOG(LogPP, Warning, TEXT("[SessionManager] Running in PIE mode - LAN session discovery requires separate processes. Set 'Run Under One Process = false' in Play settings."));
 	}
 #endif
 
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (!SessionInterface.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SessionManager] Session interface not available for FindSessions!"));
+		UE_LOG(LogPP, Error, TEXT("[SessionManager] Session interface not available for FindSessions!"));
 		return;
 	}
 
@@ -161,7 +169,7 @@ void UPP_SessionManager::OnFindSessionsCompleteInternal(bool bSuccess)
 
 	if (bSuccess && SearchSettings.IsValid())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SessionManager] FindSessions found %d results"), SearchSettings->SearchResults.Num());
+		UE_LOG(LogPP, Verbose, TEXT("[SessionManager] FindSessions found %d results"), SearchSettings->SearchResults.Num());
 
 		for (int32 i = 0; i < SearchSettings->SearchResults.Num(); i++)
 		{
@@ -187,7 +195,7 @@ void UPP_SessionManager::OnFindSessionsCompleteInternal(bool bSuccess)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SessionManager] FindSessions failed or no results"));
+		UE_LOG(LogPP, Warning, TEXT("[SessionManager] FindSessions failed or no results"));
 	}
 
 	OnSessionsFound.Broadcast(LastSearchResults);
@@ -199,14 +207,14 @@ void UPP_SessionManager::JoinSession(int32 SessionIndex, const FString& PlayerNa
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (!SessionInterface.IsValid() || !SearchSettings.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SessionManager] Cannot JoinSession - invalid state"));
+		UE_LOG(LogPP, Error, TEXT("[SessionManager] Cannot JoinSession - invalid state"));
 		OnJoinSessionComplete.Broadcast(false);
 		return;
 	}
 
 	if (!SearchSettings->SearchResults.IsValidIndex(SessionIndex))
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SessionManager] Invalid session index: %d"), SessionIndex);
+		UE_LOG(LogPP, Error, TEXT("[SessionManager] Invalid session index: %d"), SessionIndex);
 		OnJoinSessionComplete.Broadcast(false);
 		return;
 	}
@@ -226,7 +234,14 @@ void UPP_SessionManager::OnJoinSessionCompleteInternal(FName SessionName, EOnJoi
 	}
 
 	bool bSuccess = (Result == EOnJoinSessionCompleteResult::Success);
-	UE_LOG(LogTemp, Warning, TEXT("[SessionManager] JoinSession %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+	if (bSuccess)
+	{
+		UE_LOG(LogPP, Log, TEXT("[SessionManager] JoinSession SUCCESS"));
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[SessionManager] JoinSession FAILED"));
+	}
 
 	if (bSuccess && SessionInterface.IsValid())
 	{
@@ -239,7 +254,7 @@ void UPP_SessionManager::OnJoinSessionCompleteInternal(FName SessionName, EOnJoi
 			{
 				ConnectString += FString::Printf(TEXT("?PlayerName=%s"), *JoinPlayerName);
 			}
-			UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Traveling to: %s"), *ConnectString);
+			UE_LOG(LogPP, Verbose, TEXT("[SessionManager] Traveling to: %s"), *ConnectString);
 
 			UWorld* World = GetWorld();
 			if (!World)
@@ -261,7 +276,7 @@ void UPP_SessionManager::OnJoinSessionCompleteInternal(FName SessionName, EOnJoi
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("[SessionManager] Cannot get World for ClientTravel!"));
+				UE_LOG(LogPP, Error, TEXT("[SessionManager] Cannot get World for ClientTravel!"));
 			}
 		}
 	}
@@ -290,7 +305,14 @@ void UPP_SessionManager::OnDestroySessionCompleteInternal(FName SessionName, boo
 	{
 		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionDelegateHandle);
 	}
-	UE_LOG(LogTemp, Warning, TEXT("[SessionManager] DestroySession %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+	if (bSuccess)
+	{
+		UE_LOG(LogPP, Log, TEXT("[SessionManager] DestroySession SUCCESS"));
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[SessionManager] DestroySession FAILED"));
+	}
 	OnDestroySessionComplete.Broadcast(bSuccess);
 }
 
@@ -299,7 +321,7 @@ void UPP_SessionManager::OnDestroySessionCompleteInternal(FName SessionName, boo
 void UPP_SessionManager::SetMigrationData(const FHostMigrationData& Data)
 {
 	PendingMigration = Data;
-	UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Migration data set - IsNewHost: %s, PlayerName: %s, NewHostName: %s"),
+	UE_LOG(LogPP, Verbose, TEXT("[SessionManager] Migration data set - IsNewHost: %s, PlayerName: %s, NewHostName: %s"),
 		PendingMigration.bIsNewHost ? TEXT("true") : TEXT("false"),
 		*PendingMigration.PlayerName,
 		*PendingMigration.NewHostPlayerName);
@@ -324,12 +346,12 @@ void UPP_SessionManager::ClearMigrationData()
 		World->GetTimerManager().ClearTimer(MigrationPollTimer);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SessionManager] Migration data cleared"));
+	UE_LOG(LogPP, Log, TEXT("[SessionManager] Migration data cleared"));
 }
 
 void UPP_SessionManager::ExecuteHostMigration_AsNewHost()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[SessionManager] ExecuteHostMigration_AsNewHost - creating session as: %s"), *PendingMigration.PlayerName);
+	UE_LOG(LogPP, Verbose, TEXT("[SessionManager] ExecuteHostMigration_AsNewHost - creating session as: %s"), *PendingMigration.PlayerName);
 
 	// 构造 Travel URL（Session 创建成功后执行）
 	MigrationTravelURL = FString::Printf(TEXT("Open LobbyMap?Listen?PlayerName=%s"), *PendingMigration.PlayerName);
@@ -348,7 +370,7 @@ void UPP_SessionManager::OnMigrationSessionCreated(bool bSuccess)
 
 	if (bSuccess)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Migration session created, traveling: %s"), *MigrationTravelURL);
+		UE_LOG(LogPP, Verbose, TEXT("[SessionManager] Migration session created, traveling: %s"), *MigrationTravelURL);
 
 		ClearMigrationData();
 
@@ -369,7 +391,7 @@ void UPP_SessionManager::OnMigrationSessionCreated(bool bSuccess)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SessionManager] Migration session creation FAILED!"));
+		UE_LOG(LogPP, Error, TEXT("[SessionManager] Migration session creation FAILED!"));
 		ClearMigrationData();
 		// 失败时不做额外处理，玩家会看到主菜单
 	}
@@ -377,7 +399,7 @@ void UPP_SessionManager::OnMigrationSessionCreated(bool bSuccess)
 
 void UPP_SessionManager::ExecuteHostMigration_AsClient()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[SessionManager] ExecuteHostMigration_AsClient - searching for host: %s"), *PendingMigration.NewHostPlayerName);
+	UE_LOG(LogPP, Verbose, TEXT("[SessionManager] ExecuteHostMigration_AsClient - searching for host: %s"), *PendingMigration.NewHostPlayerName);
 
 	MigrationPollCount = 0;
 
@@ -395,11 +417,11 @@ void UPP_SessionManager::ExecuteHostMigration_AsClient()
 		World->GetTimerManager().SetTimer(MigrationPollTimer, [this]()
 		{
 			MigrationPollCount++;
-			UE_LOG(LogTemp, Log, TEXT("[SessionManager] Migration poll %d/%d"), MigrationPollCount, MaxMigrationPolls);
+			UE_LOG(LogPP, Log, TEXT("[SessionManager] Migration poll %d/%d"), MigrationPollCount, MaxMigrationPolls);
 
 			if (MigrationPollCount > MaxMigrationPolls)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Migration poll timeout, giving up"));
+				UE_LOG(LogPP, Warning, TEXT("[SessionManager] Migration poll timeout, giving up"));
 				OnSessionsFound.RemoveDynamic(this, &UPP_SessionManager::OnMigrationSessionsFound);
 				ClearMigrationData();
 				return;
@@ -414,14 +436,14 @@ void UPP_SessionManager::OnMigrationSessionsFound(const TArray<FRoomInfo>& Rooms
 {
 	if (!HasPendingMigration()) return;
 
-	UE_LOG(LogTemp, Log, TEXT("[SessionManager] Migration search found %d rooms, looking for: %s"), Rooms.Num(), *PendingMigration.NewHostPlayerName);
+	UE_LOG(LogPP, Log, TEXT("[SessionManager] Migration search found %d rooms, looking for: %s"), Rooms.Num(), *PendingMigration.NewHostPlayerName);
 
 	// 在搜索结果中查找匹配新房主名称的 Session
 	for (int32 i = 0; i < Rooms.Num(); i++)
 	{
 		if (Rooms[i].RoomName == PendingMigration.NewHostPlayerName)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[SessionManager] Found migration target session at index %d: %s"), i, *Rooms[i].RoomName);
+			UE_LOG(LogPP, Verbose, TEXT("[SessionManager] Found migration target session at index %d: %s"), i, *Rooms[i].RoomName);
 
 			// 停止轮询
 			UWorld* World = GetWorld();
@@ -447,7 +469,7 @@ void UPP_SessionManager::OnMigrationSessionsFound(const TArray<FRoomInfo>& Rooms
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SessionManager] Migration target not found yet, will retry..."));
+	UE_LOG(LogPP, Log, TEXT("[SessionManager] Migration target not found yet, will retry..."));
 }
 
 // ===== 角色选择桥接 =====
@@ -458,7 +480,7 @@ void UPP_SessionManager::SetPlayerCharacterSelection(const FString& PlayerName, 
 
 	PlayerCharacterSelections.Add(PlayerName, CharacterId);
 	LastCharacterId = CharacterId;  // 后备方案：不依赖 PlayerName 匹配
-	UE_LOG(LogTemp, Log, TEXT("[SessionManager] SetPlayerCharacterSelection - Player: %s, Character: %s"),
+	UE_LOG(LogPP, Log, TEXT("[SessionManager] SetPlayerCharacterSelection - Player: %s, Character: %s"),
 		*PlayerName, *CharacterId.ToString());
 }
 
@@ -478,7 +500,7 @@ FName UPP_SessionManager::ConsumePlayerCharacterSelection(const FString& PlayerN
 	{
 		CharacterId = *Found;
 		PlayerCharacterSelections.Remove(PlayerName);
-		UE_LOG(LogTemp, Log, TEXT("[SessionManager] ConsumePlayerCharacterSelection - Player: %s, Character: %s"),
+		UE_LOG(LogPP, Log, TEXT("[SessionManager] ConsumePlayerCharacterSelection - Player: %s, Character: %s"),
 			*PlayerName, *CharacterId.ToString());
 	}
 	return CharacterId;

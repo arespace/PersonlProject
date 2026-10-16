@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -110,9 +110,6 @@ public:
 	void AddNotification(const FString& Message);
 
 	// ===== 获取器 =====
-
-	/** 获取ViewModel */
-	UPP_UIViewModel* GetViewModel() const { return ViewModel; }
 
 	/** 获取计分板Widget（供PlayerController RPC调用） */
 	UPP_ScoreboardWidget* GetScoreboardWidget() const { return ScoreboardWidget; }

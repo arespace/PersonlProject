@@ -13,6 +13,7 @@
 #include "Dialogue/PP_DialogueRequester.h"
 #include "Shop/PP_ShopComponent.h"
 #include "Quest/PP_QuestComponent.h"
+#include "Framework/PP_Log.h"
 
 APP_NPCActor::APP_NPCActor()
 {
@@ -49,7 +50,7 @@ void APP_NPCActor::Interact(APlayerController* Player)
 {
 	if (!IsValid(Player))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NPCActor] Interact - Player is null"));
+		UE_LOG(LogPP, Warning, TEXT("[NPCActor] Interact - Player is null"));
 		return;
 	}
 
@@ -89,26 +90,26 @@ FName APP_NPCActor::ResolveStartDialogueID(APlayerController* Player) const
 
 	// 收集目标已全部完成的活跃任务 ID（后续轮次需跳过它们）
 	TArray<FName> FullyCompletedIDs;
-	UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] ===== NPC=%s ====="), *GetName());
+	UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] ===== NPC=%s ====="), *GetName());
 	for (const FPP_ActiveQuest& AQ : QC->GetActiveQuests())
 	{
 		bool bAllDone = true;
 		for (const FPP_QuestObjective& Obj : AQ.Objectives)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue]   Quest=%s Obj Type=%d Target=%s Cur=%d/%d Compl=%d"),
+			UE_LOG(LogPP, Log, TEXT("[ResolveDialogue]   Quest=%s Obj Type=%d Target=%s Cur=%d/%d Compl=%d"),
 				*AQ.QuestID.ToString(), (int32)Obj.Type, *Obj.TargetID.ToString(), Obj.CurrentCount, Obj.RequiredCount, Obj.bCompleted ? 1 : 0);
 			if (!Obj.bCompleted) { bAllDone = false; break; }
 		}
 		if (bAllDone) { FullyCompletedIDs.Add(AQ.QuestID); }
-		UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue]   → Quest=%s AllDone=%d"), *AQ.QuestID.ToString(), bAllDone ? 1 : 0);
+		UE_LOG(LogPP, Log, TEXT("[ResolveDialogue]   → Quest=%s AllDone=%d"), *AQ.QuestID.ToString(), bAllDone ? 1 : 0);
 	}
-	UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] ActiveQuests=%d, FullyCompleted=%d"),
+	UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] ActiveQuests=%d, FullyCompleted=%d"),
 		QC->GetActiveQuests().Num(), FullyCompletedIDs.Num());
 
 	// === 第一轮：目标已全完成的活跃任务 → 提交/完成对话 ===
 	for (const FName& QID : FullyCompletedIDs)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] Round1 checking QID=%s"), *QID.ToString());
+		UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] Round1 checking QID=%s"), *QID.ToString());
 
 		// 1a. RequireQuestActiveID + SubmitQuest（精确匹配：目标完成、待提交）
 		for (const auto& Pair : RowMap)
@@ -119,7 +120,7 @@ FName APP_NPCActor::ResolveStartDialogueID(APlayerController* Player) const
 				&& Row->EndAction == EPP_DialogueEndAction::SubmitQuest)
 			{
 				FName Result = Row->DialogueID.IsNone() ? Pair.Key : Row->DialogueID;
-				UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] Round1a MATCH: QID=%s → %s (EndAction=SubmitQuest)"), *QID.ToString(), *Result.ToString());
+				UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] Round1a MATCH: QID=%s → %s (EndAction=SubmitQuest)"), *QID.ToString(), *Result.ToString());
 				return Result;
 			}
 		}
@@ -132,7 +133,7 @@ FName APP_NPCActor::ResolveStartDialogueID(APlayerController* Player) const
 			if (Row->RequireQuestCompletedID == QID)
 			{
 				FName Result = Row->DialogueID.IsNone() ? Pair.Key : Row->DialogueID;
-				UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] Round1b MATCH: QID=%s → %s (via RequireCompleted)"), *QID.ToString(), *Result.ToString());
+				UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] Round1b MATCH: QID=%s → %s (via RequireCompleted)"), *QID.ToString(), *Result.ToString());
 				return Result;
 			}
 		}
@@ -148,7 +149,7 @@ FName APP_NPCActor::ResolveStartDialogueID(APlayerController* Player) const
 			&& !FullyCompletedIDs.Contains(Row->RequireQuestActiveID))
 		{
 			FName Result = Row->DialogueID.IsNone() ? Pair.Key : Row->DialogueID;
-			UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] Round2 MATCH: ReqActive=%s → %s (EndAction=%d)"),
+			UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] Round2 MATCH: ReqActive=%s → %s (EndAction=%d)"),
 				*Row->RequireQuestActiveID.ToString(), *Result.ToString(), (int32)Row->EndAction);
 			return Result;
 		}
@@ -169,13 +170,13 @@ FName APP_NPCActor::ResolveStartDialogueID(APlayerController* Player) const
 				continue;
 			}
 			FName Result = Row->DialogueID.IsNone() ? Pair.Key : Row->DialogueID;
-			UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] Round3 MATCH: ReqCompleted=%s → %s"),
+			UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] Round3 MATCH: ReqCompleted=%s → %s"),
 				*Row->RequireQuestCompletedID.ToString(), *Result.ToString());
 			return Result;
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ResolveDialogue] NO MATCH → Default: %s"), *DefaultDialogueID.ToString());
+	UE_LOG(LogPP, Log, TEXT("[ResolveDialogue] NO MATCH → Default: %s"), *DefaultDialogueID.ToString());
 	return DefaultDialogueID;
 }
 
@@ -183,35 +184,35 @@ void APP_NPCActor::StartDialogue(APlayerController* Player)
 {
 	if (!HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NPCActor] StartDialogue called on client - ignored (must run on server)"));
+		UE_LOG(LogPP, Warning, TEXT("[NPCActor] StartDialogue called on client - ignored (must run on server)"));
 		return;
 	}
 	if (!IsValid(Player))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NPCActor] StartDialogue - Player is null"));
+		UE_LOG(LogPP, Warning, TEXT("[NPCActor] StartDialogue - Player is null"));
 		return;
 	}
 	if (!IsValid(DialogueTable))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NPCActor] StartDialogue - DialogueTable not configured on %s"), *GetName());
+		UE_LOG(LogPP, Warning, TEXT("[NPCActor] StartDialogue - DialogueTable not configured on %s"), *GetName());
 		return;
 	}
 
 	IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(Player);
 	if (!Requester)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NPCActor] StartDialogue - Player does not implement IPP_DialogueRequester"));
+		UE_LOG(LogPP, Warning, TEXT("[NPCActor] StartDialogue - Player does not implement IPP_DialogueRequester"));
 		return;
 	}
 
 	const FName StartID = ResolveStartDialogueID(Player);
 	if (StartID.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NPCActor] StartDialogue - resolved DialogueID is None on %s"), *GetName());
+		UE_LOG(LogPP, Warning, TEXT("[NPCActor] StartDialogue - resolved DialogueID is None on %s"), *GetName());
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[NPCActor] StartDialogue NPC=%s Player=%s DialogueID=%s"),
+	UE_LOG(LogPP, Log, TEXT("[NPCActor] StartDialogue NPC=%s Player=%s DialogueID=%s"),
 		*GetName(), *Player->GetName(), *StartID.ToString());
 
 	// 通过接口转发 PC 的 ClientRPC 触发客户端 UI 打开
@@ -269,4 +270,16 @@ void APP_NPCActor::ApplyNPCAppearance()
 	{
 		MeshComponent->SetVisibility(false);
 	}
+}
+
+// ===== 对话表查询 =====
+
+FPP_DialogueData* APP_NPCActor::FindDialogueRow(FName DialogueID) const
+{
+	if (!IsValid(DialogueTable) || DialogueID.IsNone())
+	{
+		return nullptr;
+	}
+
+	return DialogueTable->FindRow<FPP_DialogueData>(DialogueID, TEXT("NPCActor::FindDialogueRow"));
 }

@@ -13,6 +13,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_CrashGameMode.h"
+#include "Framework/PP_Log.h"
 
 
 APP_EnemyCharacter::APP_EnemyCharacter()
@@ -123,14 +124,14 @@ void APP_EnemyCharacter::HandleDeath()
 			if (Bridge)
 			{
 				Bridge->NotifyEnemyKilled(KillerPC, EnemyID);
-				UE_LOG(LogTemp, Log, TEXT("[Enemy] HandleDeath: NotifyEnemyKilled Killer=%s EnemyID=%s"),
+				UE_LOG(LogPP, Log, TEXT("[Enemy] HandleDeath: NotifyEnemyKilled Killer=%s EnemyID=%s"),
 					*KillerPC->GetName(), *EnemyID.ToString());
 			}
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Enemy] HandleDeath: QUEST KILL NOT TRACKED - KillerPC=%s EnemyID=%s"),
+		UE_LOG(LogPP, Warning, TEXT("[Enemy] HandleDeath: QUEST KILL NOT TRACKED - KillerPC=%s EnemyID=%s"),
 			KillerPC ? *KillerPC->GetName() : TEXT("null"), *EnemyID.ToString());
 	}
 
@@ -153,6 +154,6 @@ void APP_EnemyCharacter::HandleDeath()
 	}
 
 	KillerInventory->AddGold(GoldDropAmount);
-	UE_LOG(LogTemp, Log, TEXT("[Enemy] HandleDeath: 向击杀者 %s 发放金币 %d"),
+	UE_LOG(LogPP, Log, TEXT("[Enemy] HandleDeath: 向击杀者 %s 发放金币 %d"),
 		*KillerPC->GetName(), GoldDropAmount);
 }

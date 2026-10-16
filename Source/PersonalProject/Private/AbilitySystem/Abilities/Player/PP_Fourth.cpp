@@ -3,12 +3,13 @@
 #include "AbilitySystem/Abilities/Player/PP_Fourth.h"
 #include "GameObjects/PP_Projectile.h"
 #include "Engine/World.h"
+#include "Framework/PP_Log.h"
 
 void UPP_Fourth::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	UE_LOG(LogTemp, Error, TEXT("[策略实验] ActivateAbility 执行端: %s"),
+	UE_LOG(LogPP, Error, TEXT("[策略实验] ActivateAbility 执行端: %s"),
 		(ActorInfo && ActorInfo->IsNetAuthority()) ? TEXT("Server") : TEXT("Client"));
 
 

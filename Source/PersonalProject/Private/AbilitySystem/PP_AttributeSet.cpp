@@ -7,6 +7,7 @@
 #include "GameplayEffectExtension.h"
 #include "GameplayTags/PPTags.h"
 #include"Net/UnrealNetwork.h"
+#include "Framework/PP_Log.h"
 
 void UPP_AttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -40,7 +41,7 @@ void UPP_AttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMod
 		const float Delta = Data.EvaluatedData.Magnitude;
 		const TCHAR* Verb = (Delta < 0.f) ? TEXT("受到伤害") : TEXT("恢复");
 
-		UE_LOG(LogTemp, Log, TEXT("[PP_Health] %s %s %.2f | Health %.2f → %.2f | 施法者: %s | GE: %s"),
+		UE_LOG(LogPP, Log, TEXT("[PP_Health] %s %s %.2f | Health %.2f → %.2f | 施法者: %s | GE: %s"),
 			*GetNameSafe(Data.Target.GetAvatarActor()),
 			Verb,
 			FMath::Abs(Delta),

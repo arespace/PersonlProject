@@ -11,6 +11,7 @@
 #include "Shop/PP_ShopComponent.h"
 #include "Dialogue/PP_DialogueChoiceWidget.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/PP_Log.h"
 
 UPP_DialogueWidget::UPP_DialogueWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -108,7 +109,7 @@ void UPP_DialogueWidget::AdvanceLine()
 		else if (CurrentData.EndAction == EPP_DialogueEndAction::ChainNextDialogue)
 		{
 			// 链式对话：自动跳到下一段对话，不弹出选项面板
-			UE_LOG(LogTemp, Log, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue: DialogueID=%s, NPC=%s"),
+			UE_LOG(LogPP, Log, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue: DialogueID=%s, NPC=%s"),
 				*CurrentData.DialogueID.ToString(), OwningNPC.IsValid() ? *OwningNPC->GetName() : TEXT("null"));
 
 			if (OwnerPC.IsValid() && OwningNPC.IsValid())
@@ -117,7 +118,7 @@ void UPP_DialogueWidget::AdvanceLine()
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue failed: OwnerPC valid=%d, OwningNPC valid=%d"),
+				UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] AdvanceLine - ChainNextDialogue failed: OwnerPC valid=%d, OwningNPC valid=%d"),
 					OwnerPC.IsValid(), OwningNPC.IsValid());
 			}
 			// 通过 UIManager 移除当前 Widget（新的 DialogueWidget 会被 ServerRPC → Client_OpenDialogueUI 创建并添加）
@@ -170,7 +171,7 @@ void UPP_DialogueWidget::ShowEndChoices()
 	// 确保输入模式在 DialogueWidget 移除前已正确切换
 	if (!ChoiceWidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DialogueWidget] ShowEndChoices - ChoiceWidgetClass not set, closing dialogue"));
+		UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] ShowEndChoices - ChoiceWidgetClass not set, closing dialogue"));
 		if (OwnerPC.IsValid())
 		{
 			OwnerPC->OnDialogueEnded.Broadcast(CurrentData.DialogueID, CurrentData.RelatedQuestID);
@@ -182,7 +183,7 @@ void UPP_DialogueWidget::ShowEndChoices()
 	UPP_DialogueChoiceWidget* ChoiceWidget = CreateWidget<UPP_DialogueChoiceWidget>(GetWorld(), ChoiceWidgetClass);
 	if (!ChoiceWidget)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[DialogueWidget] ShowEndChoices - Failed to create ChoiceWidget"));
+		UE_LOG(LogPP, Error, TEXT("[DialogueWidget] ShowEndChoices - Failed to create ChoiceWidget"));
 		return;
 	}
 
@@ -269,10 +270,10 @@ void UPP_DialogueWidget::OnNextButtonClicked()
 		// 商人：打开商店
 		if (!OwnerPC.IsValid() || !NPC || !IsValid(NPC))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[DialogueWidget] OnNextButtonClicked - OpenShop failed: NPC or PC invalid"));
+			UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] OnNextButtonClicked - OpenShop failed: NPC or PC invalid"));
 			return;
 		}
-		UE_LOG(LogTemp, Log, TEXT("[DialogueWidget] OnNextButtonClicked - OpenShop for NPC '%s'"), *NPC->GetName());
+		UE_LOG(LogPP, Log, TEXT("[DialogueWidget] OnNextButtonClicked - OpenShop for NPC '%s'"), *NPC->GetName());
 		OwnerPC->Server_ConfirmDialogueEndAction(NPC, CurrentData.DialogueID, EPP_DialogueEndAction::OpenShop);
 		RemoveFromParent();
 	}

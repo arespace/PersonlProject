@@ -52,47 +52,4 @@ struct FPP_GatherEvent
 	int32 Count = 0;
 };
 
-/** 物品拾取/添加事件：Inventory -> Quest/UI */
-USTRUCT(BlueprintType)
-struct FPP_ItemPickedUpEvent
-{
-	GENERATED_BODY()
 
-	/** 获得物品的玩家 */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	TObjectPtr<APlayerController> Player = nullptr;
-
-	/** 物品 ID */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	FName ItemID;
-
-	/** 添加后的物品数量 */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	int32 NewCount = 0;
-};
-
-/** 对话完成事件：NPC -> Quest */
-USTRUCT(BlueprintType)
-struct FPP_DialogueCompletedEvent
-{
-	GENERATED_BODY()
-
-	/** 参与对话的玩家 */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	TObjectPtr<APlayerController> Player = nullptr;
-
-	/** NPC 标识 */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	FName NPCID;
-};
-
-/** 玩家死亡事件：Character -> UI/系统 */
-USTRUCT(BlueprintType)
-struct FPP_PlayerDeathEvent
-{
-	GENERATED_BODY()
-
-	/** 死亡的玩家 */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	TObjectPtr<APlayerController> Player = nullptr;
-};

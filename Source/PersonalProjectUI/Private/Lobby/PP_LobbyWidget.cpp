@@ -14,6 +14,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "UObject/UnrealType.h"
+#include "Framework/PP_Log.h"
 
 void UPP_LobbyWidget::NativeOnInitialized()
 {
@@ -59,13 +60,13 @@ void UPP_LobbyWidget::UpdatePlayerList(const TArray<FLobbyPlayerInfo>& Players)
 				EntryWidget = Cast<UPP_PlayerEntryWidget>(CreateWidget<UUserWidget>(this, PlayerEntryClass));
 				if (!EntryWidget)
 				{
-					UE_LOG(LogTemp, Warning,
+					UE_LOG(LogPP, Warning,
 						TEXT("[LobbyWidget] WBP_PlayerEntry 的父类不是 UPP_PlayerEntryWidget（请 Reparent），退回文本渲染"));
 				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error,
+				UE_LOG(LogPP, Error,
 					TEXT("[LobbyWidget] PlayerEntryClass 未配置：请在 WBP_Lobby 的 Class Defaults 里指向 WBP_PlayerEntry"));
 			}
 
@@ -108,7 +109,7 @@ void UPP_LobbyWidget::UpdatePlayerList(const TArray<FLobbyPlayerInfo>& Players)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[LobbyWidget] PlayerListContainer is NULL!"));
+		UE_LOG(LogPP, Error, TEXT("[LobbyWidget] PlayerListContainer is NULL!"));
 	}
 
 	ApplyHostOnlyButtons(bLocalIsHost);
@@ -297,7 +298,7 @@ void UPP_LobbyWidget::AddChatMessage(const FString& PlayerName, const FString& M
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error,
+		UE_LOG(LogPP, Error,
 			TEXT("[LobbyWidget] ChatMessageClass 未配置：请在 WBP_Lobby 的 Class Defaults 里指向 WBP_ChatMessage"));
 	}
 
@@ -330,7 +331,7 @@ void UPP_LobbyWidget::AddSystemMessage(const FString& Message)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error,
+		UE_LOG(LogPP, Error,
 			TEXT("[LobbyWidget] ChatMessageClass 未配置：系统消息无法使用 WBP_ChatMessage 样式"));
 	}
 
@@ -466,14 +467,14 @@ void UPP_LobbyWidget::OnLeaveClicked()
 		APP_PlayerController* LobbyPC = Cast<APP_PlayerController>(PC);
 		if (LobbyPC)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[LobbyWidget] Host leaving - requesting host migration"));
+			UE_LOG(LogPP, Log, TEXT("[LobbyWidget] Host leaving - requesting host migration"));
 			LobbyPC->Server_RequestHostMigration();
 		}
 	}
 	else
 	{
 		// 非房主离开 - 正常断开
-		UE_LOG(LogTemp, Log, TEXT("[LobbyWidget] Non-host leaving - normal disconnect"));
+		UE_LOG(LogPP, Log, TEXT("[LobbyWidget] Non-host leaving - normal disconnect"));
 
 		UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld());
 		if (SM)
@@ -496,7 +497,7 @@ void UPP_LobbyWidget::OnLeaveClicked()
 
 void UPP_LobbyWidget::ExecuteDisconnect()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[LobbyWidget] ExecuteDisconnect - performing Disconnect"));
+	UE_LOG(LogPP, Verbose, TEXT("[LobbyWidget] ExecuteDisconnect - performing Disconnect"));
 	APlayerController* PC = GetOwningPlayer();
 	if (PC)
 	{

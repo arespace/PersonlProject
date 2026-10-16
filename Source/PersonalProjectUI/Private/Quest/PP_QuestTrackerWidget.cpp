@@ -10,6 +10,7 @@
 #include "Components/OverlaySlot.h"
 #include "Layout/Margin.h"
 #include "Quest/PP_QuestComponent.h"
+#include "Framework/PP_Log.h"
 
 UPP_QuestTrackerWidget::UPP_QuestTrackerWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -28,7 +29,7 @@ void UPP_QuestTrackerWidget::InitializeTracker(UPP_QuestComponent* InQuestCompon
 
 	// 默认追踪第一个活跃任务
 	TArray<FPP_ActiveQuest> ActiveQuests = QuestComponent->GetActiveQuests();
-	UE_LOG(LogTemp, Log, TEXT("[QuestTracker] InitializeTracker - ActiveQuests=%d"), ActiveQuests.Num());
+	UE_LOG(LogPP, Log, TEXT("[QuestTracker] InitializeTracker - ActiveQuests=%d"), ActiveQuests.Num());
 	if (ActiveQuests.Num() > 0)
 	{
 		TrackQuest(ActiveQuests[0].QuestID);
@@ -47,7 +48,7 @@ void UPP_QuestTrackerWidget::RefreshTracker()
 
 	if (TrackedQuestID.IsNone())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestTracker] RefreshTracker - TrackedQuestID is None, clearing UI"));
+		UE_LOG(LogPP, Verbose, TEXT("[QuestTracker] RefreshTracker - TrackedQuestID is None, clearing UI"));
 		if (QuestTitleText)
 		{
 			QuestTitleText->SetText(FText::GetEmpty());
@@ -59,7 +60,7 @@ void UPP_QuestTrackerWidget::RefreshTracker()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[QuestTracker] RefreshTracker - Tracking %s, QuestTitleText=%s, TrackerContainer=%s"),
+	UE_LOG(LogPP, Log, TEXT("[QuestTracker] RefreshTracker - Tracking %s, QuestTitleText=%s, TrackerContainer=%s"),
 		*TrackedQuestID.ToString(),
 		QuestTitleText ? TEXT("valid") : TEXT("NULL"),
 		TrackerContainer ? TEXT("valid") : TEXT("NULL"));
@@ -180,7 +181,7 @@ void UPP_QuestTrackerWidget::OnQuestCompleted(FName QuestID)
 
 void UPP_QuestTrackerWidget::OnQuestsUpdated()
 {
-	UE_LOG(LogTemp, Log, TEXT("[QuestTracker] OnQuestsUpdated - TrackedID=%s"), *TrackedQuestID.ToString());
+	UE_LOG(LogPP, Log, TEXT("[QuestTracker] OnQuestsUpdated - TrackedID=%s"), *TrackedQuestID.ToString());
 	// 客户端收到 OnRep 后，如果没有追踪任何任务则自动追踪第一个
 	if (TrackedQuestID.IsNone() && QuestComponent)
 	{
@@ -188,7 +189,7 @@ void UPP_QuestTrackerWidget::OnQuestsUpdated()
 		if (ActiveQuests.Num() > 0)
 		{
 			TrackedQuestID = ActiveQuests[0].QuestID;
-			UE_LOG(LogTemp, Log, TEXT("[QuestTracker] OnQuestsUpdated - Auto-tracking %s"), *TrackedQuestID.ToString());
+			UE_LOG(LogPP, Log, TEXT("[QuestTracker] OnQuestsUpdated - Auto-tracking %s"), *TrackedQuestID.ToString());
 		}
 	}
 	RefreshTracker();

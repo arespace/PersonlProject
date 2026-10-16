@@ -35,7 +35,7 @@ class PERSONALPROJECT_API APP_PlayerController : public APlayerController, publi
 	GENERATED_BODY()
 
 public:
-	// ===== IPP_DialogueRequester 接口实现（实现体在 UI 模块 PP_UICrossModule.cpp，转发到自身 RPC）=====
+	// ===== IPP_DialogueRequester 接口实现（实现体在本类 PP_PlayerController.cpp，转发到自身 RPC）=====
 	virtual void RequestStartDialogue_Implementation(APP_NPCActor* NPC) override;
 	virtual void OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID) override;
 
@@ -139,8 +139,8 @@ public:
 	 * 客户端提交对话结束动作（OpenShop / OfferQuest / SubmitQuest / ChainNextDialogue / None）
 	 * 服务器验证后执行：
 	 *   - OpenShop          → 通过 Client RPC 让客户端打开商店 UI
-	 *   - OfferQuest        → TODO(Task5) 调用任务系统接取任务
-	 *   - SubmitQuest       → TODO(Task5) 调用任务系统提交任务
+	 *   - OfferQuest        → 从 NPC 对话表取 RelatedQuestID，调用 QuestComponent::AcceptQuest
+	 *   - SubmitQuest       → 从 NPC 对话表取 RelatedQuestID，调用 QuestComponent::SubmitQuest（失败时通知客户端）
 	 *   - ChainNextDialogue → 服务端 → Client_OpenDialogueUI 跳到下一段
 	 */
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Dialogue")
@@ -279,6 +279,28 @@ private:
 	void ToggleHUD();
 	void ToggleQuestLog();
 	void ToggleInventory();
+
+	// ===== UI 网关转发辅助 =====
+
+	/**
+	 * 统一转发到 IPP_UIGateway（HUD 侧实现：APP_HUD / APP_LobbyHUD）。
+	 *
+	 * 用法：
+	 *   ForwardToUIGateway(&IPP_UIGateway::Execute_RequestTogglePauseMenu);
+	 *   ForwardToUIGateway(&IPP_UIGateway::Execute_PushChatMessage, PlayerName, Message);
+	 *
+	 * 说明：接口方法均为 BlueprintNativeEvent，C++ 侧只能经 UHT 静态分发器 Execute_Xxx 调用
+	 *      （经接口指针直接调用会命中 check(0) 桩）；Execute_Xxx 内部要求目标已实现接口，
+	 *      故此处保留 Cast 守卫。
+	 */
+	template <typename TExecuteFunc, typename... TArgs>
+	void ForwardToUIGateway(TExecuteFunc ExecuteFunc, TArgs&&... Args)
+	{
+		if (Cast<IPP_UIGateway>(GetHUD()) != nullptr)
+		{
+			ExecuteFunc(GetHUD(), Forward<TArgs>(Args)...);
+		}
+	}
 
 	// ===== 大厅辅助 =====
 

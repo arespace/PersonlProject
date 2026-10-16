@@ -1,4 +1,4 @@
-﻿// NPC对话系统 — NPC Actor
+// NPC对话系统 — NPC Actor
 // 世界中可交互的 NPC，承载对话表、可选商店组件，由服务器权威触发对话与功能动作
 
 #pragma once
@@ -14,6 +14,7 @@ class USkeletalMeshComponent;
 class USphereComponent;
 class UDataTable;
 class UPP_ShopComponent;
+struct FPP_DialogueData;
 
 /**
  * NPC Actor — 对话/商店交互入口
@@ -93,6 +94,13 @@ public:
 	/** 获取对话表（供 PC 端 UI 查询对话行） */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "NPC|Dialogue")
 	UDataTable* GetDialogueTable() const { return DialogueTable; }
+
+	/**
+	 * 按 DialogueID 查询对话行（NPC 自行持表，避免调用方各自重复「判空 + FindRow」）
+	 * @param DialogueID 行键
+	 * @return 命中行指针（生命周期与 DialogueTable 一致）；表未配置或未命中返回 nullptr
+	 */
+	FPP_DialogueData* FindDialogueRow(FName DialogueID) const;
 
 protected:
 	// ===== 组件 =====

@@ -8,6 +8,7 @@
 
 #include "PP_AttributeSet.generated.h"
 
+// 引擎只提供 ATTRIBUTE_ACCESSORS_BASIC；带 Clamp/RepNotify 的 ATTRIBUTE_ACCESSORS 按引擎文档示例在项目内自定义
 #define ATTRIBUTE_ACCESSORS(ClassName,PropertyName) \
 	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
 	GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \

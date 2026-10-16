@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Inventory/PP_InventoryComponent.h"
 #include "Data/PP_ItemData.h"
+#include "Framework/PP_Log.h"
 
 UPP_ShopComponent::UPP_ShopComponent()
 {
@@ -103,7 +104,7 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	}
 	if (!IsValid(Buyer) || ItemID.IsNone() || Count <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem 参数无效"));
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem 参数无效"));
 		return;
 	}
 
@@ -111,14 +112,14 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	FPP_ShopItem* ShopItem = FindShopItem(ItemID);
 	if (!ShopItem)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 商店未售卖商品 %s"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem: 商店未售卖商品 %s"), *ItemID.ToString());
 		return;
 	}
 
 	// 2) 验证库存充足（-1表示无限）
 	if (ShopItem->Stock != -1 && ShopItem->Stock < Count)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 商品 %s 库存不足，剩余 %d 需要 %d"),
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem: 商品 %s 库存不足，剩余 %d 需要 %d"),
 			*ItemID.ToString(), ShopItem->Stock, Count);
 		Client_OnShopResult(NSLOCTEXT("Shop", "StockInsufficient", "库存不足"));
 		return;
@@ -128,7 +129,7 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	const int32 UnitPrice = GetItemBuyPrice(ItemID);
 	if (UnitPrice <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 商品 %s 价格未配置"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem: 商品 %s 价格未配置"), *ItemID.ToString());
 		return;
 	}
 	const int32 TotalPrice = UnitPrice * Count;
@@ -136,12 +137,12 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	UPP_InventoryComponent* Inventory = GetPlayerInventory(Buyer);
 	if (!Inventory)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 找不到购买者的库存组件"));
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem: 找不到购买者的库存组件"));
 		return;
 	}
 	if (Inventory->GetGold() < TotalPrice)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Shop] BuyItem: 金币不足，需要 %d 当前 %d"),
+		UE_LOG(LogPP, Log, TEXT("[Shop] BuyItem: 金币不足，需要 %d 当前 %d"),
 			TotalPrice, Inventory->GetGold());
 		Client_OnShopResult(FText::Format(
 			NSLOCTEXT("Shop", "GoldInsufficient", "金币不足，需要 {0}，当前 {1}"),
@@ -160,7 +161,7 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	const FPP_ItemInfo* ItemInfo = DataManager ? DataManager->GetItemInfo(ItemID) : nullptr;
 	if (!ItemInfo)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 全局物品表(DataManager)中找不到物品 %s，请检查 DefaultGame.ini 的 DataManager 物品表配置"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem: 全局物品表(DataManager)中找不到物品 %s，请检查 DefaultGame.ini 的 DataManager 物品表配置"), *ItemID.ToString());
 		Inventory->AddGold(TotalPrice);
 		Client_OnShopResult(FText::Format(
 			NSLOCTEXT("Shop", "ItemNotFound", "物品 {0} 配置缺失"),
@@ -172,7 +173,7 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	{
 		// 物品添加失败，回滚金币
 		Inventory->AddGold(TotalPrice);
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] BuyItem: 物品 %s 添加失败（可能背包已满或无服务端权限），已回滚金币"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Shop] BuyItem: 物品 %s 添加失败（可能背包已满或无服务端权限），已回滚金币"), *ItemID.ToString());
 		Client_OnShopResult(NSLOCTEXT("Shop", "BackpackFull", "背包空间不足"));
 		return;
 	}
@@ -187,7 +188,7 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	OnPurchaseCompleted.Broadcast(Buyer, ItemID, Count);
 	OnPurchaseCompletedDelegate.Broadcast(Buyer, ItemID, Count);
 
-	UE_LOG(LogTemp, Log, TEXT("[Shop] BuyItem: %s 购买 %s x%d 花费 %d"),
+	UE_LOG(LogPP, Log, TEXT("[Shop] BuyItem: %s 购买 %s x%d 花费 %d"),
 		*Buyer->GetName(), *ItemID.ToString(), Count, TotalPrice);
 }
 
@@ -201,21 +202,21 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 	}
 	if (!IsValid(Seller) || ItemID.IsNone() || Count <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] SellItem 参数无效"));
+		UE_LOG(LogPP, Warning, TEXT("[Shop] SellItem 参数无效"));
 		return;
 	}
 
 	UPP_InventoryComponent* Inventory = GetPlayerInventory(Seller);
 	if (!Inventory)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] SellItem: 找不到出售者的库存组件"));
+		UE_LOG(LogPP, Warning, TEXT("[Shop] SellItem: 找不到出售者的库存组件"));
 		return;
 	}
 
 	// 1) 验证背包中有足够物品
 	if (!Inventory->HasItem(ItemID, Count))
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Shop] SellItem: 背包物品不足"));
+		UE_LOG(LogPP, Log, TEXT("[Shop] SellItem: 背包物品不足"));
 		return;
 	}
 
@@ -230,7 +231,7 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 	}
 	if (SellPriceUnit <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] SellItem: 物品 %s 出售价格未配置"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Shop] SellItem: 物品 %s 出售价格未配置"), *ItemID.ToString());
 		return;
 	}
 
@@ -238,7 +239,7 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 	const int32 TotalGold = FMath::FloorToInt(static_cast<float>(SellPriceUnit) * SellPriceMultiplier) * Count;
 	if (TotalGold <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Shop] SellItem: 计算出售收益为0"));
+		UE_LOG(LogPP, Warning, TEXT("[Shop] SellItem: 计算出售收益为0"));
 		return;
 	}
 
@@ -249,7 +250,7 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 	}
 	Inventory->AddGold(TotalGold);
 
-	UE_LOG(LogTemp, Log, TEXT("[Shop] SellItem: %s 出售 %s x%d 获得 %d 金币"),
+	UE_LOG(LogPP, Log, TEXT("[Shop] SellItem: %s 出售 %s x%d 获得 %d 金币"),
 		*Seller->GetName(), *ItemID.ToString(), Count, TotalGold);
 }
 

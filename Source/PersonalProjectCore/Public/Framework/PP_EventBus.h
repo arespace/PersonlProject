@@ -48,7 +48,6 @@ private:
 	/** 类型擦除后的回调包装 */
 	struct FEventCallback
 	{
-		UScriptStruct* Struct = nullptr;
 		TFunction<void(const void*)> Callback;
 	};
 
@@ -66,7 +65,6 @@ FDelegateHandle UPP_EventBus::Subscribe(TFunction<void(const EventType&)> Callba
 	FDelegateHandle Handle(FDelegateHandle::GenerateNewHandle);
 
 	FEventCallback Wrapped;
-	Wrapped.Struct = Struct;
 	Wrapped.Callback = [Callback = MoveTemp(Callback)](const void* Data)
 	{
 		Callback(*static_cast<const EventType*>(Data));

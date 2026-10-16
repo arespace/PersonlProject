@@ -9,6 +9,7 @@
 #include "Framework/PP_DataManager.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
+#include "Framework/PP_Log.h"
 
 UPP_InventoryComponent::UPP_InventoryComponent()
 {
@@ -61,14 +62,14 @@ bool UPP_InventoryComponent::AddItem(FName ItemID, int32 Count)
 	const FPP_ItemInfo* Info = FindItemInfo(ItemID);
 	if (!Info)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Inventory] AddItem: 未找到物品配置 %s"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] AddItem: 未找到物品配置 %s"), *ItemID.ToString());
 		return false;
 	}
 
 	const int32 MaxStack = FMath::Max(1, Info->MaxStackCount);
 	int32 Remaining = Count;
 
-	UE_LOG(LogTemp, Log, TEXT("[Inventory] AddItem: ItemID=%s, Count=%d, MaxStack=%d (DataTable raw=%d), 当前背包槽位数=%d"),
+	UE_LOG(LogPP, Log, TEXT("[Inventory] AddItem: ItemID=%s, Count=%d, MaxStack=%d (DataTable raw=%d), 当前背包槽位数=%d"),
 		*ItemID.ToString(), Count, MaxStack, Info->MaxStackCount, Items.Num());
 
 	// 1) 优先填充已存在的同ID堆叠槽
@@ -80,7 +81,7 @@ bool UPP_InventoryComponent::AddItem(FName ItemID, int32 Count)
 			const int32 Add = FMath::Min(Remaining, MaxStack - Inst.Count);
 			Inst.Count += Add;
 			Remaining -= Add;
-			UE_LOG(LogTemp, Log, TEXT("[Inventory] AddItem: 堆叠到已有槽位，槽位Count=%d -> %d，剩余=%d"),
+			UE_LOG(LogPP, Log, TEXT("[Inventory] AddItem: 堆叠到已有槽位，槽位Count=%d -> %d，剩余=%d"),
 				Inst.Count - Add, Inst.Count, Remaining);
 		}
 	}
@@ -91,19 +92,19 @@ bool UPP_InventoryComponent::AddItem(FName ItemID, int32 Count)
 	{
 		if (MaxInventorySlots > 0 && Items.Num() >= MaxInventorySlots)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[Inventory] AddItem: 背包已满，剩余 %d 件未能加入"), Remaining);
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] AddItem: 背包已满，剩余 %d 件未能加入"), Remaining);
 			break;
 		}
 		const int32 Add = FMath::Min(Remaining, MaxStack);
 		Items.Emplace(ItemID, Add);
 		Remaining -= Add;
 		++NewSlotsCreated;
-		UE_LOG(LogTemp, Log, TEXT("[Inventory] AddItem: 新建槽位 #%d，Count=%d，剩余=%d"),
+		UE_LOG(LogPP, Log, TEXT("[Inventory] AddItem: 新建槽位 #%d，Count=%d，剩余=%d"),
 			NewSlotsCreated, Add, Remaining);
 	}
 
 	const int32 NewTotal = GetItemCount(ItemID);
-	UE_LOG(LogTemp, Log, TEXT("[Inventory] AddItem: 完成 — 物品=%s, 本次新建槽位=%d, 当前该物品总数=%d, 背包总槽位=%d"),
+	UE_LOG(LogPP, Log, TEXT("[Inventory] AddItem: 完成 — 物品=%s, 本次新建槽位=%d, 当前该物品总数=%d, 背包总槽位=%d"),
 		*ItemID.ToString(), NewSlotsCreated, NewTotal, Items.Num());
 	OnInventoryChanged.Broadcast(ItemID, NewTotal);
 	return Remaining < Count;
@@ -169,7 +170,7 @@ void UPP_InventoryComponent::Server_EquipItem_Implementation(FName ItemID)
 {
 	if (!HasItem(ItemID, 1))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Inventory] EquipItem: 背包中无物品 %s"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] EquipItem: 背包中无物品 %s"), *ItemID.ToString());
 		return;
 	}
 	const FPP_ItemInfo* Info = FindItemInfo(ItemID);
@@ -179,7 +180,7 @@ void UPP_InventoryComponent::Server_EquipItem_Implementation(FName ItemID)
 	}
 	if (Info->ItemType != EPP_ItemType::Equipment || Info->EquipSlot == EPP_EquipSlot::None)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Inventory] EquipItem: 物品 %s 不是装备类型"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] EquipItem: 物品 %s 不是装备类型"), *ItemID.ToString());
 		return;
 	}
 
@@ -347,7 +348,7 @@ void UPP_InventoryComponent::Server_UseConsumable_Implementation(FName ItemID)
 {
 	if (!HasItem(ItemID, 1))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Inventory] UseConsumable: 背包中无物品 %s"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] UseConsumable: 背包中无物品 %s"), *ItemID.ToString());
 		return;
 	}
 	const FPP_ItemInfo* Info = FindItemInfo(ItemID);
@@ -357,12 +358,12 @@ void UPP_InventoryComponent::Server_UseConsumable_Implementation(FName ItemID)
 	}
 	if (Info->ItemType != EPP_ItemType::Consumable)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Inventory] UseConsumable: 物品 %s 不是消耗品"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] UseConsumable: 物品 %s 不是消耗品"), *ItemID.ToString());
 		return;
 	}
 	if (!Info->ConsumeEffectClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Inventory] UseConsumable: 物品 %s 未配置 ConsumeEffectClass"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] UseConsumable: 物品 %s 未配置 ConsumeEffectClass"), *ItemID.ToString());
 		return;
 	}
 
@@ -376,7 +377,7 @@ void UPP_InventoryComponent::Server_UseConsumable_Implementation(FName ItemID)
 	ApplyConsumable(*Info);
 	OnItemUsed.Broadcast(ItemID);
 
-	UE_LOG(LogTemp, Log, TEXT("[Inventory] UseConsumable: 使用 %s"), *ItemID.ToString());
+	UE_LOG(LogPP, Log, TEXT("[Inventory] UseConsumable: 使用 %s"), *ItemID.ToString());
 }
 
 void UPP_InventoryComponent::ApplyConsumable(const FPP_ItemInfo& ItemInfo)

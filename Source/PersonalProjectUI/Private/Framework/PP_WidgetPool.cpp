@@ -1,6 +1,7 @@
 // Chen Tianbao uses GAS to create online battle games
 
 #include "Framework/PP_WidgetPool.h"
+#include "Framework/PP_Log.h"
 
 void UPP_WidgetPool::Initialize(UUserWidget* PoolOwner, TSubclassOf<UUserWidget> WidgetClass, int32 InitialSize)
 {
@@ -59,7 +60,7 @@ void UPP_WidgetPool::Release(UUserWidget* Widget)
 	// 若不拦截，同一实例会在 Available 中出现两份，导致后续两次 Acquire 拿到同一对象。
 	if (InUse.Remove(Widget) == 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WidgetPool] Release 忽略：%s 不在用列表中（重复归还或不属于本池）"), *Widget->GetName());
+		UE_LOG(LogPP, Warning, TEXT("[WidgetPool] Release 忽略：%s 不在用列表中（重复归还或不属于本池）"), *Widget->GetName());
 		return;
 	}
 

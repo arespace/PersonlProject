@@ -7,6 +7,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffectExtension.h"
 #include "GameplayTags/PPTags.h"
+#include "Framework/PP_Log.h"
 
 namespace
 {
@@ -67,12 +68,12 @@ void UPP_DamageExecutionCalculation::Execute_Implementation(
 	// 攻击力为 0 通常意味着 GE_InitializeAttributes 里漏配了 Attack 初值
 	if (Attack <= 0.f)
 	{
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogPP, Warning,
 			TEXT("[PP_DamageExecution] 攻击力为 0，请检查 GE_InitializeAttributes 是否已为 Attack 配置初值（GE: %s）"),
 			*GetNameSafe(Spec.Def));
 	}
 
-	UE_LOG(LogTemp, Log,
+	UE_LOG(LogPP, Log,
 		TEXT("[PP_DamageExecution] Attack=%.2f Defense=%.2f Coefficient=%.2f FinalDamage=%.2f"),
 		Attack, Defense, Coefficient, FinalDamage);
 

@@ -13,6 +13,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
 #include "Utils/PP_BlueprintLibrary.h"
+#include "Framework/PP_Log.h"
 
 UPP_Secondary::UPP_Secondary()
 {
@@ -25,7 +26,7 @@ void UPP_Secondary::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	UE_LOG(LogTemp, Error, TEXT("[UPP_Secondary] ActivateAbility 进入 — C++ 版在跑"));
+	UE_LOG(LogPP, Error, TEXT("[UPP_Secondary] ActivateAbility 进入 — C++ 版在跑"));
 
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
 	if (!AbilitySystemComponent || BlockHitReactEffectClass == nullptr)
@@ -83,7 +84,7 @@ void UPP_Secondary::ActivateAbility(const FGameplayAbilitySpecHandle Handle, con
 
 void UPP_Secondary::OnGameplayEventReceived(FGameplayEventData Payload)
 {
-	UE_LOG(LogTemp, Error, TEXT("[UPP_Secondary] OnGameplayEventReceived 进入 — 收到 AnimNotify 事件"));
+	UE_LOG(LogPP, Error, TEXT("[UPP_Secondary] OnGameplayEventReceived 进入 — 收到 AnimNotify 事件"));
 
 	// 对应蓝图：EventReceived → K2_CommitAbility（蓝图忽略了返回值，这里加上标准的失败保护）
 	if (!CommitAbility(CachedHandle, CachedActorInfo, CachedActivationInfo))

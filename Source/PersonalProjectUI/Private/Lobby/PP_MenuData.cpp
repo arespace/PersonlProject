@@ -2,6 +2,7 @@
 
 #include "Lobby/PP_MenuData.h"
 #include "UnLuaEx.h"
+#include "Framework/PP_Log.h"
 
 // 导出结构体到 UnLua，让 TArray<FLoginMenuItemRow> 的元素能以 Lua table 形式访问（.Name / .IconPath / .Action）
 // 只导出 UnLua::TType<T> 有特化的类型（这里是 FString / FName）。
@@ -20,7 +21,7 @@ TArray<FLoginMenuItemRow> UPP_MenuDataLibrary::GetLoginMenuItems(UDataTable* InT
 
 	if (!InTable)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MenuData] GetLoginMenuItems: InTable 为空，检查 WBP_LoginView 的 Class Defaults 里 LoginMenuTable 是否指到了 DT_LoginMenu"));
+		UE_LOG(LogPP, Warning, TEXT("[MenuData] GetLoginMenuItems: InTable 为空，检查 WBP_LoginView 的 Class Defaults 里 LoginMenuTable 是否指到了 DT_LoginMenu"));
 		return Result;
 	}
 

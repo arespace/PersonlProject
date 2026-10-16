@@ -10,6 +10,7 @@
 #include "Inventory/PP_InventoryComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerController.h"
+#include "Framework/PP_Log.h"
 
 UPP_QuestComponent::UPP_QuestComponent()
 {
@@ -36,20 +37,20 @@ bool UPP_QuestComponent::AcceptQuest(FName QuestID)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] AcceptQuest - Not server authority"));
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AcceptQuest - Not server authority"));
 		return false;
 	}
 
 	if (!CanAcceptQuest(QuestID))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] AcceptQuest - Cannot accept quest '%s'"), *QuestID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AcceptQuest - Cannot accept quest '%s'"), *QuestID.ToString());
 		return false;
 	}
 
 	const FPP_QuestInfo* QuestInfo = FindQuestInfo(QuestID);
 	if (!QuestInfo)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] AcceptQuest - Quest '%s' not found in DataTable"), *QuestID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AcceptQuest - Quest '%s' not found in DataTable"), *QuestID.ToString());
 		return false;
 	}
 
@@ -69,7 +70,7 @@ bool UPP_QuestComponent::AcceptQuest(FName QuestID)
 	OnQuestAccepted.Broadcast(QuestID);
 	OnQuestsUpdated.Broadcast();
 
-	UE_LOG(LogTemp, Log, TEXT("[QuestComponent] AcceptQuest - Accepted '%s'"), *QuestID.ToString());
+	UE_LOG(LogPP, Log, TEXT("[QuestComponent] AcceptQuest - Accepted '%s'"), *QuestID.ToString());
 	return true;
 }
 
@@ -77,7 +78,7 @@ bool UPP_QuestComponent::AbandonQuest(FName QuestID)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] AbandonQuest - Not server authority"));
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AbandonQuest - Not server authority"));
 		return false;
 	}
 
@@ -87,12 +88,12 @@ bool UPP_QuestComponent::AbandonQuest(FName QuestID)
 		{
 			ActiveQuests.RemoveAt(i);
 				OnQuestsUpdated.Broadcast();
-			UE_LOG(LogTemp, Log, TEXT("[QuestComponent] AbandonQuest - Abandoned '%s'"), *QuestID.ToString());
+			UE_LOG(LogPP, Log, TEXT("[QuestComponent] AbandonQuest - Abandoned '%s'"), *QuestID.ToString());
 			return true;
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] AbandonQuest - Quest '%s' not active"), *QuestID.ToString());
+	UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AbandonQuest - Quest '%s' not active"), *QuestID.ToString());
 	return false;
 }
 
@@ -100,7 +101,7 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] SubmitQuest - Not server authority"));
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] SubmitQuest - Not server authority"));
 		return false;
 	}
 
@@ -117,7 +118,7 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 
 	if (QuestIndex == INDEX_NONE)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] SubmitQuest - Quest '%s' not active"), *QuestID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] SubmitQuest - Quest '%s' not active"), *QuestID.ToString());
 		return false;
 	}
 
@@ -126,7 +127,7 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 	{
 		if (!Obj.bCompleted)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] SubmitQuest - Quest '%s' has incomplete objectives"), *QuestID.ToString());
+			UE_LOG(LogPP, Warning, TEXT("[QuestComponent] SubmitQuest - Quest '%s' has incomplete objectives"), *QuestID.ToString());
 			return false;
 		}
 	}
@@ -182,11 +183,11 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 	// 解锁下一主线任务（自动接取由 NPC 对话触发，此处仅记录日志）
 	if (QuestInfo && !QuestInfo->NextMainQuestID.IsNone())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[QuestComponent] SubmitQuest - NextMainQuestID '%s' now unlocked"),
+		UE_LOG(LogPP, Log, TEXT("[QuestComponent] SubmitQuest - NextMainQuestID '%s' now unlocked"),
 			*QuestInfo->NextMainQuestID.ToString());
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[QuestComponent] SubmitQuest - Completed '%s'"), *QuestID.ToString());
+	UE_LOG(LogPP, Log, TEXT("[QuestComponent] SubmitQuest - Completed '%s'"), *QuestID.ToString());
 	return true;
 }
 
@@ -194,11 +195,11 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] UpdateObjectiveProgress SKIP - Not authority"));
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] UpdateObjectiveProgress SKIP - Not authority"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] UpdateObjectiveProgress ENTER: Type=%d TargetID=%s Count=%d ActiveQuests=%d"),
+	UE_LOG(LogPP, Verbose, TEXT("[QuestComponent] UpdateObjectiveProgress ENTER: Type=%d TargetID=%s Count=%d ActiveQuests=%d"),
 		(int32)Type, *TargetID.ToString(), Count, ActiveQuests.Num());
 
 	bool bMatched = false;
@@ -209,7 +210,7 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 		{
 			FPP_QuestObjective& Obj = Quest.Objectives[OIdx];
 
-			UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] Checking Quest=%s Obj[%d]: Type=%d TargetID=%s Compl=%d Cur=%d/%d"),
+			UE_LOG(LogPP, Verbose, TEXT("[QuestComponent] Checking Quest=%s Obj[%d]: Type=%d TargetID=%s Compl=%d Cur=%d/%d"),
 				*Quest.QuestID.ToString(), OIdx, (int32)Obj.Type, *Obj.TargetID.ToString(),
 				Obj.bCompleted ? 1 : 0, Obj.CurrentCount, Obj.RequiredCount);
 
@@ -228,7 +229,7 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 			OnObjectiveUpdated.Broadcast(Quest.QuestID, OIdx);
 			OnQuestsUpdated.Broadcast();
 
-			UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] UpdateObjectiveProgress MATCH: Quest='%s' Obj[%d] %d/%d"),
+			UE_LOG(LogPP, Verbose, TEXT("[QuestComponent] UpdateObjectiveProgress MATCH: Quest='%s' Obj[%d] %d/%d"),
 				*Quest.QuestID.ToString(), OIdx, Obj.CurrentCount, Obj.RequiredCount);
 		}
 	}
@@ -241,7 +242,7 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestComponent] UpdateObjectiveProgress NO MATCH: Type=%d TargetID=%s"),
+		UE_LOG(LogPP, Verbose, TEXT("[QuestComponent] UpdateObjectiveProgress NO MATCH: Type=%d TargetID=%s"),
 			(int32)Type, *TargetID.ToString());
 	}
 }
@@ -334,7 +335,7 @@ const FPP_QuestInfo* UPP_QuestComponent::FindQuestInfo(FName QuestID) const
 void UPP_QuestComponent::OnRep_ActiveQuests()
 {
 	// 客户端收到活跃任务列表更新后广播，通知 UI 刷新
-	UE_LOG(LogTemp, Log, TEXT("[QuestComponent] OnRep_ActiveQuests - %d active quests"), ActiveQuests.Num());
+	UE_LOG(LogPP, Log, TEXT("[QuestComponent] OnRep_ActiveQuests - %d active quests"), ActiveQuests.Num());
 	OnQuestsUpdated.Broadcast();
 }
 

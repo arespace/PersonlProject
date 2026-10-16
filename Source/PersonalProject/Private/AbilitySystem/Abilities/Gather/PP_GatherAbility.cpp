@@ -6,6 +6,7 @@
 #include "Gather/PP_GatherableActor.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
+#include "Framework/PP_Log.h"
 
 UPP_GatherAbility::UPP_GatherAbility()
 {
@@ -65,7 +66,7 @@ void UPP_GatherAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	CachedActorInfo = ActorInfo;
 	CachedActivationInfo = ActivationInfo;
 
-	UE_LOG(LogTemp, Log, TEXT("[GatherAbility] ActivateAbility: target=%s gatherTime=%.1f"),
+	UE_LOG(LogPP, Log, TEXT("[GatherAbility] ActivateAbility: target=%s gatherTime=%.1f"),
 		GatherTarget ? *GatherTarget->GetName() : TEXT("null"),
 		GatherTarget ? GatherTarget->GetGatherTime() : 0.0f);
 
@@ -114,7 +115,7 @@ void UPP_GatherAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 void UPP_GatherAbility::OnGatherTimerCompleted()
 {
-	UE_LOG(LogTemp, Log, TEXT("[GatherAbility] OnGatherTimerCompleted: target=%s"),
+	UE_LOG(LogPP, Log, TEXT("[GatherAbility] OnGatherTimerCompleted: target=%s"),
 		GatherTarget ? *GatherTarget->GetName() : TEXT("null"));
 
 	// 触发采集物的完成逻辑
@@ -136,7 +137,7 @@ void UPP_GatherAbility::OnGatheringTagRemoved(const FGameplayTag Tag, int32 NewC
 	// Tag数量降为0表示被外部移除（受伤打断等）
 	if (NewCount == 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[GatherAbility] State.Gathering tag removed, cancelling gather"));
+		UE_LOG(LogPP, Log, TEXT("[GatherAbility] State.Gathering tag removed, cancelling gather"));
 
 		if (CachedActorInfo)
 		{
@@ -162,7 +163,7 @@ void UPP_GatherAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		AActor* AvatarActor = ActorInfo->AvatarActor.Get();
 		GatherTarget->Server_CancelGather(AvatarActor);
 
-		UE_LOG(LogTemp, Log, TEXT("[GatherAbility] EndAbility cancelled: target=%s"),
+		UE_LOG(LogPP, Log, TEXT("[GatherAbility] EndAbility cancelled: target=%s"),
 			GatherTarget ? *GatherTarget->GetName() : TEXT("null"));
 	}
 

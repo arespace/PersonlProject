@@ -1,4 +1,4 @@
-﻿// IPP_UIGateway 接口实现（APP_HUD / APP_LobbyHUD）
+// IPP_UIGateway 接口实现（APP_HUD / APP_LobbyHUD）
 //
 // 模块化拆分：主玩法模块禁止 include UI 头文件，PlayerController 对 HUD 的全部操作
 // 通过 IPP_UIGateway 接口（定义在主玩法模块）转发到本文件中的实现。
@@ -19,6 +19,7 @@
 #include "Inventory/PP_InventoryComponent.h"
 #include "Shop/PP_ShopComponent.h"
 #include "Engine/DataTable.h"
+#include "Framework/PP_Log.h"
 
 // ============================================================
 // APP_HUD — 战斗 HUD 网关实现
@@ -28,12 +29,12 @@ void APP_HUD::RequestTogglePauseMenu_Implementation()
 {
 	if (IsPauseMenuVisible())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[HUD Gateway] TogglePauseMenu - Hiding pause menu"));
+		UE_LOG(LogPP, Log, TEXT("[HUD Gateway] TogglePauseMenu - Hiding pause menu"));
 		HidePauseMenu();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("[HUD Gateway] TogglePauseMenu - Showing pause menu"));
+		UE_LOG(LogPP, Log, TEXT("[HUD Gateway] TogglePauseMenu - Showing pause menu"));
 		ShowPauseMenu();
 	}
 }
@@ -105,7 +106,7 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 {
 	if (!IsValid(NPC))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenDialogue - NPC is null"));
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - NPC is null"));
 		return;
 	}
 
@@ -113,14 +114,14 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 	UDataTable* DT = NPC->GetDialogueTable();
 	if (!IsValid(DT))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenDialogue - NPC DialogueTable is null"));
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - NPC DialogueTable is null"));
 		return;
 	}
 
 	FPP_DialogueData* Row = DT->FindRow<FPP_DialogueData>(DialogueID, TEXT("HUD Gateway OpenDialogue"));
 	if (!Row)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenDialogue - DialogueID '%s' not found in table"), *DialogueID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - DialogueID '%s' not found in table"), *DialogueID.ToString());
 		return;
 	}
 
@@ -135,21 +136,21 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 	APP_PlayerController* PC = Cast<APP_PlayerController>(GetOwningPlayerController());
 	if (!PC || !PC->DialogueWidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenDialogue - DialogueWidgetClass not configured"));
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - DialogueWidgetClass not configured"));
 		return;
 	}
 
 	UPP_DialogueWidget* DialogueWidget = Cast<UPP_DialogueWidget>(CreateWidget(GetOwningPlayerController(), PC->DialogueWidgetClass));
 	if (!DialogueWidget)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[HUD Gateway] OpenDialogue - Failed to create DialogueWidget"));
+		UE_LOG(LogPP, Error, TEXT("[HUD Gateway] OpenDialogue - Failed to create DialogueWidget"));
 		return;
 	}
 
 	DialogueWidget->AddToViewport(90);
 	DialogueWidget->SetupDialogue(DataCopy, NPC, PC);
 
-	UE_LOG(LogTemp, Log, TEXT("[HUD Gateway] OpenDialogue - Opened dialogue '%s' with NPC '%s'"),
+	UE_LOG(LogPP, Log, TEXT("[HUD Gateway] OpenDialogue - Opened dialogue '%s' with NPC '%s'"),
 		*DialogueID.ToString(), *NPC->GetName());
 }
 
@@ -157,28 +158,28 @@ void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC)
 {
 	if (!IsValid(NPC))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenShop - NPC is null"));
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenShop - NPC is null"));
 		return;
 	}
 
 	UPP_ShopComponent* Shop = NPC->GetShopComponent();
 	if (!IsValid(Shop))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenShop - NPC ShopComponent is null"));
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenShop - NPC ShopComponent is null"));
 		return;
 	}
 
 	APP_PlayerController* PC = Cast<APP_PlayerController>(GetOwningPlayerController());
 	if (!PC || !PC->ShopWidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUD Gateway] OpenShop - ShopWidgetClass not configured"));
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenShop - ShopWidgetClass not configured"));
 		return;
 	}
 
 	UPP_ShopWidget* ShopWidget = Cast<UPP_ShopWidget>(CreateWidget(GetOwningPlayerController(), PC->ShopWidgetClass));
 	if (!ShopWidget)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[HUD Gateway] OpenShop - Failed to create ShopWidget"));
+		UE_LOG(LogPP, Error, TEXT("[HUD Gateway] OpenShop - Failed to create ShopWidget"));
 		return;
 	}
 
@@ -192,7 +193,7 @@ void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC)
 	ShopWidget->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));
 	ShopWidget->InitializeShop(Shop, Inventory);
 
-	UE_LOG(LogTemp, Log, TEXT("[HUD Gateway] OpenShop - Opened shop for NPC '%s'"), *NPC->GetName());
+	UE_LOG(LogPP, Log, TEXT("[HUD Gateway] OpenShop - Opened shop for NPC '%s'"), *NPC->GetName());
 }
 
 // ============================================================

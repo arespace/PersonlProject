@@ -5,6 +5,7 @@
 #include "Game/PP_SessionManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
+#include "Framework/PP_Log.h"
 
 void UPP_HostSettingsWidget::NativeOnInitialized()
 {
@@ -59,7 +60,7 @@ void UPP_HostSettingsWidget::OnConfirmClicked()
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("[HostSettings] Failed to get SessionManager Subsystem!"));
+			UE_LOG(LogPP, Error, TEXT("[HostSettings] Failed to get SessionManager Subsystem!"));
 			return;
 		}
 	}
@@ -72,7 +73,7 @@ void UPP_HostSettingsWidget::OnCreateSessionCompleted(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HostSettings] Session created successfully, executing ServerTravel: %s"), *PendingTravelURL);
+		UE_LOG(LogPP, Verbose, TEXT("[HostSettings] Session created successfully, executing ServerTravel: %s"), *PendingTravelURL);
 
 		// Session注册成功，执行 ServerTravel 开启 Listen Server
 		APlayerController* PC = GetOwningPlayer();
@@ -82,12 +83,12 @@ void UPP_HostSettingsWidget::OnCreateSessionCompleted(bool bSuccess)
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("[HostSettings] No PlayerController available for ServerTravel!"));
+			UE_LOG(LogPP, Error, TEXT("[HostSettings] No PlayerController available for ServerTravel!"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[HostSettings] Session creation failed! ServerTravel aborted."));
+		UE_LOG(LogPP, Error, TEXT("[HostSettings] Session creation failed! ServerTravel aborted."));
 		// TODO: 可以在此显示错误提示给玩家
 	}
 }

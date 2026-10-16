@@ -5,13 +5,14 @@
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Framework/PP_Log.h"
 
 void UPP_DataManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
 	// Config 属性由引擎在 CDO 加载时自动从 DefaultGame.ini 读取，此处仅打印状态便于排查配置缺失
-	UE_LOG(LogTemp, Log, TEXT("[DataManager] Subsystem Initialized - Item=%s, Quest=%s, Character=%s"),
+	UE_LOG(LogPP, Log, TEXT("[DataManager] Subsystem Initialized - Item=%s, Quest=%s, Character=%s"),
 		*ItemDataTable.ToString(), *QuestDataTable.ToString(), *CharacterDataTable.ToString());
 }
 
@@ -41,13 +42,13 @@ UDataTable* UPP_DataManager::GetTable(TSoftObjectPtr<UDataTable>& SoftRef, TObje
 	}
 	if (SoftRef.IsNull())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[DataManager] %s 未配置数据表资产路径，请检查 Config/DefaultGame.ini 的 [/Script/PersonalProjectCore.PP_DataManager] 段"), DebugName);
+		UE_LOG(LogPP, Error, TEXT("[DataManager] %s 未配置数据表资产路径，请检查 Config/DefaultGame.ini 的 [/Script/PersonalProjectCore.PP_DataManager] 段"), DebugName);
 		return nullptr;
 	}
 	Cache = SoftRef.LoadSynchronous();
 	if (!Cache)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[DataManager] %s 数据表加载失败: %s"), DebugName, *SoftRef.ToString());
+		UE_LOG(LogPP, Error, TEXT("[DataManager] %s 数据表加载失败: %s"), DebugName, *SoftRef.ToString());
 	}
 	return Cache;
 }

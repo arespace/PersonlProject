@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -7,14 +7,13 @@
 #include "GameplayTagContainer.h"
 #include "PP_AbilitySlotWidget.generated.h"
 
-class UPP_UIViewModel;
 class UImage;
 class UTextBlock;
 class USizeBox;
 
 /**
  * UPP_AbilitySlotWidget - 能力槽位Widget
- * 支持Tag绑定与冷却监听，显示能力图标和冷却倒计时
+ * 支持Tag绑定，显示能力图标与冷却倒计时（冷却数值由外部调用 UpdateCooldown 驱动）
  * 通过GameplayTag映射到对应的GAS能力
  */
 UCLASS()
@@ -24,7 +23,7 @@ class PERSONALPROJECTUI_API UPP_AbilitySlotWidget : public UUserWidget
 
 public:
 	/** 初始化槽位，绑定到指定能力Tag */
-	void InitializeSlot(UPP_UIViewModel* InViewModel, const FGameplayTag& InAbilityTag);
+	void InitializeSlot(const FGameplayTag& InAbilityTag);
 
 	/** 更新冷却状态 */
 	void UpdateCooldown(float Remaining, float Duration);
@@ -60,10 +59,6 @@ protected:
 
 private:
 
-	/** ViewModel引用 */
-	UPROPERTY()
-	TObjectPtr<UPP_UIViewModel> ViewModel;
-
 	/** 冷却总时间 */
 	float CooldownDuration = 0.f;
 
@@ -72,8 +67,4 @@ private:
 
 	/** 是否处于冷却中 */
 	bool bIsOnCooldown = false;
-
-	/** ViewModel冷却变更回调 */
-	UFUNCTION()
-	void OnCooldownChanged(FGameplayTag Tag, float RemainingTime, float Duration);
 };

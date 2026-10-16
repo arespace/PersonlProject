@@ -8,6 +8,7 @@
 #include "Game/PP_SessionManager.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
+#include "Framework/PP_Log.h"
 
 void UPP_MainMenuWidget::NativeOnInitialized()
 {
@@ -38,7 +39,7 @@ void UPP_MainMenuWidget::NativeOnInitialized()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[MainMenu] Failed to get SessionManager Subsystem!"));
+		UE_LOG(LogPP, Error, TEXT("[MainMenu] Failed to get SessionManager Subsystem!"));
 	}
 
 	// 版本号（右下角小字）
@@ -143,7 +144,7 @@ void UPP_MainMenuWidget::OnJoinClicked()
 	FString IPAddress = IPAddressInput ? IPAddressInput->GetText().ToString() : TEXT("");
 	if (IPAddress.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MainMenu] No room selected and no IP address provided"));
+		UE_LOG(LogPP, Warning, TEXT("[MainMenu] No room selected and no IP address provided"));
 		SetStatusMessage(TEXT("\u8bf7\u5148\u9009\u62e9\u4e00\u4e2a\u623f\u95f4\uff0c\u6216\u586b\u5199 IP \u5730\u5740"), true);
 		return;
 	}
@@ -151,7 +152,7 @@ void UPP_MainMenuWidget::OnJoinClicked()
 	SetConnectingState(true);
 
 	FString TravelURL = FString::Printf(TEXT("%s?PlayerName=%s"), *IPAddress, *Name);
-	UE_LOG(LogTemp, Log, TEXT("[MainMenu] ClientTravel via IP: %s"), *TravelURL);
+	UE_LOG(LogPP, Log, TEXT("[MainMenu] ClientTravel via IP: %s"), *TravelURL);
 	APlayerController* PC = GetOwningPlayer();
 	if (PC) PC->ClientTravel(TravelURL, TRAVEL_Absolute);
 }
@@ -174,7 +175,7 @@ void UPP_MainMenuWidget::RefreshRoomList()
 {
 	if (!SessionManager)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[MainMenu] SessionManager is null!"));
+		UE_LOG(LogPP, Error, TEXT("[MainMenu] SessionManager is null!"));
 		return;
 	}
 
@@ -201,7 +202,7 @@ void UPP_MainMenuWidget::OnRefreshButtonClicked()
 
 void UPP_MainMenuWidget::OnSessionsFound(const TArray<FRoomInfo>& Rooms)
 {
-	UE_LOG(LogTemp, Log, TEXT("[MainMenu] Sessions found: %d"), Rooms.Num());
+	UE_LOG(LogPP, Log, TEXT("[MainMenu] Sessions found: %d"), Rooms.Num());
 
 	if (!RoomListDropdown) return;
 
@@ -254,18 +255,18 @@ void UPP_MainMenuWidget::OnRoomListSelectionChanged(FString SelectedItem, ESelec
 	}
 
 	SelectedSessionIndex = Index;
-	UE_LOG(LogTemp, Log, TEXT("[MainMenu] Room selected: %s (Index: %d)"), *SelectedItem, SelectedSessionIndex);
+	UE_LOG(LogPP, Log, TEXT("[MainMenu] Room selected: %s (Index: %d)"), *SelectedItem, SelectedSessionIndex);
 }
 
 void UPP_MainMenuWidget::OnJoinSessionComplete(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[MainMenu] Successfully joined session! ClientTravel handled by SessionManager."));
+		UE_LOG(LogPP, Log, TEXT("[MainMenu] Successfully joined session! ClientTravel handled by SessionManager."));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MainMenu] Failed to join session."));
+		UE_LOG(LogPP, Warning, TEXT("[MainMenu] Failed to join session."));
 
 		// 恢复按钮，允许重新选房间或重新刷新
 		SetConnectingState(false);

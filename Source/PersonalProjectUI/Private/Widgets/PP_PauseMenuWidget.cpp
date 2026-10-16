@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/Button.h"
 #include "Blueprint/UserWidget.h"
+#include "Framework/PP_Log.h"
 
 UPP_PauseMenuWidget::UPP_PauseMenuWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -61,7 +62,7 @@ void UPP_PauseMenuWidget::OnReturnToLoginClicked()
 
 	if (!LoginWidgetClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PauseMenu] OnReturnToLoginClicked - LoginWidgetClass 未指定（需在 WBP_PauseMenu 中设置）"));
+		UE_LOG(LogPP, Warning, TEXT("[PauseMenu] OnReturnToLoginClicked - LoginWidgetClass 未指定（需在 WBP_PauseMenu 中设置）"));
 		return;
 	}
 
@@ -81,7 +82,7 @@ void UPP_PauseMenuWidget::OnReturnToLoginClicked()
 
 void UPP_PauseMenuWidget::OnQuitClicked()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[PauseMenu] OnQuitClicked - Quit button pressed!"));
+	UE_LOG(LogPP, Verbose, TEXT("[PauseMenu] OnQuitClicked - Quit button pressed!"));
 
 	APlayerController* PC = GetOwningPlayer();
 	if (!PC) return;
@@ -95,7 +96,7 @@ void UPP_PauseMenuWidget::OnQuitClicked()
 	PC->SetInputMode(FInputModeGameOnly());
 
 	const ENetMode NetMode = World->GetNetMode();
-	UE_LOG(LogTemp, Warning, TEXT("[PauseMenu] OnQuitClicked - NetMode: %d"), static_cast<int32>(NetMode));
+	UE_LOG(LogPP, Verbose, TEXT("[PauseMenu] OnQuitClicked - NetMode: %d"), static_cast<int32>(NetMode));
 
 	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
 	{

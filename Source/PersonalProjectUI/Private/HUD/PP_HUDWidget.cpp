@@ -11,6 +11,7 @@
 #include "Player/PP_PlayerState.h"
 #include "Components/PanelWidget.h"
 #include "GameplayTags/PPTags.h"
+#include "Framework/PP_Log.h"
 
 UPP_HUDWidget::UPP_HUDWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -69,7 +70,7 @@ void UPP_HUDWidget::CreateAbilitySlots()
 		UPP_AbilitySlotWidget* AbilitySlot = CreateWidget<UPP_AbilitySlotWidget>(this, AbilitySlotWidgetClass);
 		if (AbilitySlot)
 		{
-			AbilitySlot->InitializeSlot(ViewModel, Tag);
+			AbilitySlot->InitializeSlot(Tag);
 			AbilitySlotContainer->AddChild(AbilitySlot);
 			AbilitySlots.Add(AbilitySlot);
 		}
@@ -107,31 +108,31 @@ void UPP_HUDWidget::InitializeQuestTracker()
 {
 	if (!QuestTrackerWidget)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[HUDWidget] InitializeQuestTracker - QuestTrackerWidget is NULL (BindWidget failed)"));
+		UE_LOG(LogPP, Error, TEXT("[HUDWidget] InitializeQuestTracker - QuestTrackerWidget is NULL (BindWidget failed)"));
 		return;
 	}
 
 	APlayerController* PC = GetOwningPlayer();
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No owning player"));
+		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No owning player"));
 		return;
 	}
 
 	APP_PlayerState* PS = PC->GetPlayerState<APP_PlayerState>();
 	if (!PS)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No PlayerState"));
+		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No PlayerState"));
 		return;
 	}
 
 	UPP_QuestComponent* QuestComp = PS->GetQuestComponent();
 	if (!QuestComp)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No QuestComponent on PlayerState"));
+		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No QuestComponent on PlayerState"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[HUDWidget] InitializeQuestTracker - SUCCESS, ActiveQuests=%d"), QuestComp->GetActiveQuests().Num());
+	UE_LOG(LogPP, Log, TEXT("[HUDWidget] InitializeQuestTracker - SUCCESS, ActiveQuests=%d"), QuestComp->GetActiveQuests().Num());
 	QuestTrackerWidget->InitializeTracker(QuestComp);
 }

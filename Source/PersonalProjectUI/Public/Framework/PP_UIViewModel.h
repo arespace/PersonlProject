@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -17,9 +17,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnUIAttributeChanged, float, NewV
 
 /** 伤害接收事件委托 - 用于伤害数字 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDamageReceived, float, Damage, FVector, WorldLocation, bool, bIsHeal, bool, bIsCritical, AActor*, SourceActor);
-
-/** 能力冷却变更委托 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAbilityCooldownChanged, FGameplayTag, AbilityTag, float, RemainingTime, float, Duration);
 
 /** 玩家死亡委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, AActor*, DeadActor);
@@ -82,10 +79,6 @@ public:
 	/** 接收伤害时广播 - 伤害数字Widget使用 */
 	UPROPERTY(BlueprintAssignable)
 	FOnDamageReceived OnDamageReceived;
-
-	/** 能力冷却变更时广播 */
-	UPROPERTY(BlueprintAssignable)
-	FOnAbilityCooldownChanged OnAbilityCooldownChanged;
 
 	/** 玩家死亡时广播 */
 	UPROPERTY(BlueprintAssignable)

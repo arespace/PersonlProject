@@ -11,6 +11,7 @@
 #include "Dialogue/PP_NPCActor.h"
 #include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
+#include "Framework/PP_Log.h"
 
 UPP_QuestEventBridge::UPP_QuestEventBridge()
 {
@@ -33,7 +34,7 @@ void UPP_QuestEventBridge::BeginPlay()
 	BindToCombatSystem();
 	BindToDialogueSystem();
 
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] All subsystem bindings completed"));
+	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] All subsystem bindings completed"));
 }
 
 void UPP_QuestEventBridge::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -65,50 +66,50 @@ void UPP_QuestEventBridge::BindToGatherSystem()
 				});
 		}
 	}
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] Bound to GatherSystem (EventBus)"));
+	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] Bound to GatherSystem (EventBus)"));
 }
 
 void UPP_QuestEventBridge::BindToShopSystem()
 {
 	// 绑定静态委托，不依赖遍历 NPC 实例（参照 Gather 系统模式，避免 BeginPlay 时序问题）
 	UPP_ShopComponent::OnPurchaseCompletedDelegate.AddDynamic(this, &UPP_QuestEventBridge::OnPurchaseCompleted);
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] Bound to ShopSystem (static delegate)"));
+	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] Bound to ShopSystem (static delegate)"));
 }
 
 void UPP_QuestEventBridge::BindToChatSystem()
 {
 	// 聊天系统通过 NotifyChatSent 被 PP_PlayerController 主动调用
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] ChatSystem ready (push-based via NotifyChatSent)"));
+	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] ChatSystem ready (push-based via NotifyChatSent)"));
 }
 
 void UPP_QuestEventBridge::BindToCombatSystem()
 {
 	// 战斗系统通过 NotifyEnemyKilled 被 PP_EnemyCharacter::HandleDeath 主动调用
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] CombatSystem ready (push-based via NotifyEnemyKilled)"));
+	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] CombatSystem ready (push-based via NotifyEnemyKilled)"));
 }
 
 void UPP_QuestEventBridge::BindToDialogueSystem()
 {
 	// 对话系统通过 NotifyDialogueCompleted 被 PC 主动调用
-	UE_LOG(LogTemp, Log, TEXT("[QuestEventBridge] DialogueSystem ready (push-based via NotifyDialogueCompleted)"));
+	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] DialogueSystem ready (push-based via NotifyDialogueCompleted)"));
 }
 
 // ===== 事件回调 =====
 
 void UPP_QuestEventBridge::OnGatherEvent(const FPP_GatherEvent& Event)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherEvent: Gatherer=%s ItemID=%s Count=%d"),
+	UE_LOG(LogPP, Verbose, TEXT("[QuestEventBridge] OnGatherEvent: Gatherer=%s ItemID=%s Count=%d"),
 		*GetNameSafe(Event.Gatherer), *Event.ItemID.ToString(), Event.Count);
 
 	// 事件中的 Gatherer 已是 PlayerController
 	UPP_QuestComponent* QC = GetQuestComponentFromPC(Event.Gatherer);
 	if (!QC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherEvent - QC is NULL for Gatherer=%s"), *GetNameSafe(Event.Gatherer));
+		UE_LOG(LogPP, Warning, TEXT("[QuestEventBridge] OnGatherEvent - QC is NULL for Gatherer=%s"), *GetNameSafe(Event.Gatherer));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[QuestEventBridge] OnGatherEvent - Calling UpdateObjectiveProgress: Type=GatherItem TargetID=%s Count=%d"),
+	UE_LOG(LogPP, Verbose, TEXT("[QuestEventBridge] OnGatherEvent - Calling UpdateObjectiveProgress: Type=GatherItem TargetID=%s Count=%d"),
 		*Event.ItemID.ToString(), Event.Count);
 	QC->UpdateObjectiveProgress(EPP_QuestObjectiveType::GatherItem, Event.ItemID, Event.Count);
 }

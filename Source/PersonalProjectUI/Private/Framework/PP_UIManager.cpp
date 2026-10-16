@@ -105,62 +105,6 @@ bool UPP_UIManager::IsWidgetInStack(UPP_UIUserWidget* Widget) const
     return WidgetToLayer.Contains(Widget);
 }
 
-UUserWidget* UPP_UIManager::AcquireFromPool(TSubclassOf<UUserWidget> WidgetClass)
-{
-    if (!WidgetClass)
-    {
-        return nullptr;
-    }
-
-    TArray<TObjectPtr<UUserWidget>>* Pool = WidgetPool.Find(WidgetClass);
-    if (Pool)
-    {
-        // 从尾部取出（有效实例）
-        while (Pool->Num() > 0)
-        {
-            UUserWidget* Widget = Pool->Pop().Get();
-            if (IsValid(Widget))
-            {
-                Widget->SetVisibility(ESlateVisibility::Visible);
-                return Widget;
-            }
-        }
-    }
-
-    // 池中无有效实例，新建
-    APlayerController* PC = GetPlayerController();
-    if (!PC) return nullptr;
-
-    UUserWidget* NewWidget = CreateWidget<UUserWidget>(PC, WidgetClass);
-    return NewWidget;
-}
-
-void UPP_UIManager::ReleaseToPool(UUserWidget* Widget)
-{
-    if (!IsValid(Widget))
-    {
-        return;
-    }
-
-    Widget->SetVisibility(ESlateVisibility::Collapsed);
-    // 从父容器移除（如果是直接 AddToViewport 的则 RemoveFromParent）
-    if (Widget->GetParent() || Widget->IsInViewport())
-    {
-        Widget->RemoveFromParent();
-    }
-
-    TSubclassOf<UUserWidget> Class = Widget->GetClass();
-    TArray<TObjectPtr<UUserWidget>>& Pool = WidgetPool.FindOrAdd(Class);
-    Pool.Add(Widget);
-
-    // 限制池大小，防止无限增长
-    constexpr int32 MaxPoolSize = 64;
-    if (Pool.Num() > MaxPoolSize)
-    {
-        Pool.RemoveAt(0, Pool.Num() - MaxPoolSize);
-    }
-}
-
 void UPP_UIManager::SetInputModeGameplay()
 {
     if (APlayerController* PC = GetPlayerController())
