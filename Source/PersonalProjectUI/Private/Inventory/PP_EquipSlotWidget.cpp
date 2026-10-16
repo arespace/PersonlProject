@@ -8,9 +8,6 @@
 #include "Inventory/PP_InventoryActions.h"
 #include "Inventory/PP_InventoryQuery.h"
 #include "Inventory/PP_ItemTooltipWidget.h"
-#include "Framework/PP_UIManager.h"
-#include "Engine/GameInstance.h"
-#include "TimerManager.h"
 
 void UPP_EquipSlotWidget::NativeConstruct()
 {
@@ -75,74 +72,14 @@ void UPP_EquipSlotWidget::HandleSlotClicked()
 	}
 }
 
-void UPP_EquipSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+bool UPP_EquipSlotWidget::CanShowTooltip() const
 {
-	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-
-	if (!TooltipWidgetClass || !OwnerInventory.IsValid() || bIsEmptySlot)
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		World->GetTimerManager().SetTimer(
-			TooltipTimerHandle,
-			this,
-			&UPP_EquipSlotWidget::ShowTooltip,
-			0.3f,
-			false);
-	}
+	return OwnerInventory.IsValid() && !bIsEmptySlot;
 }
 
-void UPP_EquipSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+bool UPP_EquipSlotWidget::FillTooltipData(UPP_ItemTooltipWidget& Tooltip)
 {
-	Super::NativeOnMouseLeave(InMouseEvent);
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(TooltipTimerHandle);
-	}
-
-	HideTooltip();
-}
-
-FReply UPP_EquipSlotWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (ActiveTooltip)
-	{
-		ActiveTooltip->UpdatePosition(InMouseEvent.GetScreenSpacePosition());
-	}
-	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
-}
-
-void UPP_EquipSlotWidget::ShowTooltip()
-{
-	if (ActiveTooltip || !OwnerInventory.IsValid() || bIsEmptySlot)
-	{
-		return;
-	}
-
-	ActiveTooltip = CreateWidget<UPP_ItemTooltipWidget>(this, TooltipWidgetClass);
-	if (!ActiveTooltip)
-	{
-		return;
-	}
-
 	const int32 Count = IPP_InventoryQuery::Execute_QueryItemCount(OwnerInventory.Get(), CachedInfo.ItemID);
-	ActiveTooltip->SetupTooltip(OwnerInventory.Get(), CachedInfo, Count, CachedInfo.MaxStackCount);
-	ActiveTooltip->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));
-}
-
-void UPP_EquipSlotWidget::HideTooltip()
-{
-	if (ActiveTooltip)
-	{
-		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
-		{
-			Mgr->PopWidget(ActiveTooltip);
-		}
-		ActiveTooltip = nullptr;
-	}
+	Tooltip.SetupTooltip(OwnerInventory.Get(), CachedInfo, Count, CachedInfo.MaxStackCount);
+	return true;
 }

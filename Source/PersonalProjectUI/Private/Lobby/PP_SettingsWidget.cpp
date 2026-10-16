@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #include "Lobby/PP_SettingsWidget.h"
 #include "Lobby/PP_LobbyHUD.h"
@@ -61,6 +61,6 @@ void UPP_SettingsWidget::OnResetClicked()
 
 void UPP_SettingsWidget::OnCloseClicked()
 {
-	APP_LobbyHUD* LobbyHUD = GetOwningPlayer() ? Cast<APP_LobbyHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	APP_LobbyHUD* LobbyHUD = APP_LobbyHUD::GetFromWidget(this);
 	if (LobbyHUD) LobbyHUD->HideSettings();
 }

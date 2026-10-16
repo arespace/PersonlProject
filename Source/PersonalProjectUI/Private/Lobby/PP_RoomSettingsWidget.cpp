@@ -40,6 +40,6 @@ void UPP_RoomSettingsWidget::OnApplyClicked()
 
 void UPP_RoomSettingsWidget::OnCloseClicked()
 {
-	APP_LobbyHUD* LobbyHUD = GetOwningPlayer() ? Cast<APP_LobbyHUD>(GetOwningPlayer()->GetHUD()) : nullptr;
+	APP_LobbyHUD* LobbyHUD = APP_LobbyHUD::GetFromWidget(this);
 	if (LobbyHUD) LobbyHUD->HideRoomSettings();
 }

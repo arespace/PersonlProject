@@ -18,11 +18,6 @@ UPP_QuestComponent::UPP_QuestComponent()
 	SetIsReplicatedByDefault(true);
 }
 
-void UPP_QuestComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
 void UPP_QuestComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

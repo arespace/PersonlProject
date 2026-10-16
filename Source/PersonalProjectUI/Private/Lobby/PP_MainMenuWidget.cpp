@@ -75,8 +75,7 @@ void UPP_MainMenuWidget::NativeDestruct()
 
 APP_LobbyHUD* UPP_MainMenuWidget::GetLobbyHUD() const
 {
-	APlayerController* PC = GetOwningPlayer();
-	return PC ? Cast<APP_LobbyHUD>(PC->GetHUD()) : nullptr;
+	return APP_LobbyHUD::GetFromWidget(this);
 }
 
 FString UPP_MainMenuWidget::GetPlayerName() const

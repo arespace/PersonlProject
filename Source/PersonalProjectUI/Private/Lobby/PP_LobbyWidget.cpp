@@ -356,69 +356,11 @@ void UPP_LobbyWidget::OnGameStarting(float Countdown)
 
 void UPP_LobbyWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
-	Super::NativeTick(MyGeometry, InDeltaTime);
-
 	// 倒计时：驱动中央覆盖层与底栏小字
 	UpdateCountdown(InDeltaTime);
 
-	if (!CharacterPreviewImage) return;
-
-	if (APP_LobbyHUD* HUD = GetLobbyHUD())
-	{
-		if (UTextureRenderTarget2D* RT = HUD->GetPreviewRenderTarget())
-		{
-			if (!bPreviewImageReady || CharacterPreviewImage->GetBrush().GetResourceObject() != RT)
-			{
-				FSlateBrush NewBrush;
-				NewBrush.SetResourceObject(RT);
-				NewBrush.ImageSize = FVector2D(RT->SizeX, RT->SizeY);
-				CharacterPreviewImage->SetBrush(NewBrush);
-				bPreviewImageReady = true;
-			}
-		}
-	}
-}
-
-FReply UPP_LobbyWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && CharacterPreviewImage)
-	{
-		const FGeometry ImageGeometry = CharacterPreviewImage->GetCachedGeometry();
-		if (ImageGeometry.IsUnderLocation(InMouseEvent.GetScreenSpacePosition()))
-		{
-			bIsDraggingPreview = true;
-			LastDragMousePosition = InMouseEvent.GetScreenSpacePosition();
-			return FReply::Handled().CaptureMouse(TakeWidget());
-		}
-	}
-	return FReply::Unhandled();
-}
-
-FReply UPP_LobbyWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (bIsDraggingPreview)
-	{
-		const FVector2D CurrentPosition = InMouseEvent.GetScreenSpacePosition();
-		const FVector2D Delta = CurrentPosition - LastDragMousePosition;
-		LastDragMousePosition = CurrentPosition;
-
-		if (APP_LobbyHUD* HUD = GetLobbyHUD())
-		{
-			HUD->RotatePreviewCharacter(Delta.X * 0.2f, -Delta.Y * 0.2f);
-		}
-		return FReply::Handled();
-	}
-	return FReply::Unhandled();
-}
-
-FReply UPP_LobbyWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bIsDraggingPreview)
-	{
-		bIsDraggingPreview = false;
-		return FReply::Handled().ReleaseMouseCapture();
-	}
-	return FReply::Unhandled();
+	// 预览图画刷绑定由基类 UPP_CharacterPreviewDragWidget::NativeTick 处理
+	Super::NativeTick(MyGeometry, InDeltaTime);
 }
 
 void UPP_LobbyWidget::OnReadyClicked()
@@ -513,12 +455,6 @@ void UPP_LobbyWidget::ExecuteDisconnect()
 	{
 		PC->ConsoleCommand(TEXT("Disconnect"));
 	}
-}
-
-APP_LobbyHUD* UPP_LobbyWidget::GetLobbyHUD() const
-{
-	APlayerController* PC = GetOwningPlayer();
-	return PC ? Cast<APP_LobbyHUD>(PC->GetHUD()) : nullptr;
 }
 
 void UPP_LobbyWidget::OnChatTextCommitted(const FText& Text, ETextCommit::Type CommitMethod)

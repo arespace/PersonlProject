@@ -57,43 +57,20 @@ UDataTable* UPP_DataManager::GetTable(TSoftObjectPtr<UDataTable>& SoftRef, TObje
 
 const FPP_ItemInfo* UPP_DataManager::GetItemInfo(FName ItemID)
 {
-	if (ItemID.IsNone())
-	{
-		return nullptr;
-	}
-	UDataTable* Table = GetTable(ItemDataTable, LoadedItemTable, TEXT("ItemDataTable"));
-	if (!Table)
-	{
-		return nullptr;
-	}
-	static const FString ContextString(TEXT("DataManager.GetItemInfo"));
-	return Table->FindRow<FPP_ItemInfo>(ItemID, ContextString, false);
+	return FindRowFromTable<FPP_ItemInfo>(ItemDataTable, LoadedItemTable, TEXT("ItemDataTable"),
+		ItemID, TEXT("DataManager.GetItemInfo"), false);
 }
 
 const FPP_QuestInfo* UPP_DataManager::GetQuestInfo(FName QuestID)
 {
-	UDataTable* Table = GetTable(QuestDataTable, LoadedQuestTable, TEXT("QuestDataTable"));
-	if (!Table)
-	{
-		return nullptr;
-	}
-	static const FString ContextString(TEXT("DataManager.GetQuestInfo"));
-	return Table->FindRow<FPP_QuestInfo>(QuestID, ContextString);
+	return FindRowFromTable<FPP_QuestInfo>(QuestDataTable, LoadedQuestTable, TEXT("QuestDataTable"),
+		QuestID, TEXT("DataManager.GetQuestInfo"), true);
 }
 
 const FCharacterDataRow* UPP_DataManager::GetCharacterData(FName CharacterId)
 {
-	if (CharacterId.IsNone())
-	{
-		return nullptr;
-	}
-	UDataTable* Table = GetTable(CharacterDataTable, LoadedCharacterTable, TEXT("CharacterDataTable"));
-	if (!Table)
-	{
-		return nullptr;
-	}
-	static const FString ContextString(TEXT("DataManager.GetCharacterData"));
-	return Table->FindRow<FCharacterDataRow>(CharacterId, ContextString);
+	return FindRowFromTable<FCharacterDataRow>(CharacterDataTable, LoadedCharacterTable, TEXT("CharacterDataTable"),
+		CharacterId, TEXT("DataManager.GetCharacterData"), true);
 }
 
 TArray<FName> UPP_DataManager::GetCharacterRowNames()

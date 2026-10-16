@@ -8,9 +8,6 @@
 #include "Inventory/PP_InventoryActions.h"
 #include "Inventory/PP_ItemTooltipWidget.h"
 #include "Framework/PP_DataManager.h"
-#include "Framework/PP_UIManager.h"
-#include "Engine/GameInstance.h"
-#include "TimerManager.h"
 
 void UPP_ItemSlotWidget::NativeConstruct()
 {
@@ -65,85 +62,21 @@ void UPP_ItemSlotWidget::HandleSlotClicked()
 	}
 }
 
-void UPP_ItemSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+bool UPP_ItemSlotWidget::CanShowTooltip() const
 {
-	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-
-	if (!TooltipWidgetClass || !OwnerInventory.IsValid())
-	{
-		return;
-	}
-
-	// 0.3秒延迟后显示提示框
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		World->GetTimerManager().SetTimer(
-			TooltipTimerHandle,
-			this,
-			&UPP_ItemSlotWidget::ShowTooltip,
-			0.3f,
-			false);
-	}
+	return OwnerInventory.IsValid();
 }
 
-void UPP_ItemSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+bool UPP_ItemSlotWidget::FillTooltipData(UPP_ItemTooltipWidget& Tooltip)
 {
-	Super::NativeOnMouseLeave(InMouseEvent);
-
-	// 取消延迟计时器
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(TooltipTimerHandle);
-	}
-
-	HideTooltip();
-}
-
-FReply UPP_ItemSlotWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	// 更新提示框位置
-	if (ActiveTooltip)
-	{
-		ActiveTooltip->UpdatePosition(InMouseEvent.GetScreenSpacePosition());
-	}
-	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
-}
-
-void UPP_ItemSlotWidget::ShowTooltip()
-{
-	if (ActiveTooltip || !OwnerInventory.IsValid())
-	{
-		return;
-	}
-
-	ActiveTooltip = CreateWidget<UPP_ItemTooltipWidget>(this, TooltipWidgetClass);
-	if (!ActiveTooltip)
-	{
-		return;
-	}
-
 	// 查找物品配置以获取 MaxStackCount（全局物品表走 DataManager）
 	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
 	const FPP_ItemInfo* Info = DataManager ? DataManager->GetItemInfo(CachedInstance.ItemID) : nullptr;
 	if (!Info)
 	{
-		return;
+		return false;
 	}
 
-	ActiveTooltip->SetupTooltip(OwnerInventory.Get(), *Info, CachedInstance.Count, Info->MaxStackCount);
-	ActiveTooltip->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));
-}
-
-void UPP_ItemSlotWidget::HideTooltip()
-{
-	if (ActiveTooltip)
-	{
-		// 通过 UIManager 弹出，避免直接 RemoveFromParent 导致 NativeDestruct 中重复弹出
-		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
-		{
-			Mgr->PopWidget(ActiveTooltip);
-		}
-		ActiveTooltip = nullptr;
-	}
+	Tooltip.SetupTooltip(OwnerInventory.Get(), *Info, CachedInstance.Count, Info->MaxStackCount);
+	return true;
 }

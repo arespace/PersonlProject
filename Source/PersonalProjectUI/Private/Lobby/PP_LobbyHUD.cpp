@@ -15,6 +15,12 @@
 
 APP_LobbyHUD::APP_LobbyHUD() {}
 
+APP_LobbyHUD* APP_LobbyHUD::GetFromWidget(const UUserWidget* Widget)
+{
+	const APlayerController* PC = Widget ? Widget->GetOwningPlayer() : nullptr;
+	return PC ? Cast<APP_LobbyHUD>(PC->GetHUD()) : nullptr;
+}
+
 void APP_LobbyHUD::BeginPlay()
 {
 	Super::BeginPlay();

@@ -35,7 +35,6 @@ public:
 	UPP_QuestComponent();
 
 	//~ Begin UActorComponent Interface
-	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
 

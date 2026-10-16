@@ -4,9 +4,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Data/PP_ItemData.h"
-#include "Input/Reply.h"
+#include "Inventory/PP_SlotWidgetBase.h"
 #include "PP_ItemSlotWidget.generated.h"
 
 class UImage;
@@ -19,7 +18,7 @@ class UButton;
  * 蓝图子类需绑定可选控件：ItemIcon / CountText / SlotButton
  */
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class PERSONALPROJECTUI_API UPP_ItemSlotWidget : public UUserWidget
+class PERSONALPROJECTUI_API UPP_ItemSlotWidget : public UPP_SlotWidgetBase
 {
 	GENERATED_BODY()
 
@@ -33,10 +32,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
 	void SetupSlot(UObject* InOwnerInventory, const FPP_ItemInstance& InItemInstance, const FPP_ItemInfo& InItemInfo);
 
-	/** 设置提示框 Widget 类（蓝图配置） */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|UI")
-	TSubclassOf<class UPP_ItemTooltipWidget> TooltipWidgetClass;
-
 protected:
 	virtual void NativeConstruct() override;
 
@@ -48,9 +43,8 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory|UI")
 	void OnSlotUpdated(const FPP_ItemInstance& Instance, const FPP_ItemInfo& Info);
 
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual bool CanShowTooltip() const override;
+	virtual bool FillTooltipData(UPP_ItemTooltipWidget& Tooltip) override;
 
 protected:
 	/** 物品图标 */
@@ -80,18 +74,4 @@ protected:
 	/** 当前缓存的物品配置数据 */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI")
 	FPP_ItemInfo CachedInfo;
-
-private:
-	/** 当前显示的提示框实例 */
-	UPROPERTY()
-	TObjectPtr<UPP_ItemTooltipWidget> ActiveTooltip;
-
-	/** 提示框延迟计时器句柄 */
-	FTimerHandle TooltipTimerHandle;
-
-	/** 延迟后显示提示框 */
-	void ShowTooltip();
-
-	/** 隐藏提示框 */
-	void HideTooltip();
 };

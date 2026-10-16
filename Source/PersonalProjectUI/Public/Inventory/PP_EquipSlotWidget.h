@@ -4,10 +4,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Data/PP_ItemData.h"
 #include "Data/PP_ItemTypes.h"
-#include "Input/Reply.h"
+#include "Inventory/PP_SlotWidgetBase.h"
 #include "PP_EquipSlotWidget.generated.h"
 
 class UImage;
@@ -20,7 +19,7 @@ class UButton;
  * 蓝图子类需绑定可选控件：EquipIcon / SlotLabel / SlotButton
  */
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class PERSONALPROJECTUI_API UPP_EquipSlotWidget : public UUserWidget
+class PERSONALPROJECTUI_API UPP_EquipSlotWidget : public UPP_SlotWidgetBase
 {
 	GENERATED_BODY()
 
@@ -37,9 +36,6 @@ public:
 	                    EPP_EquipSlot InSlot,
 	                    const FPP_EquippedItem& InEquippedItem,
 	                    const FPP_ItemInfo& InItemInfo);
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|UI")
-	TSubclassOf<class UPP_ItemTooltipWidget> TooltipWidgetClass;
 
 	/** 空槽时的默认图标（蓝图配置） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|UI")
@@ -60,9 +56,8 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Inventory|UI")
 	void OnEquipSlotUpdated(EPP_EquipSlot InSlot, const FPP_EquippedItem& Equipped, const FPP_ItemInfo& Info, bool bIsEmpty);
 
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual bool CanShowTooltip() const override;
+	virtual bool FillTooltipData(UPP_ItemTooltipWidget& Tooltip) override;
 
 protected:
 	/** 装备图标 */
@@ -96,13 +91,4 @@ protected:
 	/** 当前是否为空槽 */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI")
 	bool bIsEmptySlot = true;
-
-private:
-	UPROPERTY()
-	TObjectPtr<UPP_ItemTooltipWidget> ActiveTooltip;
-
-	FTimerHandle TooltipTimerHandle;
-
-	void ShowTooltip();
-	void HideTooltip();
 };

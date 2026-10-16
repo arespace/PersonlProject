@@ -46,10 +46,6 @@ void APP_CharacterPreviewActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!SceneCapture)
-	{
-		SceneCapture = FindComponentByClass<USceneCaptureComponent2D>();
-	}
 	if (SceneCapture)
 	{
 		SceneCapture->SetRelativeLocation(FVector(0.f, 250.f, 70.f));
@@ -67,11 +63,7 @@ void APP_CharacterPreviewActor::BeginPlay()
 
 void APP_CharacterPreviewActor::SetPreviewCharacter(const FCharacterDataRow& CharacterData)
 {
-	if (!PreviewMesh)
-	{
-		PreviewMesh = FindComponentByClass<USkeletalMeshComponent>();
-		if (!PreviewMesh) return;
-	}
+	if (!PreviewMesh) return;
 
 	USkeletalMesh* Mesh = CharacterData.CharacterMesh.LoadSynchronous();
 	if (!Mesh) return;

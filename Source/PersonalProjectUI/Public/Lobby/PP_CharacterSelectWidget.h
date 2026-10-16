@@ -1,9 +1,9 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "Lobby/PP_CharacterPreviewDragWidget.h"
 #include "Components/Button.h"
 #include "Components/GridPanel.h"
 #include "Components/Image.h"
@@ -11,10 +11,9 @@
 #include "PP_CharacterSelectWidget.generated.h"
 
 class UTextBlock;
-class APP_LobbyHUD;
 
 UCLASS()
-class PERSONALPROJECTUI_API UPP_CharacterSelectWidget : public UUserWidget
+class PERSONALPROJECTUI_API UPP_CharacterSelectWidget : public UPP_CharacterPreviewDragWidget
 {
 	GENERATED_BODY()
 
@@ -49,9 +48,6 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UButton> NextCharacterButton;
 
-	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
-	TObjectPtr<UImage> CharacterPreviewImage;
-
 	/** 详情面板角色名（读 DT_Characters 的 DisplayName，不再暴露 RowName / 资产名） */
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby|Character")
 	TObjectPtr<UTextBlock> CharacterNameText;
@@ -63,11 +59,6 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Character Selected"))
 	void BP_OnCharacterSelected(FName CharacterId);
 
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-
 private:
 	UFUNCTION() void OnConfirmClicked();
 	UFUNCTION() void OnBackClicked();
@@ -77,15 +68,8 @@ private:
 	/** 通知 LobbyHUD 切换预览角色 */
 	void NotifyPreviewUpdate(FName CharacterId);
 
-	/** 安全获取 LobbyHUD */
-	APP_LobbyHUD* GetLobbyHUD() const;
-
 	FName CurrentlySelected;
 
 	/** 当前选中角色在 AvailableCharacters 中的索引 */
 	int32 CurrentIndex = 0;
-
-	bool bIsDraggingPreview = false;
-	FVector2D LastDragMousePosition;
-	bool bPreviewImageReady = false;
 };

@@ -21,11 +21,6 @@ UPP_InventoryComponent::UPP_InventoryComponent()
 	Gold = 1000;
 }
 
-void UPP_InventoryComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
 void UPP_InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

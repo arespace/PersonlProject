@@ -29,8 +29,7 @@ void UPP_HostSettingsWidget::NativeDestruct()
 
 APP_LobbyHUD* UPP_HostSettingsWidget::GetLobbyHUD() const
 {
-	APlayerController* PC = GetOwningPlayer();
-	return PC ? Cast<APP_LobbyHUD>(PC->GetHUD()) : nullptr;
+	return APP_LobbyHUD::GetFromWidget(this);
 }
 
 void UPP_HostSettingsWidget::OnConfirmClicked()

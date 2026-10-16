@@ -460,6 +460,10 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 	// 避免各自重复「判空 + FindRow」
 	FPP_DialogueData* Row = NPC->FindDialogueRow(DialogueID);
 
+	// 预取玩家状态与任务组件，OfferQuest/SubmitQuest 分支共用，避免重复判空与查找
+	APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
+	UPP_QuestComponent* QC = PS ? PS->GetQuestComponent() : nullptr;
+
 	switch (Action)
 	{
 	case EPP_DialogueEndAction::OpenShop:
@@ -477,17 +481,9 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 	case EPP_DialogueEndAction::OfferQuest:
 	{
 		// 接入任务系统——调用 QuestComponent->AcceptQuest(RelatedQuestID)
-		if (Row && !Row->RelatedQuestID.IsNone())
+		if (Row && !Row->RelatedQuestID.IsNone() && QC)
 		{
-			APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
-			if (PS)
-			{
-				UPP_QuestComponent* QC = PS->GetQuestComponent();
-				if (QC)
-				{
-					QC->AcceptQuest(Row->RelatedQuestID);
-				}
-			}
+			QC->AcceptQuest(Row->RelatedQuestID);
 		}
 		UE_LOG(LogPP, Log, TEXT("[PlayerController] Server_ConfirmDialogueEndAction - OfferQuest for DialogueID '%s'"), *DialogueID.ToString());
 		break;
@@ -495,22 +491,14 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 	case EPP_DialogueEndAction::SubmitQuest:
 	{
 		// 接入任务系统——调用 QuestComponent->SubmitQuest(RelatedQuestID)
-		if (Row && !Row->RelatedQuestID.IsNone())
+		if (Row && !Row->RelatedQuestID.IsNone() && QC)
 		{
-			APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
-			if (PS)
+			// 提交失败时通知客户端（目标未完成/任务未接），避免静默无反馈
+			if (!QC->SubmitQuest(Row->RelatedQuestID))
 			{
-				UPP_QuestComponent* QC = PS->GetQuestComponent();
-				if (QC)
-				{
-					// 提交失败时通知客户端（目标未完成/任务未接），避免静默无反馈
-					if (!QC->SubmitQuest(Row->RelatedQuestID))
-					{
-						Client_NotifyQuestMessage(FString::Printf(
-							TEXT("任务「%s」的目标尚未全部完成，无法提交"),
-							*Row->RelatedQuestID.ToString()));
-					}
-				}
+				Client_NotifyQuestMessage(FString::Printf(
+					TEXT("任务「%s」的目标尚未全部完成，无法提交"),
+					*Row->RelatedQuestID.ToString()));
 			}
 		}
 		UE_LOG(LogPP, Log, TEXT("[PlayerController] Server_ConfirmDialogueEndAction - SubmitQuest for DialogueID '%s'"), *DialogueID.ToString());

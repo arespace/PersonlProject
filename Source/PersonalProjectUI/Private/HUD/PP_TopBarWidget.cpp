@@ -66,6 +66,5 @@ void UPP_TopBarWidget::OnSettingsClicked()
 
 APP_LobbyHUD* UPP_TopBarWidget::GetLobbyHUD() const
 {
-	const APlayerController* PC = GetOwningPlayer();
-	return PC ? Cast<APP_LobbyHUD>(PC->GetHUD()) : nullptr;
+	return APP_LobbyHUD::GetFromWidget(this);
 }

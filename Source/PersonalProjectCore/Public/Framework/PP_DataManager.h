@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -60,6 +60,26 @@ public:
 	}
 
 private:
+	/**
+	 * 按 ID（= 行名）查行的统一模板：None 守卫 → 懒加载 → FindRow。
+	 * bWarnIfRowMissing 沿用各查询原行为（Item 不告警，Quest/Character 告警）
+	 */
+	template <typename RowType>
+	const RowType* FindRowFromTable(TSoftObjectPtr<UDataTable>& SoftRef, TObjectPtr<UDataTable>& Cache,
+		const TCHAR* DebugName, FName RowID, const TCHAR* ContextName, bool bWarnIfRowMissing)
+	{
+		if (RowID.IsNone())
+		{
+			return nullptr;
+		}
+		UDataTable* Table = GetTable(SoftRef, Cache, DebugName);
+		if (!Table)
+		{
+			return nullptr;
+		}
+		return Table->FindRow<RowType>(RowID, ContextName, bWarnIfRowMissing);
+	}
+
 	/**
 	 * 懒加载：缓存有效直接返回；否则 LoadSynchronous 加载并缓存，
 	 * 未配置或加载失败打 UE_LOG Error 并返回 nullptr

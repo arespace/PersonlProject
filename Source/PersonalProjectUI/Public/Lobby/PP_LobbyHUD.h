@@ -38,6 +38,9 @@ public:
 	APP_LobbyHUD();
 	virtual void BeginPlay() override;
 
+	/** 从任意 Widget 获取其所属玩家的大厅 HUD（无所属玩家或非大厅 HUD 时返回 nullptr） */
+	static APP_LobbyHUD* GetFromWidget(const UUserWidget* Widget);
+
 	// ===== 菜单控制 =====
 
 	void ShowMainMenu();

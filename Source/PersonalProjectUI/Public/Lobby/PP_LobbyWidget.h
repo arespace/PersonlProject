@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "Lobby/PP_CharacterPreviewDragWidget.h"
 #include "Components/Button.h"
 #include "Components/PanelWidget.h"
 #include "Components/ScrollBox.h"
@@ -14,12 +14,11 @@
 #include "Lobby/PP_ChatMessageWidget.h"
 #include "PP_LobbyWidget.generated.h"
 
-class APP_LobbyHUD;
 class UTextBlock;
 class UPP_PlayerEntryWidget;
 
 UCLASS()
-class PERSONALPROJECTUI_API UPP_LobbyWidget : public UUserWidget
+class PERSONALPROJECTUI_API UPP_LobbyWidget : public UPP_CharacterPreviewDragWidget
 {
 	GENERATED_BODY()
 
@@ -68,9 +67,6 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UButton> LeaveButton;
-
-	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
-	TObjectPtr<UImage> CharacterPreviewImage;
 
 	// ===== 新增：文本状态（蓝图里摆同名 TextBlock 即可，全部可选） =====
 
@@ -130,16 +126,10 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Game Starting"))
 	void BP_OnGameStarting(float Countdown);
 
-	// Preview rotation via mouse drag
-	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	// Preview rotation via mouse drag（由基类处理命中/拖拽，本类仅在 NativeTick 中更新倒计时）
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
-	// 辅助函数：安全获取 LobbyHUD
-	APP_LobbyHUD* GetLobbyHUD() const;
-
 	UFUNCTION() void OnReadyClicked();
 	UFUNCTION() void OnStartClicked();
 	UFUNCTION() void OnCharacterSelectClicked();
@@ -175,8 +165,4 @@ private:
 
 	/** 上一次渲染的人数（ApplyRoomSettings 刷新人数分母时用） */
 	int32 LastRenderedPlayerCount = 0;
-
-	bool bIsDraggingPreview = false;
-	FVector2D LastDragMousePosition;
-	bool bPreviewImageReady = false;
 };
