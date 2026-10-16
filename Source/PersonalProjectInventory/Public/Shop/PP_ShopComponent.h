@@ -16,9 +16,6 @@ class APlayerController;
 /** 购买完成事件广播：购买者Actor + 物品ID + 数量 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPurchaseCompleted, AActor*, Buyer, FName, ItemID, int32, Count);
 
-/** 操作结果广播：通用商店操作结果消息（金币不足、库存不足等） */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShopResult, const FText&, Message);
-
 /**
  * 商店管理组件
  *
@@ -94,16 +91,8 @@ public:
 
 	// ===== 委托 =====
 
-	/** 购买完成事件广播（任务系统监听：PurchaseItem类型目标追踪） */
-	UPROPERTY(BlueprintAssignable, Category = "Shop|Events")
-	FOnPurchaseCompleted OnPurchaseCompleted;
-
 	/** 静态购买完成委托：不受 NPC 实例生命周期限制，任务系统通过此委托监听（参照 Gather 系统模式） */
 	static FOnPurchaseCompleted OnPurchaseCompletedDelegate;
-
-	/** 操作结果广播（购买/出售失败时通知UI显示提示） */
-	UPROPERTY(BlueprintAssignable, Category = "Shop|Events")
-	FOnShopResult OnShopResult;
 
 protected:
 	// ===== 网络通知 =====

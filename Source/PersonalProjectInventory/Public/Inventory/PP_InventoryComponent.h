@@ -16,18 +16,6 @@ class UAbilitySystemComponent;
 class UGameplayEffect;
 class APP_PlayerState;
 
-/** 库存内容变化广播：物品ID + 当前总数（0表示已移除） */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInventoryChanged, FName, ItemID, int32, NewCount);
-
-/** 装备槽位变化广播：槽位 + 当前装备的物品ID（NAME_None 表示已脱下） */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEquipmentChanged, EPP_EquipSlot, Slot, FName, ItemID);
-
-/** 货币变化广播：当前金币数 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, int32, NewGold);
-
-/** 物品使用事件广播：消耗品被成功使用 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, FName, ItemID);
-
 /**
  * 库存与装备管理组件
  *
@@ -36,7 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, FName, ItemID);
  *   2. 维护10个装备槽位，通过 GAS GameplayEffect 提供属性加成
  *   3. 维护货币（金币）数量
  *   4. 通过 ReplicatedUsing 在服务器与客户端间同步状态
- *   5. 通过委托广播变化事件，供 UI 与任务系统监听
+ *   5. 通过 EventBus 广播变化事件（FPP_InventoryUpdatedEvent 等），供 UI 与任务系统监听
  *
  * 网络模型：所有写操作均在服务器执行（Server RPC 或本地服务端调用），
  *          客户端通过 OnRep_* 回调更新 UI。
@@ -176,24 +164,6 @@ public:
 
 	/** 根据 ItemID 从 DataTable 中查找物品配置 */
 	const FPP_ItemInfo* FindItemInfo(FName ItemID) const;
-
-	// ===== 委托 =====
-
-	/** 库存条目变化时广播（添加/移除/堆叠数量变化） */
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnInventoryChanged OnInventoryChanged;
-
-	/** 装备槽位变化时广播（穿戴/脱下） */
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnEquipmentChanged OnEquipmentChanged;
-
-	/** 金币变化时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnGoldChanged OnGoldChanged;
-
-	/** 消耗品使用事件广播（任务系统可监听） */
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnItemUsed OnItemUsed;
 
 protected:
 	// ===== OnRep 回调 =====

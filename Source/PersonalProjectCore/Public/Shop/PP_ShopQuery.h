@@ -23,7 +23,7 @@ class UPP_ShopQuery : public UInterface
  * 约定：本接口只读，不提供任何写操作；购买/出售走 IPP_ShopActions。
  * 物品定义（名称/图标/基础价）属全局数据，走 DataManager 查询，不在此接口内。
  */
-class PERSONALPROJECTINVENTORY_API IPP_ShopQuery
+class PERSONALPROJECTCORE_API IPP_ShopQuery
 {
 	GENERATED_BODY()
 

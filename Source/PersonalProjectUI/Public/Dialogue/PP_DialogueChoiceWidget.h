@@ -10,7 +10,6 @@
 
 class UButton;
 class UTextBlock;
-class APP_NPCActor;
 class APlayerController;
 
 /**
@@ -41,12 +40,12 @@ public:
 	/**
 	 * 初始化选项面板，按动作类型设置按钮可见性
 	 * @param InAction     当前对话的结束动作
-	 * @param InOwningNPC  发起对话的 NPC（用于服务端 OpenShop 等动作定位组件）
+	 * @param InOwningNPC  发起对话的 NPC（实现 IPP_DialogueSource 的对象，用于服务端 OpenShop 等动作定位组件）
 	 * @param InDialogueID 当前对话 DialogueID（与 RelatedQuestID 配合上报服务器）
 	 * @param InOwnerPC    本地玩家控制器
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
-	void SetupChoices(EPP_DialogueEndAction InAction, APP_NPCActor* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC);
+	void SetupChoices(EPP_DialogueEndAction InAction, UObject* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC);
 
 	/** 关闭选项面板（移除自身） */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
@@ -86,7 +85,7 @@ protected:
 	FName CurrentDialogueID;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
-	TWeakObjectPtr<APP_NPCActor> OwningNPC;
+	TWeakObjectPtr<UObject> OwningNPC;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
 	TWeakObjectPtr<APlayerController> OwnerPC;

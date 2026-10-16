@@ -43,10 +43,11 @@ public:
 
 	/**
 	 * 上报对话结束动作（UI 侧调用）
-	 * 实现方负责：转发到 Server_ConfirmDialogueEndAction RPC
+	 * 实现方负责：内部转换为 APP_NPCActor 后转发到 Server_ConfirmDialogueEndAction RPC
+	 * NPC 参数用 UObject*：UI 模块不依赖 Quest 模块具体类，仅持有对话发起方的对象引用
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Dialogue")
-	void ConfirmDialogueEndAction(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action);
+	void ConfirmDialogueEndAction(UObject* NPC, FName DialogueID, EPP_DialogueEndAction Action);
 
 	/**
 	 * 通知对话推进到新台词（UI 侧调用）

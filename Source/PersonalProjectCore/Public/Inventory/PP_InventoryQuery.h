@@ -24,7 +24,7 @@ class UPP_InventoryQuery : public UInterface
  * 约定：本接口只读，不提供任何写操作；写操作走 IPP_InventoryActions。
  * 物品定义（FPP_ItemInfo）属全局数据，走 DataManager 查询，不在此接口内。
  */
-class PERSONALPROJECTINVENTORY_API IPP_InventoryQuery
+class PERSONALPROJECTCORE_API IPP_InventoryQuery
 {
 	GENERATED_BODY()
 

@@ -22,7 +22,7 @@ class UPP_QuestQuery : public UInterface
  *
  * 约定：本接口只读，不提供任何写操作；写操作仍由任务系统内部触发。
  */
-class PERSONALPROJECTQUEST_API IPP_QuestQuery
+class PERSONALPROJECTCORE_API IPP_QuestQuery
 {
 	GENERATED_BODY()
 

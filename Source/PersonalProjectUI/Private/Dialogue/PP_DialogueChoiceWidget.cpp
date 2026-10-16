@@ -5,7 +5,7 @@
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Dialogue/PP_NPCActor.h"
+#include "Dialogue/PP_DialogueSource.h"
 #include "Dialogue/PP_DialogueRequester.h"
 #include "Framework/PP_DataManager.h"
 #include "GameFramework/PlayerController.h"
@@ -41,7 +41,7 @@ void UPP_DialogueChoiceWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_NPCActor* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC)
+void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, UObject* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC)
 {
 	CurrentAction = InAction;
 	CurrentDialogueID = InDialogueID;
@@ -90,9 +90,9 @@ void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_
 		{
 			// 从对话数据表查找 RelatedQuestID
 			FName RelatedQuestID = NAME_None;
-			if (OwningNPC.IsValid())
+			if (OwningNPC.IsValid() && OwningNPC->Implements<UPP_DialogueSource>())
 			{
-				if (UDataTable* DT = OwningNPC->GetDialogueTable())
+				if (UDataTable* DT = IPP_DialogueSource::Execute_QueryDialogueTable(OwningNPC.Get()))
 				{
 					if (const FPP_DialogueData* Row = DT->FindRow<FPP_DialogueData>(CurrentDialogueID, TEXT("SetupChoices-Prompt")))
 					{
@@ -135,9 +135,9 @@ void UPP_DialogueChoiceWidget::CloseChoices()
 	if (PC)
 	{
 		FName RelatedQuest = NAME_None;
-		if (OwningNPC.IsValid())
+		if (OwningNPC.IsValid() && OwningNPC->Implements<UPP_DialogueSource>())
 		{
-			if (UDataTable* DT = OwningNPC->GetDialogueTable())
+			if (UDataTable* DT = IPP_DialogueSource::Execute_QueryDialogueTable(OwningNPC.Get()))
 			{
 				if (FPP_DialogueData* Row = DT->FindRow<FPP_DialogueData>(CurrentDialogueID, TEXT("CloseChoices")))
 				{

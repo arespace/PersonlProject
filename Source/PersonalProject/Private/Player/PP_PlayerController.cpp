@@ -256,9 +256,9 @@ void APP_PlayerController::OpenDialogueUI_Implementation(APP_NPCActor* NPC, FNam
 }
 
 // UI 侧（对话 Widget）经 Execute_ 调用：转发到 Server RPC / 广播自身委托
-void APP_PlayerController::ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action)
+void APP_PlayerController::ConfirmDialogueEndAction_Implementation(UObject* NPC, FName DialogueID, EPP_DialogueEndAction Action)
 {
-	Server_ConfirmDialogueEndAction(NPC, DialogueID, Action);
+	Server_ConfirmDialogueEndAction(Cast<APP_NPCActor>(NPC), DialogueID, Action);
 }
 
 void APP_PlayerController::NotifyDialogueLineAdvanced_Implementation(int32 NewLineIndex)

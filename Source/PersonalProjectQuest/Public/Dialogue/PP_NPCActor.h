@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "Characters/PP_CharacterData.h"
 #include "Interaction/PP_InteractableInterface.h"
+#include "Dialogue/PP_DialogueSource.h"
 #include "PP_NPCActor.generated.h"
 
 class UStaticMeshComponent;
@@ -32,7 +33,7 @@ struct FPP_DialogueData;
  *     发起请求，服务端再回调本 Actor。
  */
 UCLASS()
-class PERSONALPROJECTQUEST_API APP_NPCActor : public AActor, public IPP_Interactable
+class PERSONALPROJECTQUEST_API APP_NPCActor : public AActor, public IPP_Interactable, public IPP_DialogueSource
 {
 	GENERATED_BODY()
 
@@ -101,6 +102,11 @@ public:
 	/** 获取对话表（供 PC 端 UI 查询对话行） */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "NPC|Dialogue")
 	UDataTable* GetDialogueTable() const { return DialogueTable; }
+
+	// ===== IPP_DialogueSource 接口实现（供 UI 经接口查询，无需依赖本具体类） =====
+
+	virtual UDataTable* QueryDialogueTable_Implementation() override { return DialogueTable; }
+	virtual UObject* QueryShopSource_Implementation() override { return GetShopSource(); }
 
 	/**
 	 * 按 DialogueID 查询对话行（NPC 自行持表，避免调用方各自重复「判空 + FindRow」）

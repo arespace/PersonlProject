@@ -109,7 +109,6 @@ bool UPP_InventoryComponent::AddItem(FName ItemID, int32 Count)
 	const int32 NewTotal = GetItemCount(ItemID);
 	UE_LOG(LogPP, Log, TEXT("[Inventory] AddItem: 完成 — 物品=%s, 本次新建槽位=%d, 当前该物品总数=%d, 背包总槽位=%d"),
 		*ItemID.ToString(), NewSlotsCreated, NewTotal, Items.Num());
-	OnInventoryChanged.Broadcast(ItemID, NewTotal);
 	BroadcastInventoryUpdatedEvent();
 	return Remaining < Count;
 }
@@ -146,7 +145,6 @@ bool UPP_InventoryComponent::RemoveItem(FName ItemID, int32 Count)
 	}
 
 	const int32 NewTotal = GetItemCount(ItemID);
-	OnInventoryChanged.Broadcast(ItemID, NewTotal);
 	BroadcastInventoryUpdatedEvent();
 	return true;
 }
@@ -242,7 +240,6 @@ void UPP_InventoryComponent::ApplyEquip(const FPP_ItemInfo& ItemInfo)
 	} 
 
 	EquippedItems.Add(NewEquip);
-	OnEquipmentChanged.Broadcast(NewEquip.Slot, NewEquip.ItemID);
 	BroadcastEquipmentUpdatedEvent();
 }
 
@@ -269,7 +266,6 @@ FName UPP_InventoryComponent::ApplyUnequip(EPP_EquipSlot Slot)
 	}
 
 	EquippedItems.RemoveAt(Idx);
-	OnEquipmentChanged.Broadcast(Slot, NAME_None);
 	BroadcastEquipmentUpdatedEvent();
 	return Old.ItemID;
 }
@@ -314,7 +310,6 @@ bool UPP_InventoryComponent::SpendGold(int32 Amount)
 		return false;
 	}
 	Gold -= Amount;
-	OnGoldChanged.Broadcast(Gold);
 	BroadcastGoldUpdatedEvent(Gold);
 	return true;
 }
@@ -330,7 +325,6 @@ void UPP_InventoryComponent::AddGold(int32 Amount)
 		return;
 	}
 	Gold += Amount;
-	OnGoldChanged.Broadcast(Gold);
 	BroadcastGoldUpdatedEvent(Gold);
 }
 
@@ -338,21 +332,18 @@ void UPP_InventoryComponent::AddGold(int32 Amount)
 
 void UPP_InventoryComponent::OnRep_Items(const TArray<FPP_ItemInstance>& OldItems)
 {
-	// 客户端通用刷新：广播一次空ID事件，UI 监听者据此整体重绘
-	OnInventoryChanged.Broadcast(NAME_None, 0);
+	// 客户端通用刷新：广播 EventBus 事件，UI 监听者据此整体重绘
 	BroadcastInventoryUpdatedEvent();
 }
 
 void UPP_InventoryComponent::OnRep_Equipped(const TArray<FPP_EquippedItem>& OldEquipped)
 {
 	// 装备列表变化：触发 UI 重绘
-	OnEquipmentChanged.Broadcast(EPP_EquipSlot::None, NAME_None);
 	BroadcastEquipmentUpdatedEvent();
 }
 
 void UPP_InventoryComponent::OnRep_Gold(int32 OldGold)
 {
-	OnGoldChanged.Broadcast(Gold);
 	BroadcastGoldUpdatedEvent(Gold);
 }
 
@@ -387,7 +378,6 @@ void UPP_InventoryComponent::Server_UseConsumable_Implementation(FName ItemID)
 
 	// 施加 GE
 	ApplyConsumable(*Info);
-	OnItemUsed.Broadcast(ItemID);
 
 	UE_LOG(LogPP, Log, TEXT("[Inventory] UseConsumable: 使用 %s"), *ItemID.ToString());
 }

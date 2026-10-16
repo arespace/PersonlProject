@@ -21,7 +21,7 @@ class UPP_InventoryActions : public UInterface
  *
  * 约定：这些方法均为「请求」，实现方内部转发到 Server RPC，由服务器权威执行。
  */
-class PERSONALPROJECTINVENTORY_API IPP_InventoryActions
+class PERSONALPROJECTCORE_API IPP_InventoryActions
 {
 	GENERATED_BODY()
 

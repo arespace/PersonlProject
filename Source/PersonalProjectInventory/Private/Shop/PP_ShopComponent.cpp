@@ -187,8 +187,7 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 		ShopItem->Stock -= Count;
 	}
 
-	// 6) 广播购买完成事件（实例委托：UI 刷新；静态委托：任务系统监听）
-	OnPurchaseCompleted.Broadcast(Buyer, ItemID, Count);
+	// 6) 广播购买完成事件（静态委托：任务系统监听；EventBus：UI 刷新）
 	OnPurchaseCompletedDelegate.Broadcast(Buyer, ItemID, Count);
 
 	// 同步广播到 EventBus（UI 通过事件总线刷新商店列表，无需持有组件引用）
@@ -272,9 +271,7 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 
 void UPP_ShopComponent::Client_OnShopResult_Implementation(const FText& Message)
 {
-	OnShopResult.Broadcast(Message);
-
-	// 同步广播到 EventBus（UI 通过事件总线感知操作结果，无需持有组件引用）
+	// 广播到 EventBus（UI 通过事件总线感知操作结果，无需持有组件引用）
 	UWorld* World = GetWorld();
 	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
 	if (UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr)

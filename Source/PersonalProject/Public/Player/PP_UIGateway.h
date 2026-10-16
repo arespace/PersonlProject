@@ -11,7 +11,6 @@
 #include "Framework/PP_SessionManager.h"
 #include "PP_UIGateway.generated.h"
 
-class APP_NPCActor;
 class UUserWidget;
 
 UINTERFACE(BlueprintType)
@@ -52,12 +51,12 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
 	void RequestUpdateScoreboard(const TArray<FScoreboardEntry>& Entries);
 
-	// ===== 对话与商店 UI（NPC 参数用 Quest 模块类型，主玩法模块允许依赖 Quest） =====
+	// ===== 对话与商店 UI（NPC 参数用 UObject*，UI 侧经 IPP_DialogueSource 接口查询，消除对 Quest 模块具体类的依赖） =====
 	// Widget 类由调用方（PlayerController）传入，避免 HUD（UI 模块）反向依赖 PlayerController
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void RequestOpenDialogue(APP_NPCActor* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass);
+	void RequestOpenDialogue(UObject* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass);
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void RequestOpenShop(APP_NPCActor* NPC, TSubclassOf<UUserWidget> ShopWidgetClass);
+	void RequestOpenShop(UObject* NPC, TSubclassOf<UUserWidget> ShopWidgetClass);
 
 	// ===== 大厅推送 =====
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")

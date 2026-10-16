@@ -12,7 +12,7 @@
 #include "Widgets/PP_ScoreboardWidget.h"
 #include "Dialogue/PP_DialogueWidget.h"
 #include "Shop/PP_ShopWidget.h"
-#include "Dialogue/PP_NPCActor.h"
+#include "Dialogue/PP_DialogueSource.h"
 #include "Data/PP_DialogueData.h"
 #include "Inventory/PP_InventoryQuery.h"
 #include "Components/ActorComponent.h"
@@ -103,7 +103,7 @@ void APP_HUD::HandleHostMigrating_Implementation(const FHostMigrationData& Migra
 	// 战斗 HUD 不处理房主迁移提示
 }
 
-void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass)
+void APP_HUD::RequestOpenDialogue_Implementation(UObject* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass)
 {
 	if (!IsValid(NPC))
 	{
@@ -111,8 +111,13 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 		return;
 	}
 
-	// 从 NPC 的对话表中查找行数据
-	UDataTable* DT = NPC->GetDialogueTable();
+	// 从 NPC 的对话表中查找行数据（经 IPP_DialogueSource 接口，不依赖 NPC 具体类）
+	if (!NPC->Implements<UPP_DialogueSource>())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - NPC does not implement IPP_DialogueSource"));
+		return;
+	}
+	UDataTable* DT = IPP_DialogueSource::Execute_QueryDialogueTable(NPC);
 	if (!IsValid(DT))
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenDialogue - NPC DialogueTable is null"));
@@ -155,7 +160,7 @@ void APP_HUD::RequestOpenDialogue_Implementation(APP_NPCActor* NPC, FName Dialog
 		*DialogueID.ToString(), *NPC->GetName());
 }
 
-void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC, TSubclassOf<UUserWidget> ShopWidgetClass)
+void APP_HUD::RequestOpenShop_Implementation(UObject* NPC, TSubclassOf<UUserWidget> ShopWidgetClass)
 {
 	if (!IsValid(NPC))
 	{
@@ -163,7 +168,7 @@ void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC, TSubclassOf<UUse
 		return;
 	}
 
-	UObject* Shop = NPC->GetShopSource();
+	UObject* Shop = NPC->Implements<UPP_DialogueSource>() ? IPP_DialogueSource::Execute_QueryShopSource(NPC) : nullptr;
 	if (!IsValid(Shop))
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenShop - NPC ShopComponent is null"));

@@ -39,7 +39,7 @@ public:
 	// ===== IPP_DialogueRequester 接口实现（实现体在本类 PP_PlayerController.cpp，转发到自身 RPC）=====
 	virtual void RequestStartDialogue_Implementation(APP_NPCActor* NPC) override;
 	virtual void OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID) override;
-	virtual void ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action) override;
+	virtual void ConfirmDialogueEndAction_Implementation(UObject* NPC, FName DialogueID, EPP_DialogueEndAction Action) override;
 	virtual void NotifyDialogueLineAdvanced_Implementation(int32 NewLineIndex) override;
 	virtual void NotifyDialogueEnded_Implementation(FName DialogueID, FName RelatedQuestID) override;
 

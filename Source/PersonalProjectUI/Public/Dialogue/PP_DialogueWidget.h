@@ -10,7 +10,6 @@
 
 class UTextBlock;
 class UButton;
-class APP_NPCActor;
 class APlayerController;
 class UPP_DialogueChoiceWidget;
 
@@ -46,11 +45,11 @@ public:
 	/**
 	 * 初始化一段对话
 	 * @param InData      对话数据（按值拷贝）
-	 * @param InOwningNPC 发起对话的 NPC（用于结束动作回传服务器）
+	 * @param InOwningNPC 发起对话的 NPC（实现 IPP_DialogueSource 的对象，用于结束动作回传服务器）
 	 * @param InOwnerPC   本地玩家控制器（用于 ChoiceWidget 上报 ServerRPC）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
-	void SetupDialogue(const FPP_DialogueData& InData, APP_NPCActor* InOwningNPC, APlayerController* InOwnerPC);
+	void SetupDialogue(const FPP_DialogueData& InData, UObject* InOwningNPC, APlayerController* InOwnerPC);
 
 	/** 推进到下一行台词；若已到最后一行则切换到结束选项面板 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue|UI")
@@ -103,9 +102,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
 	int32 CurrentLineIndex = 0;
 
-	/** 发起对话的 NPC（弱持有，避免循环引用） */
+	/** 发起对话的 NPC（弱持有，避免循环引用；经 IPP_DialogueSource 接口查询，不依赖 Quest 模块具体类） */
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")
-	TWeakObjectPtr<APP_NPCActor> OwningNPC;
+	TWeakObjectPtr<UObject> OwningNPC;
 
 	/** 本地玩家控制器（ChoiceWidget 上报服务器时使用；类型用基类，UI 模块不依赖主玩法 PlayerController） */
 	UPROPERTY(BlueprintReadOnly, Category = "Dialogue|UI")

@@ -6,7 +6,7 @@
 #include "Components/Button.h"
 #include "Components/PanelSlot.h"
 #include "Components/TextBlock.h"
-#include "Dialogue/PP_NPCActor.h"
+#include "Dialogue/PP_DialogueSource.h"
 #include "Dialogue/PP_DialogueRequester.h"
 #include "GameFramework/PlayerController.h"
 #include "Shop/PP_ShopQuery.h"
@@ -63,7 +63,7 @@ void UPP_DialogueWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UPP_DialogueWidget::SetupDialogue(const FPP_DialogueData& InData, APP_NPCActor* InOwningNPC, APlayerController* InOwnerPC)
+void UPP_DialogueWidget::SetupDialogue(const FPP_DialogueData& InData, UObject* InOwningNPC, APlayerController* InOwnerPC)
 {
 	CurrentData = InData;
 	OwningNPC = InOwningNPC;
@@ -273,8 +273,8 @@ void UPP_DialogueWidget::RenderCurrentLine()
 
 void UPP_DialogueWidget::OnNextButtonClicked()
 {
-	APP_NPCActor* NPC = OwningNPC.Get();
-	UObject* Shop = (NPC && IsValid(NPC)) ? NPC->GetShopSource() : nullptr;
+	UObject* NPC = OwningNPC.Get();
+	UObject* Shop = (NPC && NPC->Implements<UPP_DialogueSource>()) ? IPP_DialogueSource::Execute_QueryShopSource(NPC) : nullptr;
 	// 只有 ShopComponent 存在 且 配置了商品数据表 才算真正的商人
 	const bool bIsMerchant = (Shop && Shop->Implements<UPP_ShopQuery>() && IPP_ShopQuery::Execute_QueryShopItems(Shop).Num() > 0);
 
@@ -310,8 +310,8 @@ void UPP_DialogueWidget::RefreshButtonVisibility()
 		return;
 	}
 
-	APP_NPCActor* NPC = OwningNPC.Get();
-	UObject* Shop = (NPC && IsValid(NPC)) ? NPC->GetShopSource() : nullptr;
+	UObject* NPC = OwningNPC.Get();
+	UObject* Shop = (NPC && NPC->Implements<UPP_DialogueSource>()) ? IPP_DialogueSource::Execute_QueryShopSource(NPC) : nullptr;
 	// 只有 ShopComponent 存在 且 配置了商品数据表（有商品） 才算真正的商人
 	const bool bIsMerchant = (Shop && Shop->Implements<UPP_ShopQuery>() && IPP_ShopQuery::Execute_QueryShopItems(Shop).Num() > 0);
 
