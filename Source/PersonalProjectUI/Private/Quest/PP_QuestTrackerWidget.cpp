@@ -9,8 +9,12 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/OverlaySlot.h"
 #include "Layout/Margin.h"
-#include "Quest/PP_QuestComponent.h"
+#include "Quest/PP_QuestQuery.h"
+#include "Framework/PP_EventBus.h"
+#include "Framework/PP_EventTypes.h"
 #include "Framework/PP_Log.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/GameInstance.h"
 
 UPP_QuestTrackerWidget::UPP_QuestTrackerWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,22 +22,38 @@ UPP_QuestTrackerWidget::UPP_QuestTrackerWidget(const FObjectInitializer& ObjectI
 	OwningLayer = EPP_UILayer::Background;
 }
 
-void UPP_QuestTrackerWidget::InitializeTracker(UPP_QuestComponent* InQuestComponent)
+void UPP_QuestTrackerWidget::InitializeTracker(UObject* InQuestSource)
 {
-	QuestComponent = InQuestComponent;
-	if (!QuestComponent) return;
-
-	QuestComponent->OnObjectiveUpdated.AddDynamic(this, &UPP_QuestTrackerWidget::OnObjectiveUpdated);
-	QuestComponent->OnQuestCompleted.AddDynamic(this, &UPP_QuestTrackerWidget::OnQuestCompleted);
-	QuestComponent->OnQuestsUpdated.AddDynamic(this, &UPP_QuestTrackerWidget::OnQuestsUpdated);
-
-	// 默认追踪第一个活跃任务
-	TArray<FPP_ActiveQuest> ActiveQuests = QuestComponent->GetActiveQuests();
-	UE_LOG(LogPP, Log, TEXT("[QuestTracker] InitializeTracker - ActiveQuests=%d"), ActiveQuests.Num());
-	if (ActiveQuests.Num() > 0)
+	if (!InQuestSource || !InQuestSource->Implements<UPP_QuestQuery>())
 	{
-		TrackQuest(ActiveQuests[0].QuestID);
+		UE_LOG(LogPP, Warning, TEXT("[QuestTracker] InitializeTracker - 数据源未实现 IPP_QuestQuery 接口"));
+		return;
 	}
+
+	QuestSource = InQuestSource;
+
+	// 订阅任务列表变更事件（EventBus，替代原对 QuestComponent 委托的直连绑定）
+	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
+	{
+		QuestsUpdatedHandle = EventBus->Subscribe<FPP_QuestsUpdatedEvent>(
+			[this](const FPP_QuestsUpdatedEvent& Event)
+			{
+				HandleQuestsUpdated(Event);
+			});
+	}
+
+	RefreshTracker();
+}
+
+void UPP_QuestTrackerWidget::NativeDestruct()
+{
+	if (UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr)
+	{
+		EventBus->Unsubscribe(QuestsUpdatedHandle);
+	}
+	QuestsUpdatedHandle.Reset();
+
+	Super::NativeDestruct();
 }
 
 void UPP_QuestTrackerWidget::TrackQuest(FName QuestID)
@@ -44,11 +64,26 @@ void UPP_QuestTrackerWidget::TrackQuest(FName QuestID)
 
 void UPP_QuestTrackerWidget::RefreshTracker()
 {
-	if (!QuestComponent) return;
+	if (!QuestSource)
+	{
+		return;
+	}
+
+	TArray<FPP_ActiveQuest> ActiveQuests = IPP_QuestQuery::Execute_QueryActiveQuests(QuestSource);
+
+	// 追踪任务已失效（未设置/已完成/已放弃）时，自动切换到第一个活跃任务
+	const bool bTrackedStillActive = !TrackedQuestID.IsNone() && ActiveQuests.ContainsByPredicate(
+		[this](const FPP_ActiveQuest& Quest) { return Quest.QuestID == TrackedQuestID; });
+
+	if (!bTrackedStillActive)
+	{
+		TrackedQuestID = (ActiveQuests.Num() > 0) ? ActiveQuests[0].QuestID : NAME_None;
+		UE_LOG(LogPP, Log, TEXT("[QuestTracker] RefreshTracker - Auto-track '%s' (ActiveQuests=%d)"),
+			*TrackedQuestID.ToString(), ActiveQuests.Num());
+	}
 
 	if (TrackedQuestID.IsNone())
 	{
-		UE_LOG(LogPP, Verbose, TEXT("[QuestTracker] RefreshTracker - TrackedQuestID is None, clearing UI"));
 		if (QuestTitleText)
 		{
 			QuestTitleText->SetText(FText::GetEmpty());
@@ -60,22 +95,9 @@ void UPP_QuestTrackerWidget::RefreshTracker()
 		return;
 	}
 
-	UE_LOG(LogPP, Log, TEXT("[QuestTracker] RefreshTracker - Tracking %s, QuestTitleText=%s, TrackerContainer=%s"),
-		*TrackedQuestID.ToString(),
-		QuestTitleText ? TEXT("valid") : TEXT("NULL"),
-		TrackerContainer ? TEXT("valid") : TEXT("NULL"));
-
 	// 查找追踪的任务
-	TArray<FPP_ActiveQuest> ActiveQuests = QuestComponent->GetActiveQuests();
-	const FPP_ActiveQuest* TrackedQuest = nullptr;
-	for (const FPP_ActiveQuest& Quest : ActiveQuests)
-	{
-		if (Quest.QuestID == TrackedQuestID)
-		{
-			TrackedQuest = &Quest;
-			break;
-		}
-	}
+	const FPP_ActiveQuest* TrackedQuest = ActiveQuests.FindByPredicate(
+		[this](const FPP_ActiveQuest& Quest) { return Quest.QuestID == TrackedQuestID; });
 
 	if (!TrackedQuest)
 	{
@@ -153,44 +175,13 @@ void UPP_QuestTrackerWidget::RefreshTracker()
 	}
 }
 
-void UPP_QuestTrackerWidget::OnObjectiveUpdated(FName QuestID, int32 ObjectiveIndex)
+void UPP_QuestTrackerWidget::HandleQuestsUpdated(const FPP_QuestsUpdatedEvent& Event)
 {
-	if (QuestID == TrackedQuestID)
+	// 只处理本地玩家的任务变更（EventBus 是 GameInstance 级，可能收到其他玩家的广播）
+	if (Event.Player && Event.Player != GetOwningPlayer())
 	{
-		RefreshTracker();
+		return;
 	}
-}
 
-void UPP_QuestTrackerWidget::OnQuestCompleted(FName QuestID)
-{
-	if (QuestID == TrackedQuestID)
-	{
-		// 任务完成，自动切换到下一个活跃任务
-		TrackedQuestID = NAME_None;
-		if (QuestComponent)
-		{
-			TArray<FPP_ActiveQuest> ActiveQuests = QuestComponent->GetActiveQuests();
-			if (ActiveQuests.Num() > 0)
-			{
-				TrackedQuestID = ActiveQuests[0].QuestID;
-			}
-		}
-		RefreshTracker();
-	}
-}
-
-void UPP_QuestTrackerWidget::OnQuestsUpdated()
-{
-	UE_LOG(LogPP, Log, TEXT("[QuestTracker] OnQuestsUpdated - TrackedID=%s"), *TrackedQuestID.ToString());
-	// 客户端收到 OnRep 后，如果没有追踪任何任务则自动追踪第一个
-	if (TrackedQuestID.IsNone() && QuestComponent)
-	{
-		TArray<FPP_ActiveQuest> ActiveQuests = QuestComponent->GetActiveQuests();
-		if (ActiveQuests.Num() > 0)
-		{
-			TrackedQuestID = ActiveQuests[0].QuestID;
-			UE_LOG(LogPP, Log, TEXT("[QuestTracker] OnQuestsUpdated - Auto-tracking %s"), *TrackedQuestID.ToString());
-		}
-	}
 	RefreshTracker();
 }

@@ -1,4 +1,4 @@
-﻿// 任务系统 — 任务日志面板 Widget
+// 任务系统 — 任务日志面板 Widget
 // 显示玩家的活跃任务和已完成任务列表，支持切换标签
 
 #pragma once
@@ -10,15 +10,16 @@
 
 class UPanelWidget;
 class UButton;
-class UPP_QuestComponent;
 
 /**
  * 任务日志面板 Widget
  *
  * 职责：
  *   1. 显示活跃/已完成任务列表（通过标签切换）
- *   2. 监听 QuestComponent 的 OnQuestAccepted/OnQuestCompleted 自动刷新
+ *   2. 订阅 EventBus 的 FPP_QuestsUpdatedEvent 自动刷新
  *   3. 为每个任务条目创建 PP_QuestEntryWidget 子项
+ *
+ * 解耦说明：不再直接持有 UPP_QuestComponent，仅通过 IPP_QuestQuery 接口读取数据。
  */
 UCLASS()
 class PERSONALPROJECTUI_API UPP_QuestListWidget : public UPP_UIUserWidget
@@ -27,9 +28,10 @@ class PERSONALPROJECTUI_API UPP_QuestListWidget : public UPP_UIUserWidget
 
 public:
 	UPP_QuestListWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	/** 初始化：绑定 QuestComponent 事件 */
+
+	/** 初始化：绑定任务数据源（须实现 IPP_QuestQuery 接口）并订阅任务变更事件 */
 	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
-	void InitializeQuestList(UPP_QuestComponent* InQuestComponent);
+	void InitializeQuestList(UObject* InQuestSource);
 
 	/** 刷新当前显示的任务列表 */
 	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
@@ -45,6 +47,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 	// ===== 蓝图绑定控件 =====
 
@@ -65,26 +68,22 @@ protected:
 	TSubclassOf<class UPP_QuestEntryWidget> QuestEntryWidgetClass;
 
 private:
+	/** EventBus 任务列表变更回调 */
+	void HandleQuestsUpdated(const struct FPP_QuestsUpdatedEvent& Event);
+
 	UFUNCTION()
 	void OnActiveTabClicked();
 
 	UFUNCTION()
 	void OnCompletedTabClicked();
 
-	UFUNCTION()
-	void OnQuestAccepted(FName QuestID);
-
-	UFUNCTION()
-	void OnQuestCompleted(FName QuestID);
-
-	/** OnRep 触发的列表刷新 */
-	UFUNCTION()
-	void OnQuestsUpdated();
-
 	/** 当前是否显示活跃任务（false=已完成） */
 	bool bShowingActive = true;
 
-	/** 缓存的 QuestComponent 引用 */
+	/** 任务数据源（实现 IPP_QuestQuery 接口的对象，通常是 PlayerState 上的任务组件） */
 	UPROPERTY()
-	TObjectPtr<UPP_QuestComponent> QuestComponent;
+	TObjectPtr<UObject> QuestSource;
+
+	/** EventBus 订阅句柄（NativeDestruct 时退订） */
+	FDelegateHandle QuestsUpdatedHandle;
 };

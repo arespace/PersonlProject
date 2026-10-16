@@ -5,8 +5,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
-#include "Shop/PP_ShopComponent.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Shop/PP_ShopActions.h"
 
 UPP_BuyCountWidget::UPP_BuyCountWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -58,8 +57,8 @@ void UPP_BuyCountWidget::SetupCountPicker(FName InItemID,
                                            int32 InUnitPrice,
                                            int32 InMaxCount,
                                            bool bInBuyMode,
-                                           UPP_ShopComponent* InShopComponent,
-                                           UPP_InventoryComponent* InInventory)
+                                           UObject* InShopComponent,
+                                           UObject* InInventory)
 {
     ItemID = InItemID;
     UnitPrice = InUnitPrice;
@@ -119,7 +118,8 @@ void UPP_BuyCountWidget::OnPlusClicked()
 
 void UPP_BuyCountWidget::OnConfirmClicked()
 {
-    if (!ShopComponent || ItemID.IsNone() || CurrentCount <= 0)
+    UObject* Shop = ShopComponent.Get();
+    if (!Shop || !Shop->Implements<UPP_ShopActions>() || ItemID.IsNone() || CurrentCount <= 0)
     {
         return;
     }
@@ -132,11 +132,11 @@ void UPP_BuyCountWidget::OnConfirmClicked()
 
     if (bBuyMode)
     {
-        ShopComponent->Server_BuyItem(PC, ItemID, CurrentCount);
+        IPP_ShopActions::Execute_RequestBuyItem(Shop, PC, ItemID, CurrentCount);
     }
     else
     {
-        ShopComponent->Server_SellItem(PC, ItemID, CurrentCount);
+        IPP_ShopActions::Execute_RequestSellItem(Shop, PC, ItemID, CurrentCount);
     }
 
     OnCountConfirmed.Broadcast(ItemID, CurrentCount, bBuyMode);

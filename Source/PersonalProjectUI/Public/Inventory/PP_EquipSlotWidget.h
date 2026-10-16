@@ -1,4 +1,4 @@
-﻿// 库存系统UI — 装备栏槽位控件
+// 库存系统UI — 装备栏槽位控件
 // 显示单个装备槽位（武器/护甲/饰品），点击触发脱下
 
 #pragma once
@@ -13,7 +13,6 @@
 class UImage;
 class UTextBlock;
 class UButton;
-class UPP_InventoryComponent;
 
 /**
  * 装备栏槽位控件
@@ -28,13 +27,13 @@ class PERSONALPROJECTUI_API UPP_EquipSlotWidget : public UUserWidget
 public:
 	/**
 	 * 初始化装备槽
-	 * @param InOwnerInventory 所属库存组件
+	 * @param InOwnerInventory 所属库存数据源（实现 IPP_InventoryQuery / IPP_InventoryActions 的对象）
 	 * @param InSlot           本槽位代表的装备槽位
 	 * @param InEquippedItem   当前装备数据（若为空则显示空槽）
 	 * @param InItemInfo       已装备物品的配置（图标等）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
-	void SetupEquipSlot(UPP_InventoryComponent* InOwnerInventory,
+	void SetupEquipSlot(UObject* InOwnerInventory,
 	                    EPP_EquipSlot InSlot,
 	                    const FPP_EquippedItem& InEquippedItem,
 	                    const FPP_ItemInfo& InItemInfo);
@@ -78,9 +77,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> SlotButton;
 
-	/** 当前所属库存组件 */
+	/** 当前所属库存数据源 */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI")
-	TWeakObjectPtr<UPP_InventoryComponent> OwnerInventory;
+	TWeakObjectPtr<UObject> OwnerInventory;
 
 	/** 此控件代表的槽位（蓝图可在编辑器配置） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|UI")

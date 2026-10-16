@@ -4,10 +4,13 @@
 #include "Shop/PP_ShopComponent.h"
 
 #include "Framework/PP_DataManager.h"
+#include "Framework/PP_EventBus.h"
+#include "Framework/PP_EventTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Inventory/PP_InventoryComponent.h"
 #include "Data/PP_ItemData.h"
+#include "Engine/GameInstance.h"
 #include "Framework/PP_Log.h"
 
 UPP_ShopComponent::UPP_ShopComponent()
@@ -188,6 +191,17 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	OnPurchaseCompleted.Broadcast(Buyer, ItemID, Count);
 	OnPurchaseCompletedDelegate.Broadcast(Buyer, ItemID, Count);
 
+	// 同步广播到 EventBus（UI 通过事件总线刷新商店列表，无需持有组件引用）
+	UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr)
+	{
+		FPP_PurchaseCompletedEvent Event;
+		Event.Buyer = Buyer;
+		Event.ItemID = ItemID;
+		Event.Count = Count;
+		EventBus->Broadcast(Event);
+	}
+
 	UE_LOG(LogPP, Log, TEXT("[Shop] BuyItem: %s 购买 %s x%d 花费 %d"),
 		*Buyer->GetName(), *ItemID.ToString(), Count, TotalPrice);
 }
@@ -259,4 +273,43 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 void UPP_ShopComponent::Client_OnShopResult_Implementation(const FText& Message)
 {
 	OnShopResult.Broadcast(Message);
+
+	// 同步广播到 EventBus（UI 通过事件总线感知操作结果，无需持有组件引用）
+	UWorld* World = GetWorld();
+	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	if (UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr)
+	{
+		FPP_ShopResultEvent Event;
+		Event.Message = Message;
+		EventBus->Broadcast(Event);
+	}
+}
+
+// ===== IPP_ShopQuery 接口实现 =====
+
+TArray<FPP_ShopItem> UPP_ShopComponent::QueryShopItems_Implementation()
+{
+	return GetShopItems();
+}
+
+int32 UPP_ShopComponent::QueryItemBuyPrice_Implementation(FName ItemID)
+{
+	return GetItemBuyPrice(ItemID);
+}
+
+float UPP_ShopComponent::QuerySellPriceMultiplier_Implementation()
+{
+	return SellPriceMultiplier;
+}
+
+// ===== IPP_ShopActions 接口实现（转发到 Server RPC） =====
+
+void UPP_ShopComponent::RequestBuyItem_Implementation(APlayerController* Buyer, FName ItemID, int32 Count)
+{
+	Server_BuyItem(Buyer, ItemID, Count);
+}
+
+void UPP_ShopComponent::RequestSellItem_Implementation(APlayerController* Seller, FName ItemID, int32 Count)
+{
+	Server_SellItem(Seller, ItemID, Count);
 }

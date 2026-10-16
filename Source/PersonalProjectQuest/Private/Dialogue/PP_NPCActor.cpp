@@ -283,3 +283,8 @@ FPP_DialogueData* APP_NPCActor::FindDialogueRow(FName DialogueID) const
 
 	return DialogueTable->FindRow<FPP_DialogueData>(DialogueID, TEXT("NPCActor::FindDialogueRow"));
 }
+
+UObject* APP_NPCActor::GetShopSource() const
+{
+	return ShopComponent;
+}

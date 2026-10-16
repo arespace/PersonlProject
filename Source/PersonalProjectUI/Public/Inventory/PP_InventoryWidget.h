@@ -1,4 +1,4 @@
-﻿// 库存系统UI — 背包主界面
+// 库存系统UI — 背包主界面
 // 包含背包格子区域（PanelWidget）和装备栏区域（主手/副手/头/胸/腿/脚/手/戒指）
 // 监听库存组件事件自动重绘
 
@@ -6,12 +6,12 @@
 
 #include "CoreMinimal.h"
 #include "Framework/PP_UIUserWidget.h"
+#include "Framework/PP_EventTypes.h"
 #include "Data/PP_ItemTypes.h"
 #include "PP_InventoryWidget.generated.h"
 
 class UPanelWidget;
 class UTextBlock;
-class UPP_InventoryComponent;
 class UPP_ItemSlotWidget;
 class UPP_EquipSlotWidget;
 
@@ -39,11 +39,12 @@ public:
 	UPP_InventoryWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/**
-	 * 绑定到指定的库存组件
-	 * 调用后会立即刷新一次UI并订阅事件
+	 * 绑定到指定的库存数据源
+	 * 调用后会立即刷新一次UI并订阅 EventBus 的库存变更事件
+	 * @param InInventory 实现 IPP_InventoryQuery 的对象
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
-	void BindInventory(UPP_InventoryComponent* InInventory);
+	void BindInventory(UObject* InInventory);
 
 	/** 强制刷新整个面板（背包+装备+金币） */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
@@ -62,15 +63,10 @@ protected:
 	/** 刷新金币文本 */
 	void RefreshGold();
 
-	// 事件监听回调
-	UFUNCTION()
-	void HandleInventoryChanged(FName ItemID, int32 NewCount);
-
-	UFUNCTION()
-	void HandleEquipmentChanged(EPP_EquipSlot InSlot, FName ItemID);
-
-	UFUNCTION()
-	void HandleGoldChanged(int32 NewGold);
+	// 事件监听回调（EventBus 订阅）
+	void HandleInventoryUpdated(const FPP_InventoryUpdatedEvent& Event);
+	void HandleEquipmentUpdated(const FPP_EquipmentUpdatedEvent& Event);
+	void HandleGoldUpdated(const FPP_GoldUpdatedEvent& Event);
 
 	/** 工具函数：刷新一个具体的装备槽控件 */
 	void RefreshOneEquipSlot(UPP_EquipSlotWidget* SlotWidget, EPP_EquipSlot InSlot);
@@ -115,11 +111,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|UI")
 	TSubclassOf<UPP_ItemSlotWidget> ItemSlotWidgetClass;
 
-	/** 当前绑定的库存组件 */
+	/** 当前绑定的库存数据源 */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI")
-	TWeakObjectPtr<UPP_InventoryComponent> BoundInventory;
+	TWeakObjectPtr<UObject> BoundInventory;
 
 private:
+	/** EventBus 订阅句柄 */
+	FDelegateHandle InventoryUpdatedHandle;
+	FDelegateHandle EquipmentUpdatedHandle;
+	FDelegateHandle GoldUpdatedHandle;
+
 	/** ItemID → Widget 映射，支持增量更新（避免 ClearChildren 全量重建） */
 	UPROPERTY()
 	TMap<FName, TObjectPtr<UPP_ItemSlotWidget>> ItemWidgetMap;

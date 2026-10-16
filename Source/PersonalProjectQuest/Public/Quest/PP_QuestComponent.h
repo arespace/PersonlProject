@@ -1,4 +1,4 @@
-﻿// 任务系统 — 任务管理组件
+// 任务系统 — 任务管理组件
 // 服务器权威的任务接取/放弃/提交/进度追踪，通过网络复制同步至客户端
 
 #pragma once
@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/PP_QuestData.h"
+#include "Quest/PP_QuestQuery.h"
 #include "PP_QuestComponent.generated.h"
 
 class UPP_InventoryComponent;
@@ -41,7 +42,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnQuestsUpdated);
  * 使用约定：挂载在 APP_PlayerState 上。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PERSONALPROJECTQUEST_API UPP_QuestComponent : public UActorComponent
+class PERSONALPROJECTQUEST_API UPP_QuestComponent : public UActorComponent, public IPP_QuestQuery
 {
 	GENERATED_BODY()
 
@@ -52,6 +53,12 @@ public:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
+
+	// ===== IPP_QuestQuery 接口实现（只读查询，供 UI 通过接口调用） =====
+
+	virtual TArray<FPP_ActiveQuest> QueryActiveQuests_Implementation() override;
+	virtual TArray<FName> QueryCompletedQuests_Implementation() override;
+	virtual bool QueryQuestInfo_Implementation(FName QuestID, FPP_QuestInfo& OutInfo) override;
 
 	// ===== 任务操作接口（服务器权威） =====
 
@@ -164,4 +171,7 @@ protected:
 private:
 	/** 获取拥有者的库存组件 */
 	UPP_InventoryComponent* GetOwningInventoryComponent() const;
+
+	/** 广播任务列表变更事件到 EventBus（UI 等订阅方据此刷新） */
+	void BroadcastQuestsUpdatedEvent();
 };

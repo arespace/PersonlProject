@@ -9,8 +9,6 @@
 #include "Dialogue/PP_DialogueRequester.h"
 #include "Framework/PP_DataManager.h"
 #include "GameFramework/PlayerController.h"
-#include "GameFramework/PlayerState.h"
-#include "Quest/PP_QuestComponent.h"
 #include "Framework/Application/SlateApplication.h"
 
 UPP_DialogueChoiceWidget::UPP_DialogueChoiceWidget(const FObjectInitializer& ObjectInitializer)
@@ -104,22 +102,13 @@ void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, APP_
 			}
 
 			// 从任务数据表查找任务名（统一走 DataManager 全局任务表）
-			// QuestComponent 用基类 APlayerState + FindComponentByClass 获取，避免依赖主玩法 PlayerState 类型
 			if (!RelatedQuestID.IsNone())
 			{
-				APlayerController* OwnerController = OwnerPC.Get();
-				APlayerState* PPPS = OwnerController ? OwnerController->GetPlayerState<APlayerState>() : nullptr;
-				if (PPPS)
+				if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
 				{
-					if (UPP_QuestComponent* QC = PPPS->FindComponentByClass<UPP_QuestComponent>())
+					if (const FPP_QuestInfo* QuestInfo = DataManager->GetQuestInfo(RelatedQuestID))
 					{
-						if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
-						{
-							if (const FPP_QuestInfo* QuestInfo = DataManager->GetQuestInfo(RelatedQuestID))
-							{
-								PromptContent = QuestInfo->QuestName;
-							}
-						}
+						PromptContent = QuestInfo->QuestName;
 					}
 				}
 			}

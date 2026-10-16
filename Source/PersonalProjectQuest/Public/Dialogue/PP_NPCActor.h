@@ -91,6 +91,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "NPC|Shop")
 	UPP_ShopComponent* GetShopComponent() const { return ShopComponent; }
 
+	/**
+	 * 获取 NPC 商店数据源（实现 IPP_ShopQuery / IPP_ShopActions 的对象；无商店返回 nullptr）
+	 * 供 UI 侧通过接口使用，避免 UI 直接依赖 UPP_ShopComponent 具体类。
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "NPC|Shop")
+	UObject* GetShopSource() const;
+
 	/** 获取对话表（供 PC 端 UI 查询对话行） */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "NPC|Dialogue")
 	UDataTable* GetDialogueTable() const { return DialogueTable; }

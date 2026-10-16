@@ -1,14 +1,13 @@
-﻿// 商店系统 — 商店主面板UI控件
+// 商店系统 — 商店主面板UI控件
 // 双Tab布局：可购买列表 / 可出售列表
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Framework/PP_UIUserWidget.h"
+#include "Framework/PP_EventTypes.h"
 #include "PP_ShopWidget.generated.h"
 
-class UPP_ShopComponent;
-class UPP_InventoryComponent;
 class UPP_ShopItemWidget;
 class UPP_BuyCountWidget;
 class UPanelWidget;
@@ -33,7 +32,7 @@ public:
 	UPP_ShopWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "Shop|UI")
-	void InitializeShop(UPP_ShopComponent* InShopComponent, UPP_InventoryComponent* InInventoryComponent);
+	void InitializeShop(UObject* InShopComponent, UObject* InInventoryComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "Shop|UI")
 	void CloseShop();
@@ -81,11 +80,13 @@ protected:
 	TSubclassOf<UPP_BuyCountWidget> BuyCountWidgetClass;
 
 private:
+	/** 商店数据源（实现 IPP_ShopQuery / IPP_ShopActions） */
 	UPROPERTY()
-	TObjectPtr<UPP_ShopComponent> ShopComponent;
+	TWeakObjectPtr<UObject> ShopComponent;
 
+	/** 库存数据源（实现 IPP_InventoryQuery） */
 	UPROPERTY()
-	TObjectPtr<UPP_InventoryComponent> InventoryComponent;
+	TWeakObjectPtr<UObject> InventoryComponent;
 
 	/** 当前活跃Tab：true=购买, false=出售 */
 	bool bIsBuyTabActive = true;
@@ -105,13 +106,18 @@ private:
 	/** 更新Tab按钮的高亮/默认视觉 */
 	void UpdateTabVisuals();
 
-	// ===== 委托回调 =====
+	// ===== 委托/事件回调 =====
 
-	UFUNCTION()
-	void OnGoldChanged(int32 NewGold);
+	/** EventBus 订阅句柄 */
+	FDelegateHandle InventoryUpdatedHandle;
+	FDelegateHandle GoldUpdatedHandle;
+	FDelegateHandle ShopResultHandle;
+	FDelegateHandle PurchaseCompletedHandle;
 
-	UFUNCTION()
-	void OnInventoryChanged(FName ItemID, int32 NewCount);
+	void HandleInventoryUpdated(const FPP_InventoryUpdatedEvent& Event);
+	void HandleGoldUpdated(const FPP_GoldUpdatedEvent& Event);
+	void HandleShopResult(const FPP_ShopResultEvent& Event);
+	void HandlePurchaseCompleted(const FPP_PurchaseCompletedEvent& Event);
 
 	UFUNCTION()
 	void OnBuyTabClicked();
@@ -121,10 +127,6 @@ private:
 
 	UFUNCTION()
 	void OnCloseButtonClicked();
-
-	/** 商店操作结果回调（金币不足、库存不足等） */
-	UFUNCTION()
-	void OnShopResultReceived(const FText& Message);
 
 	// ===== BuyCount 浮窗 =====
 
@@ -138,10 +140,6 @@ private:
 	/** BuyCount 确认/取消回调桥接（签名匹配 FOnCountConfirmed） */
 	UFUNCTION()
 	void OnBuyCountConfirmed(FName ItemID, int32 Count, bool bBuy);
-
-	/** 购买完成后刷新列表（绑定到 ShopComponent->OnPurchaseCompleted） */
-	UFUNCTION()
-	void OnPurchaseCompleted(AActor* Buyer, FName ItemID, int32 Count);
 
 	/** 当前打开的 BuyCount 浮窗引用 */
 	UPROPERTY()

@@ -6,7 +6,8 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "GameplayEffect.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryQuery.h"
+#include "Framework/PP_DataManager.h"
 #include "Engine/DataTable.h"
 
 UPP_ItemTooltipWidget::UPP_ItemTooltipWidget()
@@ -20,7 +21,7 @@ void UPP_ItemTooltipWidget::NativeConstruct()
     Super::NativeConstruct();
 }
 
-void UPP_ItemTooltipWidget::SetupTooltip(UPP_InventoryComponent* InInventory,
+void UPP_ItemTooltipWidget::SetupTooltip(UObject* InInventory,
                                           const FPP_ItemInfo& InItemInfo,
                                           int32 InStackCount,
                                           int32 InMaxStack)
@@ -136,14 +137,15 @@ void UPP_ItemTooltipWidget::BuildStatsList(const TArray<FPP_ModifierSummary>& Mo
     }
 }
 
-void UPP_ItemTooltipWidget::BuildComparison(UPP_InventoryComponent* Inventory, const FPP_ItemInfo& HoveredInfo)
+void UPP_ItemTooltipWidget::BuildComparison(UObject* Inventory, const FPP_ItemInfo& HoveredInfo)
 {
-    if (!CompareContainer || !Inventory) return;
+    if (!CompareContainer || !Inventory || !Inventory->Implements<UPP_InventoryQuery>()) return;
 
-    const FPP_EquippedItem Equipped = Inventory->GetEquippedItemInSlot(HoveredInfo.EquipSlot);
+    const FPP_EquippedItem Equipped = IPP_InventoryQuery::Execute_QueryEquippedItemInSlot(Inventory, HoveredInfo.EquipSlot);
     if (Equipped.ItemID.IsNone()) return;
 
-    const FPP_ItemInfo* EquippedInfo = Inventory->FindItemInfo(Equipped.ItemID);
+    UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+    const FPP_ItemInfo* EquippedInfo = DataManager ? DataManager->GetItemInfo(Equipped.ItemID) : nullptr;
     if (!EquippedInfo || !EquippedInfo->EquipEffectClass) return;
 
     TArray<FPP_ModifierSummary> Better, Worse, NewMods, LostMods;

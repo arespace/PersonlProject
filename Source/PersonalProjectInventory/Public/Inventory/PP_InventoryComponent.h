@@ -1,4 +1,4 @@
-﻿// 库存系统 — 库存与装备管理组件
+// 库存系统 — 库存与装备管理组件
 // 服务器权威的物品/货币/装备管理，通过网络复制同步至客户端
 
 #pragma once
@@ -8,6 +8,8 @@
 #include "GameplayTagContainer.h"
 #include "Data/PP_ItemData.h"
 #include "Data/PP_ItemTypes.h"
+#include "Inventory/PP_InventoryQuery.h"
+#include "Inventory/PP_InventoryActions.h"
 #include "PP_InventoryComponent.generated.h"
 
 class UAbilitySystemComponent;
@@ -42,7 +44,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, FName, ItemID);
  * 使用约定：通常挂载在 APP_PlayerState 上，确保跨地图传输时仍可保留库存数据。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PERSONALPROJECTINVENTORY_API UPP_InventoryComponent : public UActorComponent
+class PERSONALPROJECTINVENTORY_API UPP_InventoryComponent : public UActorComponent, public IPP_InventoryQuery, public IPP_InventoryActions
 {
 	GENERATED_BODY()
 
@@ -53,6 +55,20 @@ public:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
+
+	// ===== IPP_InventoryQuery 接口实现（只读查询，供 UI 通过接口调用） =====
+
+	virtual TArray<FPP_ItemInstance> QueryItems_Implementation() override;
+	virtual TArray<FPP_EquippedItem> QueryEquippedItems_Implementation() override;
+	virtual int32 QueryGold_Implementation() override;
+	virtual int32 QueryItemCount_Implementation(FName ItemID) override;
+	virtual FPP_EquippedItem QueryEquippedItemInSlot_Implementation(EPP_EquipSlot Slot) override;
+
+	// ===== IPP_InventoryActions 接口实现（转发到 Server RPC） =====
+
+	virtual void RequestEquipItem_Implementation(FName ItemID) override;
+	virtual void RequestUnequipItem_Implementation(EPP_EquipSlot Slot) override;
+	virtual void RequestUseConsumable_Implementation(FName ItemID) override;
 
 	// ===== 物品基础接口（服务器权威调用） =====
 
@@ -225,4 +241,13 @@ private:
 
 	/** 获取拥有者的 ASC（用于施加/移除 GE） */
 	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
+
+	/** 广播库存变更事件到 EventBus（UI 等订阅方据此刷新） */
+	void BroadcastInventoryUpdatedEvent();
+
+	/** 广播装备变更事件到 EventBus */
+	void BroadcastEquipmentUpdatedEvent();
+
+	/** 广播金币变更事件到 EventBus */
+	void BroadcastGoldUpdatedEvent(int32 NewGold);
 };

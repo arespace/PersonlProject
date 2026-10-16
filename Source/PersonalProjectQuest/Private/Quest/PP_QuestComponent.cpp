@@ -31,6 +31,29 @@ void UPP_QuestComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(UPP_QuestComponent, CompletedQuestIDs);
 }
 
+// ===== IPP_QuestQuery 接口实现 =====
+
+TArray<FPP_ActiveQuest> UPP_QuestComponent::QueryActiveQuests_Implementation()
+{
+	return ActiveQuests;
+}
+
+TArray<FName> UPP_QuestComponent::QueryCompletedQuests_Implementation()
+{
+	return CompletedQuestIDs;
+}
+
+bool UPP_QuestComponent::QueryQuestInfo_Implementation(FName QuestID, FPP_QuestInfo& OutInfo)
+{
+	const FPP_QuestInfo* QuestInfo = FindQuestInfo(QuestID);
+	if (!QuestInfo)
+	{
+		return false;
+	}
+	OutInfo = *QuestInfo;
+	return true;
+}
+
 // ===== 任务操作接口 =====
 
 bool UPP_QuestComponent::AcceptQuest(FName QuestID)
@@ -69,6 +92,7 @@ bool UPP_QuestComponent::AcceptQuest(FName QuestID)
 	ActiveQuests.Add(NewActiveQuest);
 	OnQuestAccepted.Broadcast(QuestID);
 	OnQuestsUpdated.Broadcast();
+	BroadcastQuestsUpdatedEvent();
 
 	UE_LOG(LogPP, Log, TEXT("[QuestComponent] AcceptQuest - Accepted '%s'"), *QuestID.ToString());
 	return true;
@@ -88,6 +112,7 @@ bool UPP_QuestComponent::AbandonQuest(FName QuestID)
 		{
 			ActiveQuests.RemoveAt(i);
 				OnQuestsUpdated.Broadcast();
+				BroadcastQuestsUpdatedEvent();
 			UE_LOG(LogPP, Log, TEXT("[QuestComponent] AbandonQuest - Abandoned '%s'"), *QuestID.ToString());
 			return true;
 		}
@@ -162,6 +187,7 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 
 	OnQuestCompleted.Broadcast(QuestID);
 	OnQuestsUpdated.Broadcast();
+	BroadcastQuestsUpdatedEvent();
 
 	// 通过 EventBus 广播任务完成事件（HUD 订阅显示通知，任务系统不再直接依赖 UI）
 	if (UWorld* World = GetWorld())
@@ -228,6 +254,7 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 			// 广播 UI 更新
 			OnObjectiveUpdated.Broadcast(Quest.QuestID, OIdx);
 			OnQuestsUpdated.Broadcast();
+			BroadcastQuestsUpdatedEvent();
 
 			UE_LOG(LogPP, Verbose, TEXT("[QuestComponent] UpdateObjectiveProgress MATCH: Quest='%s' Obj[%d] %d/%d"),
 				*Quest.QuestID.ToString(), OIdx, Obj.CurrentCount, Obj.RequiredCount);
@@ -337,9 +364,27 @@ void UPP_QuestComponent::OnRep_ActiveQuests()
 	// 客户端收到活跃任务列表更新后广播，通知 UI 刷新
 	UE_LOG(LogPP, Log, TEXT("[QuestComponent] OnRep_ActiveQuests - %d active quests"), ActiveQuests.Num());
 	OnQuestsUpdated.Broadcast();
+	BroadcastQuestsUpdatedEvent();
 }
 
 // ===== 内部辅助 =====
+
+void UPP_QuestComponent::BroadcastQuestsUpdatedEvent()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI) return;
+
+	UPP_EventBus* EventBus = GI->GetSubsystem<UPP_EventBus>();
+	if (!EventBus) return;
+
+	FPP_QuestsUpdatedEvent Event;
+	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
+	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
+	EventBus->Broadcast(Event);
+}
 
 UPP_InventoryComponent* UPP_QuestComponent::GetOwningInventoryComponent() const
 {

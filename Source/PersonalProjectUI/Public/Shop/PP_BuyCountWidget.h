@@ -1,4 +1,4 @@
-﻿// 商店系统 — 购买/出售数量选择弹窗
+// 商店系统 — 购买/出售数量选择弹窗
 
 #pragma once
 
@@ -8,8 +8,6 @@
 
 class UTextBlock;
 class UButton;
-class UPP_ShopComponent;
-class UPP_InventoryComponent;
 
 /** 数量确认回调：ItemID, 数量, 是否为购买模式 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCountConfirmed, FName, ItemID, int32, Count, bool, bBuy);
@@ -20,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCountConfirmed, FName, ItemID,
  * OwningLayer = Modal, bConsumesAllInput = true
  *
  * 由 ShopItemWidget 点击触发 → 弹出此窗口
- * 确认后调用 ShopComponent 的 Server_BuyItem/Server_SellItem
+ * 确认后通过 IPP_ShopActions 发起购买/出售请求
  */
 UCLASS(Abstract, BlueprintType, Blueprintable)
 class PERSONALPROJECTUI_API UPP_BuyCountWidget : public UUserWidget
@@ -37,8 +35,8 @@ public:
      * @param InUnitPrice     单价
      * @param InMaxCount      最大可选数量
      * @param bInBuyMode      true=购买模式, false=出售模式
-     * @param InShopComponent 商店组件引用（确认时调用 RPC）
-     * @param InInventory     玩家库存组件引用
+     * @param InShopComponent 商店数据源（实现 IPP_ShopActions，确认时发起请求）
+     * @param InInventory     玩家库存数据源（实现 IPP_InventoryQuery）
      */
     UFUNCTION(BlueprintCallable, Category = "Shop|UI")
     void SetupCountPicker(FName InItemID,
@@ -46,8 +44,8 @@ public:
                           int32 InUnitPrice,
                           int32 InMaxCount,
                           bool bInBuyMode,
-                          UPP_ShopComponent* InShopComponent,
-                          UPP_InventoryComponent* InInventory);
+                          UObject* InShopComponent,
+                          UObject* InInventory);
 
     /** 数量确认事件（供 ShopWidget 监听刷新） */
     UPROPERTY(BlueprintAssignable, Category = "Shop|UI|Events")
@@ -109,8 +107,8 @@ private:
     bool bBuyMode = true;
 
     UPROPERTY()
-    TObjectPtr<UPP_ShopComponent> ShopComponent;
+    TWeakObjectPtr<UObject> ShopComponent;
 
     UPROPERTY()
-    TObjectPtr<UPP_InventoryComponent> Inventory;
+    TWeakObjectPtr<UObject> Inventory;
 };

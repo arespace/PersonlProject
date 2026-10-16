@@ -5,7 +5,8 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryActions.h"
+#include "Inventory/PP_InventoryQuery.h"
 #include "Inventory/PP_ItemTooltipWidget.h"
 #include "Framework/PP_UIManager.h"
 #include "Engine/GameInstance.h"
@@ -21,7 +22,7 @@ void UPP_EquipSlotWidget::NativeConstruct()
 	}
 }
 
-void UPP_EquipSlotWidget::SetupEquipSlot(UPP_InventoryComponent* InOwnerInventory,
+void UPP_EquipSlotWidget::SetupEquipSlot(UObject* InOwnerInventory,
                                          EPP_EquipSlot InSlot,
                                          const FPP_EquippedItem& InEquippedItem,
                                          const FPP_ItemInfo& InItemInfo)
@@ -64,11 +65,15 @@ void UPP_EquipSlotWidget::SetupEquipSlot(UPP_InventoryComponent* InOwnerInventor
 
 void UPP_EquipSlotWidget::HandleSlotClicked()
 {
-	if (!OwnerInventory.IsValid() || bIsEmptySlot || SlotType == EPP_EquipSlot::None)
+	UObject* Source = OwnerInventory.Get();
+	if (!Source || bIsEmptySlot || SlotType == EPP_EquipSlot::None)
 	{
 		return;
 	}
-	OwnerInventory->Server_UnequipItem(SlotType);
+	if (Source->Implements<UPP_InventoryActions>())
+	{
+		IPP_InventoryActions::Execute_RequestUnequipItem(Source, SlotType);
+	}
 }
 
 void UPP_EquipSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -126,7 +131,7 @@ void UPP_EquipSlotWidget::ShowTooltip()
 		return;
 	}
 
-	const int32 Count = OwnerInventory->GetItemCount(CachedInfo.ItemID);
+	const int32 Count = IPP_InventoryQuery::Execute_QueryItemCount(OwnerInventory.Get(), CachedInfo.ItemID);
 	ActiveTooltip->SetupTooltip(OwnerInventory.Get(), CachedInfo, Count, CachedInfo.MaxStackCount);
 	ActiveTooltip->AddToViewport(static_cast<int32>(EPP_UILayer::Overlay));
 }

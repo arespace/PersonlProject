@@ -7,8 +7,9 @@
 #include "Widgets/PP_AbilitySlotWidget.h"
 #include "Widgets/PP_CrosshairWidget.h"
 #include "Quest/PP_QuestTrackerWidget.h"
-#include "Quest/PP_QuestComponent.h"
+#include "Quest/PP_QuestQuery.h"
 #include "GameFramework/PlayerState.h"
+#include "Components/ActorComponent.h"
 #include "Components/PanelWidget.h"
 #include "GameplayTags/PPTags.h"
 #include "Framework/PP_Log.h"
@@ -119,7 +120,7 @@ void UPP_HUDWidget::InitializeQuestTracker()
 		return;
 	}
 
-	// 用基类 APlayerState + FindComponentByClass，避免 UI 模块 include 主玩法 PlayerState 头文件
+	// 按接口能力查找任务数据源，避免 UI 模块依赖任务组件具体类
 	APlayerState* PS = PC->GetPlayerState<APlayerState>();
 	if (!PS)
 	{
@@ -127,13 +128,21 @@ void UPP_HUDWidget::InitializeQuestTracker()
 		return;
 	}
 
-	UPP_QuestComponent* QuestComp = PS->FindComponentByClass<UPP_QuestComponent>();
-	if (!QuestComp)
+	UObject* QuestSource = nullptr;
+	for (UActorComponent* Comp : PS->GetComponents())
 	{
-		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No QuestComponent on PlayerState"));
+		if (Comp && Comp->Implements<UPP_QuestQuery>())
+		{
+			QuestSource = Comp;
+			break;
+		}
+	}
+	if (!QuestSource)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[HUDWidget] InitializeQuestTracker - No IPP_QuestQuery provider on PlayerState"));
 		return;
 	}
 
-	UE_LOG(LogPP, Log, TEXT("[HUDWidget] InitializeQuestTracker - SUCCESS, ActiveQuests=%d"), QuestComp->GetActiveQuests().Num());
-	QuestTrackerWidget->InitializeTracker(QuestComp);
+	UE_LOG(LogPP, Log, TEXT("[HUDWidget] InitializeQuestTracker - SUCCESS"));
+	QuestTrackerWidget->InitializeTracker(QuestSource);
 }

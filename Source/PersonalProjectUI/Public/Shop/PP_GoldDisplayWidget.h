@@ -1,13 +1,13 @@
-﻿// 商店系统 — HUD金币常驻显示控件
-// 监听 InventoryComponent.OnGoldChanged 实时更新
+// 商店系统 — HUD金币常驻显示控件
+// 通过 EventBus 的 FPP_GoldUpdatedEvent 实时更新
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Framework/PP_EventTypes.h"
 #include "PP_GoldDisplayWidget.generated.h"
 
-class UPP_InventoryComponent;
 class UTextBlock;
 
 /**
@@ -15,7 +15,7 @@ class UTextBlock;
  *
  * 职责：
  *   1. 在HUD上常驻显示当前金币数
- *   2. 监听 InventoryComponent::OnGoldChanged 实时刷新文本
+ *   2. 监听 EventBus 的 FPP_GoldUpdatedEvent 实时刷新文本
  *   3. 提供 UpdateGoldDisplay 方法供外部主动刷新
  *
  * 使用约定：由 APP_HUD 创建并加入 ZOrder_CombatHUD 层
@@ -27,11 +27,12 @@ class PERSONALPROJECTUI_API UPP_GoldDisplayWidget : public UUserWidget
 
 public:
 	/**
-	 * 绑定到指定的库存组件
-	 * 自动监听 OnGoldChanged 并立即刷新一次显示
+	 * 绑定到指定的库存数据源
+	 * 自动订阅 EventBus 的金币变更事件并立即刷新一次显示
+	 * @param InInventory 实现 IPP_InventoryQuery 的对象
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Shop|UI")
-	void BindInventoryComponent(UPP_InventoryComponent* InInventory);
+	void BindInventoryComponent(UObject* InInventory);
 
 	/**
 	 * 主动刷新金币显示（外部强制更新场景）
@@ -48,10 +49,12 @@ protected:
 	TObjectPtr<UTextBlock> GoldText;
 
 private:
-	/** 当前绑定的库存组件 */
+	/** 当前绑定的库存数据源 */
 	UPROPERTY()
-	TObjectPtr<UPP_InventoryComponent> Inventory;
+	TWeakObjectPtr<UObject> Inventory;
 
-	UFUNCTION()
-	void HandleGoldChanged(int32 NewGold);
+	/** EventBus 订阅句柄 */
+	FDelegateHandle GoldUpdatedHandle;
+
+	void HandleGoldUpdated(const FPP_GoldUpdatedEvent& Event);
 };

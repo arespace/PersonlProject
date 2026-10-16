@@ -3,32 +3,41 @@
 #include "Shop/PP_GoldDisplayWidget.h"
 
 #include "Components/TextBlock.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryQuery.h"
+#include "Framework/PP_EventBus.h"
+#include "Engine/GameInstance.h"
 
 void UPP_GoldDisplayWidget::NativeDestruct()
 {
-	if (Inventory)
+	if (UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr)
 	{
-		Inventory->OnGoldChanged.RemoveDynamic(this, &UPP_GoldDisplayWidget::HandleGoldChanged);
+		EventBus->Unsubscribe(GoldUpdatedHandle);
 	}
+	GoldUpdatedHandle.Reset();
+
 	Super::NativeDestruct();
 }
 
-void UPP_GoldDisplayWidget::BindInventoryComponent(UPP_InventoryComponent* InInventory)
+void UPP_GoldDisplayWidget::BindInventoryComponent(UObject* InInventory)
 {
-	// 解绑旧的避免重复
-	if (Inventory)
+	UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr;
+
+	// 解绑旧的订阅，避免重复
+	if (EventBus)
 	{
-		Inventory->OnGoldChanged.RemoveDynamic(this, &UPP_GoldDisplayWidget::HandleGoldChanged);
+		EventBus->Unsubscribe(GoldUpdatedHandle);
 	}
+	GoldUpdatedHandle.Reset();
 
 	Inventory = InInventory;
-	if (Inventory)
+
+	if (InInventory && InInventory->Implements<UPP_InventoryQuery>() && EventBus)
 	{
-		Inventory->OnGoldChanged.RemoveDynamic(this, &UPP_GoldDisplayWidget::HandleGoldChanged);
-		Inventory->OnGoldChanged.AddDynamic(this, &UPP_GoldDisplayWidget::HandleGoldChanged);
+		GoldUpdatedHandle = EventBus->Subscribe<FPP_GoldUpdatedEvent>(
+			[this](const FPP_GoldUpdatedEvent& Event) { HandleGoldUpdated(Event); });
+
 		// 立即刷新初值
-		UpdateGoldDisplay(Inventory->GetGold());
+		UpdateGoldDisplay(IPP_InventoryQuery::Execute_QueryGold(InInventory));
 	}
 	else
 	{
@@ -45,7 +54,12 @@ void UPP_GoldDisplayWidget::UpdateGoldDisplay(int32 NewGold)
 	}
 }
 
-void UPP_GoldDisplayWidget::HandleGoldChanged(int32 NewGold)
+void UPP_GoldDisplayWidget::HandleGoldUpdated(const FPP_GoldUpdatedEvent& Event)
 {
-	UpdateGoldDisplay(NewGold);
+	// 只处理本地玩家的金币变更（EventBus 是 GameInstance 级，可能收到其他玩家的广播）
+	if (Event.Player && Event.Player != GetOwningPlayer())
+	{
+		return;
+	}
+	UpdateGoldDisplay(Event.NewGold);
 }

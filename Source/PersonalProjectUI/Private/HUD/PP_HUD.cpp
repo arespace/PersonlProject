@@ -12,15 +12,16 @@
 #include "Widgets/PP_NotificationWidget.h"
 #include "Quest/PP_QuestListWidget.h"
 #include "Quest/PP_QuestTrackerWidget.h"
-#include "Quest/PP_QuestComponent.h"
+#include "Quest/PP_QuestQuery.h"
 #include "GameFramework/PlayerState.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/ActorComponent.h"
 #include "Components/CanvasPanelSlot.h"
 #include "GameFramework/PlayerController.h"
 #include "Inventory/PP_InventoryWidget.h"
 #include "Framework/PP_UIManager.h"
 #include "Framework/PP_UIUserWidget.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryQuery.h"
 #include "Engine/GameInstance.h"
 #include "Framework/PP_EventBus.h"
 #include "Framework/PP_EventTypes.h"
@@ -137,14 +138,21 @@ void APP_HUD::CreateHUDWidgets()
 	// 计分板、暂停菜单、死亡画面改为按需创建（Show 时 CreateWidget，Hide 时 PopWidget）
 	// 不再预创建隐藏 — 由 UIManager 管理完整 Push/Pop 生命周期
 
-	// 获取 QuestComponent（挂载在 PlayerState 上）；用基类 APlayerState + FindComponentByClass，
-	// 避免 UI 模块 include 主玩法 PlayerState 头文件
-	UPP_QuestComponent* QC = nullptr;
+	// 获取任务数据源（挂载在 PlayerState 上，实现 IPP_QuestQuery 接口）；
+	// 按接口能力查找组件，UI 不依赖任务组件具体类
+	UObject* QuestSource = nullptr;
 	if (PlayerOwner)
 	{
 		if (APlayerState* PS = PlayerOwner->GetPlayerState<APlayerState>())
 		{
-			QC = PS->FindComponentByClass<UPP_QuestComponent>();
+			for (UActorComponent* Comp : PS->GetComponents())
+			{
+				if (Comp && Comp->Implements<UPP_QuestQuery>())
+				{
+					QuestSource = Comp;
+					break;
+				}
+			}
 		}
 	}
 
@@ -155,9 +163,9 @@ void APP_HUD::CreateHUDWidgets()
 		if (QuestTrackerWidget)
 		{
 			AddToViewportByLayer(QuestTrackerWidget);
-			if (QC)
+			if (QuestSource)
 			{
-				QuestTrackerWidget->InitializeTracker(QC);
+				QuestTrackerWidget->InitializeTracker(QuestSource);
 			}
 		}
 	}
@@ -172,9 +180,9 @@ void APP_HUD::CreateHUDWidgets()
 		{
 			QuestListWidget->SetVisibility(ESlateVisibility::Hidden);
 			AddToViewportByLayer(QuestListWidget);
-			if (QC)
+			if (QuestSource)
 			{
-				QuestListWidget->InitializeQuestList(QC);
+				QuestListWidget->InitializeQuestList(QuestSource);
 			}
 		}
 	}
@@ -454,19 +462,26 @@ void APP_HUD::ToggleInventory()
 
 		if (InventoryWidget)
 		{
-			// 绑定库存组件（基类 APlayerState + FindComponentByClass）
-			UPP_InventoryComponent* InvComp = nullptr;
+			// 按接口能力查找库存数据源（避免依赖 UPP_InventoryComponent 具体类）
+			UObject* InvSource = nullptr;
 			if (PlayerOwner)
 			{
 				if (APlayerState* PS = PlayerOwner->GetPlayerState<APlayerState>())
 				{
-					InvComp = PS->FindComponentByClass<UPP_InventoryComponent>();
+					for (UActorComponent* Comp : PS->GetComponents())
+					{
+						if (Comp && Comp->Implements<UPP_InventoryQuery>())
+						{
+							InvSource = Comp;
+							break;
+						}
+					}
 				}
 			}
 
-			if (InvComp)
+			if (InvSource)
 			{
-				InventoryWidget->BindInventory(InvComp);
+				InventoryWidget->BindInventory(InvSource);
 			}
 
 			// ZOrder 取自 Widget 自身 OwningLayer；构造期自动推栈 → RecalculateInputMode

@@ -1,4 +1,4 @@
-﻿// 任务系统 — HUD 右侧任务追踪器 Widget
+// 任务系统 — HUD 右侧任务追踪器 Widget
 // 显示当前追踪任务的名称和各目标进度
 
 #pragma once
@@ -10,7 +10,6 @@
 
 class UPanelWidget;
 class UTextBlock;
-class UPP_QuestComponent;
 
 /**
  * 任务追踪器 Widget — HUD 右侧常驻显示
@@ -18,7 +17,9 @@ class UPP_QuestComponent;
  * 职责：
  *   1. 显示当前追踪的任务名称
  *   2. 列出各目标及实时进度（如 "击杀敌人 2/5"）
- *   3. 监听 OnObjectiveUpdated 实时刷新
+ *   3. 订阅 EventBus 的 FPP_QuestsUpdatedEvent 实时刷新
+ *
+ * 解耦说明：不再直接持有 UPP_QuestComponent，仅通过 IPP_QuestQuery 接口读取数据。
  */
 UCLASS()
 class PERSONALPROJECTUI_API UPP_QuestTrackerWidget : public UPP_UIUserWidget
@@ -27,9 +28,10 @@ class PERSONALPROJECTUI_API UPP_QuestTrackerWidget : public UPP_UIUserWidget
 
 public:
 	UPP_QuestTrackerWidget(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	/** 初始化：绑定 QuestComponent 事件 */
+
+	/** 初始化：绑定任务数据源（须实现 IPP_QuestQuery 接口）并订阅任务变更事件 */
 	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
-	void InitializeTracker(UPP_QuestComponent* InQuestComponent);
+	void InitializeTracker(UObject* InQuestSource);
 
 	/** 设置追踪的任务 */
 	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
@@ -40,6 +42,8 @@ public:
 	void RefreshTracker();
 
 protected:
+	virtual void NativeDestruct() override;
+
 	// ===== 蓝图绑定控件 =====
 
 	/** 追踪目标列表容器 */
@@ -51,21 +55,17 @@ protected:
 	TObjectPtr<UTextBlock> QuestTitleText;
 
 private:
-	UFUNCTION()
-	void OnObjectiveUpdated(FName QuestID, int32 ObjectiveIndex);
-
-	UFUNCTION()
-	void OnQuestCompleted(FName QuestID);
-
-	/** OnRep 触发的列表刷新（客户端也能收到） */
-	UFUNCTION()
-	void OnQuestsUpdated();
+	/** EventBus 任务列表变更回调 */
+	void HandleQuestsUpdated(const struct FPP_QuestsUpdatedEvent& Event);
 
 	/** 当前追踪的任务ID */
 	UPROPERTY()
 	FName TrackedQuestID;
 
-	/** 缓存的 QuestComponent 引用 */
+	/** 任务数据源（实现 IPP_QuestQuery 接口的对象，通常是 PlayerState 上的任务组件） */
 	UPROPERTY()
-	TObjectPtr<UPP_QuestComponent> QuestComponent;
+	TObjectPtr<UObject> QuestSource;
+
+	/** EventBus 订阅句柄（NativeDestruct 时退订） */
+	FDelegateHandle QuestsUpdatedHandle;
 };

@@ -9,8 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Shop/PP_BuyCountWidget.h"
 #include "Framework/PP_UIManager.h"
-#include "Shop/PP_ShopComponent.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryQuery.h"
 
 void UPP_ShopItemWidget::NativeConstruct()
 {
@@ -93,7 +92,7 @@ void UPP_ShopItemWidget::SetupItem(FName InItemID, const FText& InName, int32 In
 	CachedName = InName;
 }
 
-void UPP_ShopItemWidget::SetShopAndInventory(UPP_ShopComponent* InShop, UPP_InventoryComponent* InInventory)
+void UPP_ShopItemWidget::SetShopAndInventory(UObject* InShop, UObject* InInventory)
 {
 	ShopComponent = InShop;
 	InventoryComponent = InInventory;
@@ -132,21 +131,19 @@ void UPP_ShopItemWidget::OnActionButtonClicked()
 
 	// 计算最大可选数量
 	int32 MaxQty = 1;
-	if (bBuyMode)
+	UObject* Inv = InventoryComponent.Get();
+	if (Inv && Inv->Implements<UPP_InventoryQuery>())
 	{
-		if (InventoryComponent)
+		if (bBuyMode)
 		{
-			int32 FromGold = CachedPrice > 0
-				? InventoryComponent->GetGold() / CachedPrice
+			const int32 FromGold = CachedPrice > 0
+				? IPP_InventoryQuery::Execute_QueryGold(Inv) / CachedPrice
 				: 0;
 			MaxQty = FMath::Clamp(FromGold, 1, 999);
 		}
-	}
-	else
-	{
-		if (InventoryComponent)
+		else
 		{
-			MaxQty = FMath::Max(1, InventoryComponent->GetItemCount(ItemID));
+			MaxQty = FMath::Max(1, IPP_InventoryQuery::Execute_QueryItemCount(Inv, ItemID));
 		}
 	}
 

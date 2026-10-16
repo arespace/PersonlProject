@@ -1,4 +1,4 @@
-﻿// 商店系统 — 单个商品条目UI控件
+// 商店系统 — 单个商品条目UI控件
 // 显示物品图标、名称、价格、持有数量；根据启用状态控制可交互性
 
 #pragma once
@@ -13,8 +13,6 @@ class UButton;
 class UTexture2D;
 class UBorder;
 class UPP_BuyCountWidget;
-class UPP_ShopComponent;
-class UPP_InventoryComponent;
 
 /** 打开数量选择弹窗委托：商品ID, 名称, 单价, 最大数量, 是否购买模式 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnOpenBuyCountPopup, FName, ItemID, const FText&, ItemName, int32, UnitPrice, int32, MaxCount, bool, bBuyMode);
@@ -59,8 +57,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shop|UI")
 	TSubclassOf<UPP_BuyCountWidget> BuyCountWidgetClass;
 
-	/** 设置商店和库存组件引用（由 ShopWidget 调用） */
-	void SetShopAndInventory(UPP_ShopComponent* InShop, UPP_InventoryComponent* InInventory);
+	/** 设置商店和库存数据源引用（由 ShopWidget 调用，均为实现对应接口的对象） */
+	void SetShopAndInventory(UObject* InShop, UObject* InInventory);
 
 protected:
 	virtual void NativeConstruct() override;
@@ -110,10 +108,10 @@ private:
 	FText CachedName;
 
 	UPROPERTY()
-	TObjectPtr<UPP_ShopComponent> ShopComponent;
+	TWeakObjectPtr<UObject> ShopComponent;
 
 	UPROPERTY()
-	TObjectPtr<UPP_InventoryComponent> InventoryComponent;
+	TWeakObjectPtr<UObject> InventoryComponent;
 
 	UFUNCTION()
 	void OnActionButtonClicked();

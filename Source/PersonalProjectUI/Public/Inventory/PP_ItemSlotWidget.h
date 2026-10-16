@@ -1,4 +1,4 @@
-﻿// 库存系统UI — 物品格子控件
+// 库存系统UI — 物品格子控件
 // 显示单个物品堆叠（图标+数量），点击触发穿戴或使用
 
 #pragma once
@@ -12,7 +12,6 @@
 class UImage;
 class UTextBlock;
 class UButton;
-class UPP_InventoryComponent;
 
 /**
  * 物品格子控件
@@ -27,12 +26,12 @@ class PERSONALPROJECTUI_API UPP_ItemSlotWidget : public UUserWidget
 public:
 	/**
 	 * 由背包面板调用，初始化此格子
-	 * @param InOwnerInventory 所属库存组件
+	 * @param InOwnerInventory 所属库存数据源（实现 IPP_InventoryQuery / IPP_InventoryActions 的对象）
 	 * @param InItemInstance   要显示的物品实例
 	 * @param InItemInfo       物品配置（用于读取图标/类型/槽位等）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
-	void SetupSlot(UPP_InventoryComponent* InOwnerInventory, const FPP_ItemInstance& InItemInstance, const FPP_ItemInfo& InItemInfo);
+	void SetupSlot(UObject* InOwnerInventory, const FPP_ItemInstance& InItemInstance, const FPP_ItemInfo& InItemInfo);
 
 	/** 设置提示框 Widget 类（蓝图配置） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|UI")
@@ -70,9 +69,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI", meta = (BindWidgetOptional))
 	TObjectPtr<UButton> SlotButton;
 
-	/** 当前缓存的库存组件（弱引用即可，避免循环持有） */
+	/** 当前缓存的库存数据源（弱引用即可，避免循环持有） */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI")
-	TWeakObjectPtr<UPP_InventoryComponent> OwnerInventory;
+	TWeakObjectPtr<UObject> OwnerInventory;
 
 	/** 当前缓存的物品实例数据 */
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|UI")

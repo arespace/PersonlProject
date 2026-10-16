@@ -4,8 +4,12 @@
 
 #include "Components/PanelWidget.h"
 #include "Components/Button.h"
-#include "Quest/PP_QuestComponent.h"
+#include "Quest/PP_QuestQuery.h"
 #include "Quest/PP_QuestEntryWidget.h"
+#include "Framework/PP_EventBus.h"
+#include "Framework/PP_EventTypes.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/GameInstance.h"
 
 UPP_QuestListWidget::UPP_QuestListWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -28,14 +32,35 @@ void UPP_QuestListWidget::NativeConstruct()
 	}
 }
 
-void UPP_QuestListWidget::InitializeQuestList(UPP_QuestComponent* InQuestComponent)
+void UPP_QuestListWidget::NativeDestruct()
 {
-	QuestComponent = InQuestComponent;
-	if (!QuestComponent) return;
+	if (UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr)
+	{
+		EventBus->Unsubscribe(QuestsUpdatedHandle);
+	}
+	QuestsUpdatedHandle.Reset();
 
-	QuestComponent->OnQuestAccepted.AddDynamic(this, &UPP_QuestListWidget::OnQuestAccepted);
-	QuestComponent->OnQuestCompleted.AddDynamic(this, &UPP_QuestListWidget::OnQuestCompleted);
-	QuestComponent->OnQuestsUpdated.AddDynamic(this, &UPP_QuestListWidget::OnQuestsUpdated);
+	Super::NativeDestruct();
+}
+
+void UPP_QuestListWidget::InitializeQuestList(UObject* InQuestSource)
+{
+	if (!InQuestSource || !InQuestSource->Implements<UPP_QuestQuery>())
+	{
+		return;
+	}
+
+	QuestSource = InQuestSource;
+
+	// 订阅任务列表变更事件（EventBus，替代原对 QuestComponent 委托的直连绑定）
+	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
+	{
+		QuestsUpdatedHandle = EventBus->Subscribe<FPP_QuestsUpdatedEvent>(
+			[this](const FPP_QuestsUpdatedEvent& Event)
+			{
+				HandleQuestsUpdated(Event);
+			});
+	}
 
 	RefreshQuestList();
 }
@@ -55,22 +80,22 @@ void UPP_QuestListWidget::RefreshQuestList()
 void UPP_QuestListWidget::ShowActiveQuests()
 {
 	bShowingActive = true;
-	if (!QuestListContainer || !QuestComponent) return;
+	if (!QuestListContainer || !QuestSource) return;
 
 	QuestListContainer->ClearChildren();
 
 	if (!QuestEntryWidgetClass) return;
 
-	TArray<FPP_ActiveQuest> Quests = QuestComponent->GetActiveQuests();
+	TArray<FPP_ActiveQuest> Quests = IPP_QuestQuery::Execute_QueryActiveQuests(QuestSource);
 	for (const FPP_ActiveQuest& Quest : Quests)
 	{
 		UPP_QuestEntryWidget* Entry = CreateWidget<UPP_QuestEntryWidget>(GetOwningPlayer(), QuestEntryWidgetClass);
 		if (Entry)
 		{
-			const FPP_QuestInfo* QuestInfo = QuestComponent->FindQuestInfo(Quest.QuestID);
-			if (QuestInfo)
+			FPP_QuestInfo QuestInfo;
+			if (IPP_QuestQuery::Execute_QueryQuestInfo(QuestSource, Quest.QuestID, QuestInfo))
 			{
-				Entry->SetupEntry(Quest, *QuestInfo);
+				Entry->SetupEntry(Quest, QuestInfo);
 			}
 			else
 			{
@@ -89,22 +114,22 @@ void UPP_QuestListWidget::ShowActiveQuests()
 void UPP_QuestListWidget::ShowCompletedQuests()
 {
 	bShowingActive = false;
-	if (!QuestListContainer || !QuestComponent) return;
+	if (!QuestListContainer || !QuestSource) return;
 
 	QuestListContainer->ClearChildren();
 
 	if (!QuestEntryWidgetClass) return;
 
-	TArray<FName> CompletedIDs = QuestComponent->GetCompletedQuests();
+	TArray<FName> CompletedIDs = IPP_QuestQuery::Execute_QueryCompletedQuests(QuestSource);
 	for (const FName& QuestID : CompletedIDs)
 	{
 		UPP_QuestEntryWidget* Entry = CreateWidget<UPP_QuestEntryWidget>(GetOwningPlayer(), QuestEntryWidgetClass);
 		if (Entry)
 		{
-			const FPP_QuestInfo* QuestInfo = QuestComponent->FindQuestInfo(QuestID);
-			if (QuestInfo)
+			FPP_QuestInfo QuestInfo;
+			if (IPP_QuestQuery::Execute_QueryQuestInfo(QuestSource, QuestID, QuestInfo))
 			{
-				Entry->SetupCompletedEntry(QuestID, *QuestInfo);
+				Entry->SetupCompletedEntry(QuestID, QuestInfo);
 			}
 			else
 			{
@@ -129,17 +154,13 @@ void UPP_QuestListWidget::OnCompletedTabClicked()
 	ShowCompletedQuests();
 }
 
-void UPP_QuestListWidget::OnQuestAccepted(FName QuestID)
+void UPP_QuestListWidget::HandleQuestsUpdated(const FPP_QuestsUpdatedEvent& Event)
 {
-	RefreshQuestList();
-}
+	// 只处理本地玩家的任务变更（EventBus 是 GameInstance 级，可能收到其他玩家的广播）
+	if (Event.Player && Event.Player != GetOwningPlayer())
+	{
+		return;
+	}
 
-void UPP_QuestListWidget::OnQuestCompleted(FName QuestID)
-{
-	RefreshQuestList();
-}
-
-void UPP_QuestListWidget::OnQuestsUpdated()
-{
 	RefreshQuestList();
 }

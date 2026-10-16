@@ -11,7 +11,6 @@
 class UImage;
 class UTextBlock;
 class UVerticalBox;
-class UPP_InventoryComponent;
 
 /**
  * 物品提示框 Widget
@@ -36,13 +35,13 @@ public:
 
     /**
      * 配置提示框内容
-     * @param InInventory    库存组件引用（用于查询已装备物品做对比）
+     * @param InInventory    库存数据源（实现 IPP_InventoryQuery 的对象，用于查询已装备物品做对比）
      * @param InItemInfo     物品配置数据
      * @param InStackCount   当前堆叠数量（0表示不显示）
      * @param InMaxStack     最大堆叠数（0表示不显示）
      */
     UFUNCTION(BlueprintCallable, Category = "Tooltip")
-    void SetupTooltip(UPP_InventoryComponent* InInventory,
+    void SetupTooltip(UObject* InInventory,
                       const FPP_ItemInfo& InItemInfo,
                       int32 InStackCount = 0,
                       int32 InMaxStack = 0);
@@ -91,7 +90,7 @@ private:
     void BuildStatsList(const TArray<FPP_ModifierSummary>& Modifiers);
 
     /** 构建装备对比区域 */
-    void BuildComparison(UPP_InventoryComponent* Inventory, const FPP_ItemInfo& HoveredInfo);
+    void BuildComparison(UObject* Inventory, const FPP_ItemInfo& HoveredInfo);
 
     /** 缓存的物品配置 */
     FPP_ItemInfo CachedInfo;

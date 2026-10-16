@@ -5,8 +5,9 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "Inventory/PP_InventoryComponent.h"
+#include "Inventory/PP_InventoryActions.h"
 #include "Inventory/PP_ItemTooltipWidget.h"
+#include "Framework/PP_DataManager.h"
 #include "Framework/PP_UIManager.h"
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
@@ -21,7 +22,7 @@ void UPP_ItemSlotWidget::NativeConstruct()
 	}
 }
 
-void UPP_ItemSlotWidget::SetupSlot(UPP_InventoryComponent* InOwnerInventory, const FPP_ItemInstance& InItemInstance, const FPP_ItemInfo& InItemInfo)
+void UPP_ItemSlotWidget::SetupSlot(UObject* InOwnerInventory, const FPP_ItemInstance& InItemInstance, const FPP_ItemInfo& InItemInfo)
 {
 	OwnerInventory = InOwnerInventory;
 	CachedInstance = InItemInstance;
@@ -47,19 +48,21 @@ void UPP_ItemSlotWidget::SetupSlot(UPP_InventoryComponent* InOwnerInventory, con
 
 void UPP_ItemSlotWidget::HandleSlotClicked()
 {
-	if (!OwnerInventory.IsValid())
+	UObject* Source = OwnerInventory.Get();
+	if (!Source || !Source->Implements<UPP_InventoryActions>())
 	{
 		return;
 	}
-	// 装备类物品：发送服务器穿戴 RPC
+
+	// 装备类物品：请求穿戴
 	if (CachedInfo.ItemType == EPP_ItemType::Equipment && CachedInfo.EquipSlot != EPP_EquipSlot::None)
 	{
-		OwnerInventory->Server_EquipItem(CachedInstance.ItemID);
+		IPP_InventoryActions::Execute_RequestEquipItem(Source, CachedInstance.ItemID);
 	}
-	// 消耗品类物品：发送服务器使用 RPC
+	// 消耗品类物品：请求使用
 	else if (CachedInfo.ItemType == EPP_ItemType::Consumable)
 	{
-		OwnerInventory->Server_UseConsumable(CachedInstance.ItemID);
+		IPP_InventoryActions::Execute_RequestUseConsumable(Source, CachedInstance.ItemID);
 	}
 }
 
@@ -121,8 +124,9 @@ void UPP_ItemSlotWidget::ShowTooltip()
 		return;
 	}
 
-	// 查找物品配置以获取 MaxStackCount
-	const FPP_ItemInfo* Info = OwnerInventory->FindItemInfo(CachedInstance.ItemID);
+	// 查找物品配置以获取 MaxStackCount（全局物品表走 DataManager）
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	const FPP_ItemInfo* Info = DataManager ? DataManager->GetItemInfo(CachedInstance.ItemID) : nullptr;
 	if (!Info)
 	{
 		return;

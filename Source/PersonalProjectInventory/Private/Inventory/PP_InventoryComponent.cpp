@@ -7,8 +7,11 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffect.h"
 #include "Framework/PP_DataManager.h"
+#include "Framework/PP_EventBus.h"
+#include "Framework/PP_EventTypes.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
+#include "Engine/GameInstance.h"
 #include "Framework/PP_Log.h"
 
 UPP_InventoryComponent::UPP_InventoryComponent()
@@ -107,6 +110,7 @@ bool UPP_InventoryComponent::AddItem(FName ItemID, int32 Count)
 	UE_LOG(LogPP, Log, TEXT("[Inventory] AddItem: 完成 — 物品=%s, 本次新建槽位=%d, 当前该物品总数=%d, 背包总槽位=%d"),
 		*ItemID.ToString(), NewSlotsCreated, NewTotal, Items.Num());
 	OnInventoryChanged.Broadcast(ItemID, NewTotal);
+	BroadcastInventoryUpdatedEvent();
 	return Remaining < Count;
 }
 
@@ -143,6 +147,7 @@ bool UPP_InventoryComponent::RemoveItem(FName ItemID, int32 Count)
 
 	const int32 NewTotal = GetItemCount(ItemID);
 	OnInventoryChanged.Broadcast(ItemID, NewTotal);
+	BroadcastInventoryUpdatedEvent();
 	return true;
 }
 
@@ -238,6 +243,7 @@ void UPP_InventoryComponent::ApplyEquip(const FPP_ItemInfo& ItemInfo)
 
 	EquippedItems.Add(NewEquip);
 	OnEquipmentChanged.Broadcast(NewEquip.Slot, NewEquip.ItemID);
+	BroadcastEquipmentUpdatedEvent();
 }
 
 FName UPP_InventoryComponent::ApplyUnequip(EPP_EquipSlot Slot)
@@ -264,6 +270,7 @@ FName UPP_InventoryComponent::ApplyUnequip(EPP_EquipSlot Slot)
 
 	EquippedItems.RemoveAt(Idx);
 	OnEquipmentChanged.Broadcast(Slot, NAME_None);
+	BroadcastEquipmentUpdatedEvent();
 	return Old.ItemID;
 }
 
@@ -308,6 +315,7 @@ bool UPP_InventoryComponent::SpendGold(int32 Amount)
 	}
 	Gold -= Amount;
 	OnGoldChanged.Broadcast(Gold);
+	BroadcastGoldUpdatedEvent(Gold);
 	return true;
 }
 
@@ -323,6 +331,7 @@ void UPP_InventoryComponent::AddGold(int32 Amount)
 	}
 	Gold += Amount;
 	OnGoldChanged.Broadcast(Gold);
+	BroadcastGoldUpdatedEvent(Gold);
 }
 
 // ===== OnRep 回调 =====
@@ -331,17 +340,20 @@ void UPP_InventoryComponent::OnRep_Items(const TArray<FPP_ItemInstance>& OldItem
 {
 	// 客户端通用刷新：广播一次空ID事件，UI 监听者据此整体重绘
 	OnInventoryChanged.Broadcast(NAME_None, 0);
+	BroadcastInventoryUpdatedEvent();
 }
 
 void UPP_InventoryComponent::OnRep_Equipped(const TArray<FPP_EquippedItem>& OldEquipped)
 {
 	// 装备列表变化：触发 UI 重绘
 	OnEquipmentChanged.Broadcast(EPP_EquipSlot::None, NAME_None);
+	BroadcastEquipmentUpdatedEvent();
 }
 
 void UPP_InventoryComponent::OnRep_Gold(int32 OldGold)
 {
 	OnGoldChanged.Broadcast(Gold);
+	BroadcastGoldUpdatedEvent(Gold);
 }
 
 void UPP_InventoryComponent::Server_UseConsumable_Implementation(FName ItemID)
@@ -407,4 +419,90 @@ FPP_EquippedItem UPP_InventoryComponent::GetEquippedItemInSlot(EPP_EquipSlot Slo
 		}
 	}
 	return FPP_EquippedItem();
+}
+
+// ===== IPP_InventoryQuery 接口实现 =====
+
+TArray<FPP_ItemInstance> UPP_InventoryComponent::QueryItems_Implementation()
+{
+	return Items;
+}
+
+TArray<FPP_EquippedItem> UPP_InventoryComponent::QueryEquippedItems_Implementation()
+{
+	return EquippedItems;
+}
+
+int32 UPP_InventoryComponent::QueryGold_Implementation()
+{
+	return Gold;
+}
+
+int32 UPP_InventoryComponent::QueryItemCount_Implementation(FName ItemID)
+{
+	return GetItemCount(ItemID);
+}
+
+FPP_EquippedItem UPP_InventoryComponent::QueryEquippedItemInSlot_Implementation(EPP_EquipSlot Slot)
+{
+	return GetEquippedItemInSlot(Slot);
+}
+
+// ===== IPP_InventoryActions 接口实现（转发到 Server RPC） =====
+
+void UPP_InventoryComponent::RequestEquipItem_Implementation(FName ItemID)
+{
+	Server_EquipItem(ItemID);
+}
+
+void UPP_InventoryComponent::RequestUnequipItem_Implementation(EPP_EquipSlot Slot)
+{
+	Server_UnequipItem(Slot);
+}
+
+void UPP_InventoryComponent::RequestUseConsumable_Implementation(FName ItemID)
+{
+	Server_UseConsumable(ItemID);
+}
+
+// ===== EventBus 广播辅助 =====
+
+void UPP_InventoryComponent::BroadcastInventoryUpdatedEvent()
+{
+	UWorld* World = GetWorld();
+	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
+	if (!EventBus) return;
+
+	FPP_InventoryUpdatedEvent Event;
+	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
+	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
+	EventBus->Broadcast(Event);
+}
+
+void UPP_InventoryComponent::BroadcastEquipmentUpdatedEvent()
+{
+	UWorld* World = GetWorld();
+	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
+	if (!EventBus) return;
+
+	FPP_EquipmentUpdatedEvent Event;
+	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
+	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
+	EventBus->Broadcast(Event);
+}
+
+void UPP_InventoryComponent::BroadcastGoldUpdatedEvent(int32 NewGold)
+{
+	UWorld* World = GetWorld();
+	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
+	if (!EventBus) return;
+
+	FPP_GoldUpdatedEvent Event;
+	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
+	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
+	Event.NewGold = NewGold;
+	EventBus->Broadcast(Event);
 }

@@ -1,4 +1,4 @@
-﻿// 商店系统 — 商店管理组件
+// 商店系统 — 商店管理组件
 // 服务器权威的购买/出售逻辑，验证物品存在性、库存、金币，并广播购买完成事件
 
 #pragma once
@@ -6,6 +6,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/PP_ShopData.h"
+#include "Shop/PP_ShopQuery.h"
+#include "Shop/PP_ShopActions.h"
 #include "PP_ShopComponent.generated.h"
 
 class UPP_InventoryComponent;
@@ -36,12 +38,23 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShopResult, const FText&, Message
  *          只有配置了非空 ShopDataTable 的 NPC 才会被对话 UI 判定为商人。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PERSONALPROJECTINVENTORY_API UPP_ShopComponent : public UActorComponent
+class PERSONALPROJECTINVENTORY_API UPP_ShopComponent : public UActorComponent, public IPP_ShopQuery, public IPP_ShopActions
 {
 	GENERATED_BODY()
 
 public:
 	UPP_ShopComponent();
+
+	// ===== IPP_ShopQuery 接口实现（只读查询，供 UI 通过接口调用） =====
+
+	virtual TArray<FPP_ShopItem> QueryShopItems_Implementation() override;
+	virtual int32 QueryItemBuyPrice_Implementation(FName ItemID) override;
+	virtual float QuerySellPriceMultiplier_Implementation() override;
+
+	// ===== IPP_ShopActions 接口实现（转发到 Server RPC） =====
+
+	virtual void RequestBuyItem_Implementation(APlayerController* Buyer, FName ItemID, int32 Count) override;
+	virtual void RequestSellItem_Implementation(APlayerController* Seller, FName ItemID, int32 Count) override;
 
 	// ===== 购买/出售接口（服务器权威） =====
 

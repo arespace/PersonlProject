@@ -14,8 +14,8 @@
 #include "Shop/PP_ShopWidget.h"
 #include "Dialogue/PP_NPCActor.h"
 #include "Data/PP_DialogueData.h"
-#include "Inventory/PP_InventoryComponent.h"
-#include "Shop/PP_ShopComponent.h"
+#include "Inventory/PP_InventoryQuery.h"
+#include "Components/ActorComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -163,7 +163,7 @@ void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC, TSubclassOf<UUse
 		return;
 	}
 
-	UPP_ShopComponent* Shop = NPC->GetShopComponent();
+	UObject* Shop = NPC->GetShopSource();
 	if (!IsValid(Shop))
 	{
 		UE_LOG(LogPP, Warning, TEXT("[HUD Gateway] OpenShop - NPC ShopComponent is null"));
@@ -185,13 +185,20 @@ void APP_HUD::RequestOpenShop_Implementation(APP_NPCActor* NPC, TSubclassOf<UUse
 		return;
 	}
 
-	// 获取玩家的 InventoryComponent（挂在 PlayerState 上；用基类 APlayerState，避免依赖主玩法 PlayerState 类型）
-	UPP_InventoryComponent* Inventory = nullptr;
+	// 获取玩家的库存数据源（挂在 PlayerState 上；按接口能力查找，避免依赖具体组件类）
+	UObject* Inventory = nullptr;
 	if (PC)
 	{
 		if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
 		{
-			Inventory = PS->FindComponentByClass<UPP_InventoryComponent>();
+			for (UActorComponent* Comp : PS->GetComponents())
+			{
+				if (Comp && Comp->Implements<UPP_InventoryQuery>())
+				{
+					Inventory = Comp;
+					break;
+				}
+			}
 		}
 	}
 
