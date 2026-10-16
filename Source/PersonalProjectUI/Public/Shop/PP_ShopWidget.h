@@ -100,6 +100,21 @@ private:
 	/** 刷新出售列表（数据源：InventoryComponent） */
 	void RefreshSellList();
 
+	/** 商品列表条目（购买/出售统一视图，供 RebuildItemList 使用） */
+	struct FShopListEntry
+	{
+		FName ItemID;
+		FText DisplayName;
+		int32 Price = 0;
+		int32 Count = 0;                // 购买Tab=库存，出售Tab=持有数量
+		bool bIsBuyMode = true;
+		bool bEnabled = true;
+		UTexture2D* Icon = nullptr;
+	};
+
+	/** 重建商品列表（RefreshBuyList/RefreshSellList 共用：清容器→逐条创建条目→WrapSlot修正→布局失效） */
+	void RebuildItemList(const TArray<FShopListEntry>& Entries);
+
 	/** 刷新金币显示 */
 	void RefreshGoldText();
 
@@ -107,12 +122,6 @@ private:
 	void UpdateTabVisuals();
 
 	// ===== 委托/事件回调 =====
-
-	/** EventBus 订阅句柄 */
-	FDelegateHandle InventoryUpdatedHandle;
-	FDelegateHandle GoldUpdatedHandle;
-	FDelegateHandle ShopResultHandle;
-	FDelegateHandle PurchaseCompletedHandle;
 
 	void HandleInventoryUpdated(const FPP_InventoryUpdatedEvent& Event);
 	void HandleGoldUpdated(const FPP_GoldUpdatedEvent& Event);

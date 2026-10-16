@@ -18,14 +18,6 @@ void UPP_InteractionPromptWidget::NativeConstruct()
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
-void UPP_InteractionPromptWidget::SetPromptText(const FText& InText)
-{
-	if (PromptText)
-	{
-		PromptText->SetText(InText);
-	}
-}
-
 void UPP_InteractionPromptWidget::ShowWidget()
 {
 	SetVisibility(ESlateVisibility::HitTestInvisible);

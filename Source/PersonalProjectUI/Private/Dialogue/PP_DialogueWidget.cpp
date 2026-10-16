@@ -48,21 +48,6 @@ FReply UPP_DialogueWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FK
 	return FReply::Unhandled();
 }
 
-void UPP_DialogueWidget::NativeDestruct()
-{
-	if (NextButton)
-	{
-		NextButton->OnClicked.RemoveDynamic(this, &ThisClass::OnNextButtonClicked);
-	}
-
-	if (CloseButton)
-	{
-		CloseButton->OnClicked.RemoveDynamic(this, &ThisClass::OnCloseButtonClicked);
-	}
-
-	Super::NativeDestruct();
-}
-
 void UPP_DialogueWidget::SetupDialogue(const FPP_DialogueData& InData, UObject* InOwningNPC, APlayerController* InOwnerPC)
 {
 	CurrentData = InData;
@@ -100,15 +85,6 @@ void UPP_DialogueWidget::AdvanceLine()
 		{
 			// 无后续动作，直接关闭对话
 			CloseDialogue();
-
-			// 触发 PC 的对话结束委托（经 IPP_DialogueRequester 接口，UI 不直连 PC）
-			if (APlayerController* PC = OwnerPC.Get())
-			{
-				if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
-				{
-					IPP_DialogueRequester::Execute_NotifyDialogueEnded(PC, CurrentData.DialogueID, CurrentData.RelatedQuestID);
-				}
-			}
 		}
 		else if (CurrentData.EndAction == EPP_DialogueEndAction::ChainNextDialogue)
 		{
@@ -129,18 +105,15 @@ void UPP_DialogueWidget::AdvanceLine()
 				}
 			}
 			// 通过 UIManager 移除当前 Widget（新的 DialogueWidget 会被 ServerRPC → Client_OpenDialogueUI 创建并添加）
-			if (UGameInstance* GI = GetGameInstance())
+			if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 			{
-				if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
+				if (Mgr->IsWidgetInStack(this))
 				{
-					if (Mgr->IsWidgetInStack(this))
-					{
-						Mgr->PopWidget(this);
-					}
-					else
-					{
-						RemoveFromParent();
-					}
+					Mgr->PopWidget(this);
+				}
+				else
+				{
+					RemoveFromParent();
 				}
 			}
 			else
@@ -164,15 +137,6 @@ void UPP_DialogueWidget::AdvanceLine()
 	{
 		OnLineAdvanced.Broadcast(CurrentLineIndex, CurrentData.Lines[CurrentLineIndex]);
 	}
-
-	// 触发 PC 侧的推进委托（经接口转发）
-	if (APlayerController* PC = OwnerPC.Get())
-	{
-		if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
-		{
-			IPP_DialogueRequester::Execute_NotifyDialogueLineAdvanced(PC, CurrentLineIndex);
-		}
-	}
 }
 
 void UPP_DialogueWidget::ShowEndChoices()
@@ -182,13 +146,6 @@ void UPP_DialogueWidget::ShowEndChoices()
 	if (!ChoiceWidgetClass)
 	{
 		UE_LOG(LogPP, Warning, TEXT("[DialogueWidget] ShowEndChoices - ChoiceWidgetClass not set, closing dialogue"));
-		if (APlayerController* PC = OwnerPC.Get())
-		{
-			if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
-			{
-				IPP_DialogueRequester::Execute_NotifyDialogueEnded(PC, CurrentData.DialogueID, CurrentData.RelatedQuestID);
-			}
-		}
 		CloseDialogue();
 		return;
 	}
@@ -210,15 +167,12 @@ void UPP_DialogueWidget::ShowEndChoices()
 
 	// 通过 UIManager 移除对话框自身，避免 RemoveFromParent 与 PopWidget 重复调用
 	// 导致 Slate 输入状态混乱
-	if (UGameInstance* GI = GetGameInstance())
+	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
-		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
+		if (Mgr->IsWidgetInStack(this))
 		{
-			if (Mgr->IsWidgetInStack(this))
-			{
-				Mgr->PopWidget(this);
-				return;
-			}
+			Mgr->PopWidget(this);
+			return;
 		}
 	}
 	RemoveFromParent();
@@ -230,15 +184,12 @@ void UPP_DialogueWidget::CloseDialogue()
 
 	// 通过 UIManager 统一弹出，避免 RemoveFromParent 与 PopWidget 重复调用
 	bool bPoppedViaManager = false;
-	if (UGameInstance* GI = GetGameInstance())
+	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
-		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
+		if (Mgr->IsWidgetInStack(this))
 		{
-			if (Mgr->IsWidgetInStack(this))
-			{
-				Mgr->PopWidget(this);
-				bPoppedViaManager = true;
-			}
+			Mgr->PopWidget(this);
+			bPoppedViaManager = true;
 		}
 	}
 	if (!bPoppedViaManager)

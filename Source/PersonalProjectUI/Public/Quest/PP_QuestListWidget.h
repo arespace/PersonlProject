@@ -47,7 +47,6 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
 
 	// ===== 蓝图绑定控件 =====
 
@@ -83,7 +82,4 @@ private:
 	/** 任务数据源（实现 IPP_QuestQuery 接口的对象，通常是 PlayerState 上的任务组件） */
 	UPROPERTY()
 	TObjectPtr<UObject> QuestSource;
-
-	/** EventBus 订阅句柄（NativeDestruct 时退订） */
-	FDelegateHandle QuestsUpdatedHandle;
 };

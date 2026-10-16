@@ -119,9 +119,6 @@ public:
 	/** 读取玩家的角色选择（不清除，可多次读取） */
 	FName GetPlayerCharacterSelection(const FString& PlayerName) const;
 
-	/** 取出玩家的角色选择（取出后清除） */
-	FName ConsumePlayerCharacterSelection(const FString& PlayerName);
-
 	/** 不依赖 PlayerName，返回最后存入的角色选择 */
 	FName GetLastCharacterSelection() const { return LastCharacterId; }
 

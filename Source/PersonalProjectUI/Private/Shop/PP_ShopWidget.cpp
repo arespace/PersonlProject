@@ -78,19 +78,6 @@ void UPP_ShopWidget::NativeDestruct()
 		GetWorld()->GetTimerManager().ClearTimer(ResultTextTimerHandle);
 	}
 
-	// 解除 EventBus 订阅
-	if (UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr)
-	{
-		EventBus->Unsubscribe(InventoryUpdatedHandle);
-		EventBus->Unsubscribe(GoldUpdatedHandle);
-		EventBus->Unsubscribe(ShopResultHandle);
-		EventBus->Unsubscribe(PurchaseCompletedHandle);
-	}
-	InventoryUpdatedHandle.Reset();
-	GoldUpdatedHandle.Reset();
-	ShopResultHandle.Reset();
-	PurchaseCompletedHandle.Reset();
-
 	Super::NativeDestruct();
 }
 
@@ -99,32 +86,18 @@ void UPP_ShopWidget::InitializeShop(UObject* InShopComponent, UObject* InInvento
 	ShopComponent = InShopComponent;
 	InventoryComponent = InInventoryComponent;
 
-	UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr;
+	// 退订旧订阅，避免重复
+	UnsubscribeEventBus();
 
-	// 解绑旧订阅，避免重复
-	if (EventBus)
-	{
-		EventBus->Unsubscribe(InventoryUpdatedHandle);
-		EventBus->Unsubscribe(GoldUpdatedHandle);
-		EventBus->Unsubscribe(ShopResultHandle);
-		EventBus->Unsubscribe(PurchaseCompletedHandle);
-	}
-	InventoryUpdatedHandle.Reset();
-	GoldUpdatedHandle.Reset();
-	ShopResultHandle.Reset();
-	PurchaseCompletedHandle.Reset();
-
-	if (EventBus)
-	{
-		InventoryUpdatedHandle = EventBus->Subscribe<FPP_InventoryUpdatedEvent>(
-			[this](const FPP_InventoryUpdatedEvent& Event) { HandleInventoryUpdated(Event); });
-		GoldUpdatedHandle = EventBus->Subscribe<FPP_GoldUpdatedEvent>(
-			[this](const FPP_GoldUpdatedEvent& Event) { HandleGoldUpdated(Event); });
-		ShopResultHandle = EventBus->Subscribe<FPP_ShopResultEvent>(
-			[this](const FPP_ShopResultEvent& Event) { HandleShopResult(Event); });
-		PurchaseCompletedHandle = EventBus->Subscribe<FPP_PurchaseCompletedEvent>(
-			[this](const FPP_PurchaseCompletedEvent& Event) { HandlePurchaseCompleted(Event); });
-	}
+	// 句柄由基类托管，NativeDestruct 自动退订
+	SubscribeEventBus<FPP_InventoryUpdatedEvent>(
+		[this](const FPP_InventoryUpdatedEvent& Event) { HandleInventoryUpdated(Event); });
+	SubscribeEventBus<FPP_GoldUpdatedEvent>(
+		[this](const FPP_GoldUpdatedEvent& Event) { HandleGoldUpdated(Event); });
+	SubscribeEventBus<FPP_ShopResultEvent>(
+		[this](const FPP_ShopResultEvent& Event) { HandleShopResult(Event); });
+	SubscribeEventBus<FPP_PurchaseCompletedEvent>(
+		[this](const FPP_PurchaseCompletedEvent& Event) { HandlePurchaseCompleted(Event); });
 
 	// 确保 Buy/Sell Tab 按钮点击事件已绑定（防止 InitializeShop 早于 NativeConstruct 被调用）
 	if (BuyTabButton)
@@ -200,15 +173,15 @@ void UPP_ShopWidget::RefreshCurrentTab()
 void UPP_ShopWidget::RefreshBuyList()
 {
 	UObject* Shop = ShopComponent.Get();
-	if (!ItemListContainer || !Shop || !Shop->Implements<UPP_ShopQuery>() || !ShopItemWidgetClass)
+	if (!Shop || !Shop->Implements<UPP_ShopQuery>())
 	{
 		return;
 	}
-	ItemListContainer->ClearChildren();
 
 	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
 	const TArray<FPP_ShopItem> ShopItems = IPP_ShopQuery::Execute_QueryShopItems(Shop);
 
+	TArray<FShopListEntry> Entries;
 	for (const FPP_ShopItem& ShopItem : ShopItems)
 	{
 		if (ShopItem.ItemID.IsNone())
@@ -216,55 +189,36 @@ void UPP_ShopWidget::RefreshBuyList()
 			continue;
 		}
 
-		const int32 BuyPrice = IPP_ShopQuery::Execute_QueryItemBuyPrice(Shop, ShopItem.ItemID);
-		FText DisplayName = FText::FromName(ShopItem.ItemID);
-		UTexture2D* Icon = nullptr;
+		FShopListEntry Entry;
+		Entry.ItemID = ShopItem.ItemID;
+		Entry.DisplayName = FText::FromName(ShopItem.ItemID);
+		Entry.Price = IPP_ShopQuery::Execute_QueryItemBuyPrice(Shop, ShopItem.ItemID);
+		Entry.Count = ShopItem.Stock;
+		Entry.bIsBuyMode = true;
+		// Stock == 0 时不可购买（Stock == -1 表示无限供应，可交互）
+		Entry.bEnabled = (ShopItem.Stock != 0);
 
 		if (DataManager)
 		{
 			if (const FPP_ItemInfo* Info = DataManager->GetItemInfo(ShopItem.ItemID))
 			{
-				DisplayName = Info->DisplayName;
-				Icon = Info->Icon.LoadSynchronous();
+				Entry.DisplayName = Info->DisplayName;
+				Entry.Icon = Info->Icon.LoadSynchronous();
 			}
 		}
-
-		UPP_ShopItemWidget* ItemWidget = CreateWidget<UPP_ShopItemWidget>(this, ShopItemWidgetClass);
-		if (!ItemWidget)
-		{
-			continue;
-		}
-
-		ItemWidget->SetupItem(ShopItem.ItemID, DisplayName, BuyPrice, ShopItem.Stock, /*bIsBuyMode=*/true, Icon);
-		ItemWidget->SetShopAndInventory(Shop, InventoryComponent.Get());
-
-		// Stock == 0 时不可购买（Stock == -1 表示无限供应，可交互）
-		const bool bCanBuy = (ShopItem.Stock != 0);
-		ItemWidget->SetEnabledState(bCanBuy);
-
-		// 绑定委托：点击购买/出售时，在 PopupContainer 中弹出数量选择浮窗
-		ItemWidget->OnOpenBuyCountPopup.AddDynamic(this, &UPP_ShopWidget::HandleOpenBuyCountPopup);
-
-		ItemListContainer->AddChild(ItemWidget);
-
-		// 确保 WrapBox 模式下不填充剩余空间
-		if (UWrapBoxSlot* WrapSlot = Cast<UWrapBoxSlot>(ItemWidget->Slot))
-		{
-			WrapSlot->SetFillEmptySpace(false);
-		}
+		Entries.Add(Entry);
 	}
 
-	InvalidateLayoutChain();
+	RebuildItemList(Entries);
 }
 
 void UPP_ShopWidget::RefreshSellList()
 {
 	UObject* Inv = InventoryComponent.Get();
-	if (!ItemListContainer || !Inv || !Inv->Implements<UPP_InventoryQuery>() || !ShopItemWidgetClass)
+	if (!Inv || !Inv->Implements<UPP_InventoryQuery>())
 	{
 		return;
 	}
-	ItemListContainer->ClearChildren();
 
 	UObject* Shop = ShopComponent.Get();
 	const float SellMul = (Shop && Shop->Implements<UPP_ShopQuery>())
@@ -274,6 +228,7 @@ void UPP_ShopWidget::RefreshSellList()
 	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
 	const TArray<FPP_ItemInstance> PlayerItems = IPP_InventoryQuery::Execute_QueryItems(Inv);
 
+	TArray<FShopListEntry> Entries;
 	for (const FPP_ItemInstance& Inst : PlayerItems)
 	{
 		if (Inst.ItemID.IsNone() || Inst.Count <= 0)
@@ -282,31 +237,52 @@ void UPP_ShopWidget::RefreshSellList()
 		}
 
 		const FPP_ItemInfo* Info = DataManager ? DataManager->GetItemInfo(Inst.ItemID) : nullptr;
-		if (!Info)
+		// 无配置或不可出售（SellPrice <= 0）的物品跳过
+		if (!Info || Info->SellPrice <= 0)
 		{
 			continue;
 		}
 
-		// 过滤不可出售物品（SellPrice <= 0）
-		if (Info->SellPrice <= 0)
-		{
-			continue;
-		}
+		FShopListEntry Entry;
+		Entry.ItemID = Inst.ItemID;
+		Entry.DisplayName = Info->DisplayName;
+		Entry.Price = FMath::FloorToInt(static_cast<float>(Info->SellPrice) * SellMul);
+		Entry.Count = Inst.Count;
+		Entry.bIsBuyMode = false;
+		Entry.bEnabled = true;
+		Entry.Icon = Info->Icon.LoadSynchronous();
+		Entries.Add(Entry);
+	}
 
-		const int32 ActualSellPrice = FMath::FloorToInt(static_cast<float>(Info->SellPrice) * SellMul);
+	RebuildItemList(Entries);
+}
 
+void UPP_ShopWidget::RebuildItemList(const TArray<FShopListEntry>& Entries)
+{
+	if (!ItemListContainer || !ShopItemWidgetClass)
+	{
+		return;
+	}
+	ItemListContainer->ClearChildren();
+
+	UObject* Shop = ShopComponent.Get();
+	UObject* Inv = InventoryComponent.Get();
+
+	for (const FShopListEntry& Entry : Entries)
+	{
 		UPP_ShopItemWidget* ItemWidget = CreateWidget<UPP_ShopItemWidget>(this, ShopItemWidgetClass);
 		if (!ItemWidget)
 		{
 			continue;
 		}
 
-		ItemWidget->SetupItem(Inst.ItemID, Info->DisplayName, ActualSellPrice, Inst.Count, /*bIsBuyMode=*/false, Info->Icon.LoadSynchronous());
+		ItemWidget->SetupItem(Entry.ItemID, Entry.DisplayName, Entry.Price, Entry.Count, Entry.bIsBuyMode, Entry.Icon);
 		ItemWidget->SetShopAndInventory(Shop, Inv);
-		ItemWidget->SetEnabledState(true);
+		ItemWidget->SetEnabledState(Entry.bEnabled);
 
-		// 绑定委托：点击出售时，在 PopupContainer 中弹出数量选择浮窗
+		// 绑定委托：点击购买/出售时，在 PopupContainer 中弹出数量选择浮窗
 		ItemWidget->OnOpenBuyCountPopup.AddDynamic(this, &UPP_ShopWidget::HandleOpenBuyCountPopup);
+
 		ItemListContainer->AddChild(ItemWidget);
 
 		// 确保 WrapBox 模式下不填充剩余空间

@@ -41,7 +41,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputModeChangedEvent, FName, New
  *   2. 输入模式栈（感知Widget push/pop自动切换Game/UI/GameAndUI）
  *   3. 广播层级变化事件（OnWidgetPushed/Popped, OnInputModeChanged）
  *
- * 单例：通过 GetGameInstance()->GetSubsystem<UPP_UIManager>() 获取
+ * 单例：通过 UPP_UIManager::Get(WorldContext) 获取
  */
 UCLASS()
 class PERSONALPROJECTUI_API UPP_UIManager : public UGameInstanceSubsystem
@@ -49,6 +49,13 @@ class PERSONALPROJECTUI_API UPP_UIManager : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+    /**
+     * 从任意世界上下文获取 UIManager
+     * 封装 GetWorld→GetGameInstance→GetSubsystem 三连判空（同 UPP_EventBus::Get 模式）；
+     * WorldContext 为空或无 World 时返回 nullptr（调用方判空后使用）。
+     */
+    static UPP_UIManager* Get(const UObject* WorldContext);
+
     // ===== Widget 层级管理 =====
 
     /**

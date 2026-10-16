@@ -14,11 +14,12 @@ class UScriptStruct;
  * 事件总线：GameInstance 级别子系统，用于系统间解耦通信。
  *
  * 用法（C++）：
- *   订阅：FDelegateHandle Handle = EventBus->Subscribe<FEventType>(Callback);
- *   发布：EventBus->Broadcast(FEventType{...});
- *   取消：EventBus->Unsubscribe(Handle);
+ *   获取：UPP_EventBus* Bus = UPP_EventBus::Get(WorldContext);
+ *   订阅：FDelegateHandle Handle = Bus->Subscribe<FEventType>(Callback);
+ *   发布：UPP_EventBus::BroadcastEvent(WorldContext, FEventType{...});  // 或拿到 Bus 后 Bus->Broadcast(Event)
+ *   取消：Bus->Unsubscribe(Handle);
  *
- * 注意：订阅者必须在自身生命周期结束时（EndPlay / Deinitialize）调用 Unsubscribe，
+ * 注意：订阅者必须在自身生命周期结束时（EndPlay / Deinitialize / NativeDestruct）调用 Unsubscribe，
  *      否则回调中访问已回收对象会导致崩溃。
  */
 UCLASS()
@@ -27,6 +28,17 @@ class PERSONALPROJECTCORE_API UPP_EventBus : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	/**
+	 * 从任意世界上下文获取事件总线
+	 * 封装 GetWorld→GetGameInstance→GetSubsystem 三连判空，全工程统一入口；
+	 * WorldContext 为空或无 World 时返回 nullptr（调用方判空后使用）。
+	 */
+	static UPP_EventBus* Get(const UObject* WorldContext);
+
+	/** 发布事件到全局事件总线（内部经 Get 取总线，取不到则静默丢弃，简化广播点样板） */
+	template<typename EventType>
+	static void BroadcastEvent(const UObject* WorldContext, const EventType& Event);
+
 	/** 订阅指定类型的事件，返回句柄用于取消订阅 */
 	template<typename EventType>
 	FDelegateHandle Subscribe(TFunction<void(const EventType&)> Callback);
@@ -57,6 +69,15 @@ private:
 	/** 句柄 -> 事件类型，用于快速取消订阅 */
 	TMap<FDelegateHandle, UScriptStruct*> HandleToStruct;
 };
+
+template<typename EventType>
+void UPP_EventBus::BroadcastEvent(const UObject* WorldContext, const EventType& Event)
+{
+	if (UPP_EventBus* Bus = Get(WorldContext))
+	{
+		Bus->Broadcast(Event);
+	}
+}
 
 template<typename EventType>
 FDelegateHandle UPP_EventBus::Subscribe(TFunction<void(const EventType&)> Callback)

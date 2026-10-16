@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -29,10 +29,6 @@ public:
 	/** 设置数值文本颜色 */
 	UFUNCTION(BlueprintCallable, Category = "PP|AttributeBar")
 	void SetValueTextColor(FLinearColor Color);
-
-	/** 设置数值文本内容（覆盖默认的 "value / max" 格式） */
-	UFUNCTION(BlueprintCallable, Category = "PP|AttributeBar")
-	void SetValueText(FText Text);
 
 	/** 获取当前值 */
 	float GetValue() const { return CurrentValue; }

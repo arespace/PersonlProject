@@ -90,36 +90,10 @@ bool UPP_QuestComponent::AcceptQuest(FName QuestID)
 	}
 
 	ActiveQuests.Add(NewActiveQuest);
-	OnQuestAccepted.Broadcast(QuestID);
-	OnQuestsUpdated.Broadcast();
 	BroadcastQuestsUpdatedEvent();
 
 	UE_LOG(LogPP, Log, TEXT("[QuestComponent] AcceptQuest - Accepted '%s'"), *QuestID.ToString());
 	return true;
-}
-
-bool UPP_QuestComponent::AbandonQuest(FName QuestID)
-{
-	if (!GetOwner() || !GetOwner()->HasAuthority())
-	{
-		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AbandonQuest - Not server authority"));
-		return false;
-	}
-
-	for (int32 i = 0; i < ActiveQuests.Num(); ++i)
-	{
-		if (ActiveQuests[i].QuestID == QuestID)
-		{
-			ActiveQuests.RemoveAt(i);
-				OnQuestsUpdated.Broadcast();
-				BroadcastQuestsUpdatedEvent();
-			UE_LOG(LogPP, Log, TEXT("[QuestComponent] AbandonQuest - Abandoned '%s'"), *QuestID.ToString());
-			return true;
-		}
-	}
-
-	UE_LOG(LogPP, Warning, TEXT("[QuestComponent] AbandonQuest - Quest '%s' not active"), *QuestID.ToString());
-	return false;
 }
 
 bool UPP_QuestComponent::SubmitQuest(FName QuestID)
@@ -185,26 +159,15 @@ bool UPP_QuestComponent::SubmitQuest(FName QuestID)
 	CompletedQuestIDs.Add(QuestID);
 	ActiveQuests.RemoveAt(QuestIndex);
 
-	OnQuestCompleted.Broadcast(QuestID);
-	OnQuestsUpdated.Broadcast();
 	BroadcastQuestsUpdatedEvent();
 
 	// 通过 EventBus 广播任务完成事件（HUD 订阅显示通知，任务系统不再直接依赖 UI）
-	if (UWorld* World = GetWorld())
-	{
-		if (UGameInstance* GI = World->GetGameInstance())
-		{
-			if (UPP_EventBus* EventBus = GI->GetSubsystem<UPP_EventBus>())
-			{
-				FPP_QuestCompletedEvent Event;
-				const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
-				Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
-				Event.QuestID = QuestID;
-				Event.QuestName = QuestInfo ? QuestInfo->QuestName.ToString() : QuestID.ToString();
-				EventBus->Broadcast(Event);
-			}
-		}
-	}
+	FPP_QuestCompletedEvent Event;
+	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
+	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
+	Event.QuestID = QuestID;
+	Event.QuestName = QuestInfo ? QuestInfo->QuestName.ToString() : QuestID.ToString();
+	UPP_EventBus::BroadcastEvent(this, Event);
 
 	// 解锁下一主线任务（自动接取由 NPC 对话触发，此处仅记录日志）
 	if (QuestInfo && !QuestInfo->NextMainQuestID.IsNone())
@@ -251,9 +214,7 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 				Obj.bCompleted = true;
 			}
 
-			// 广播 UI 更新
-			OnObjectiveUpdated.Broadcast(Quest.QuestID, OIdx);
-			OnQuestsUpdated.Broadcast();
+			// 广播 UI 更新（EventBus）
 			BroadcastQuestsUpdatedEvent();
 
 			UE_LOG(LogPP, Verbose, TEXT("[QuestComponent] UpdateObjectiveProgress MATCH: Quest='%s' Obj[%d] %d/%d"),
@@ -363,7 +324,6 @@ void UPP_QuestComponent::OnRep_ActiveQuests()
 {
 	// 客户端收到活跃任务列表更新后广播，通知 UI 刷新
 	UE_LOG(LogPP, Log, TEXT("[QuestComponent] OnRep_ActiveQuests - %d active quests"), ActiveQuests.Num());
-	OnQuestsUpdated.Broadcast();
 	BroadcastQuestsUpdatedEvent();
 }
 
@@ -371,19 +331,10 @@ void UPP_QuestComponent::OnRep_ActiveQuests()
 
 void UPP_QuestComponent::BroadcastQuestsUpdatedEvent()
 {
-	UWorld* World = GetWorld();
-	if (!World) return;
-
-	UGameInstance* GI = World->GetGameInstance();
-	if (!GI) return;
-
-	UPP_EventBus* EventBus = GI->GetSubsystem<UPP_EventBus>();
-	if (!EventBus) return;
-
 	FPP_QuestsUpdatedEvent Event;
 	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
 	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
-	EventBus->Broadcast(Event);
+	UPP_EventBus::BroadcastEvent(this, Event);
 }
 
 UPP_InventoryComponent* UPP_QuestComponent::GetOwningInventoryComponent() const

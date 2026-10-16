@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/PP_ScoreboardTypes.h"
@@ -24,12 +23,6 @@ struct FLobbyPlayerInfo;
 struct FRoomSettings;
 struct FHostMigrationData;
 
-/** 对话推进事件（UI 侧切换台词时触发） */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDialogueLineAdvanced, int32, NewLineIndex);
-
-/** 对话结束事件（任意 EndAction 处理完成后触发，Task5 任务系统 UI 可挂钩） */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDialogueEnded, FName, DialogueID, FName, RelatedQuestID);
-
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester, public IPP_LobbyActions
 {
@@ -40,8 +33,6 @@ public:
 	virtual void RequestStartDialogue_Implementation(APP_NPCActor* NPC) override;
 	virtual void OpenDialogueUI_Implementation(APP_NPCActor* NPC, FName DialogueID) override;
 	virtual void ConfirmDialogueEndAction_Implementation(UObject* NPC, FName DialogueID, EPP_DialogueEndAction Action) override;
-	virtual void NotifyDialogueLineAdvanced_Implementation(int32 NewLineIndex) override;
-	virtual void NotifyDialogueEnded_Implementation(FName DialogueID, FName RelatedQuestID) override;
 
 	// ===== IPP_LobbyActions 接口实现（UI 大厅 Widget 经 Execute_ 调用，转发到自身 Server RPC）=====
 	virtual void RequestSetReady_Implementation(bool bReady) override;
@@ -57,10 +48,6 @@ protected:
 public:
 	// ===== 网络RPC =====
 
-	/** 服务器设置玩家昵称 */
-	UFUNCTION(Server, Reliable)
-	void Server_SetPlayerName(const FString& NewName);
-
 	/** 服务器发送聊天消息 */
 	UFUNCTION(Server, Reliable)
 	void Server_SendChatMessage(const FString& Message);
@@ -68,14 +55,6 @@ public:
 	/** 客户端接收聊天消息 */
 	UFUNCTION(Client, Reliable)
 	void Client_ReceiveChatMessage(const FString& PlayerName, const FString& Message);
-
-	/** 客户端接收通知消息 */
-	UFUNCTION(Client, Reliable)
-	void Client_ReceiveNotification(const FString& Message);
-
-	/** 客户端更新计分板数据 */
-	UFUNCTION(Client, Reliable)
-	void Client_UpdateScoreboard(const TArray<FScoreboardEntry>& Entries);
 
 	// ===== 跨地图角色选择桥接 =====
 
@@ -100,10 +79,6 @@ public:
 	/** 请求开始游戏（仅主机） */
 	UFUNCTION(Server, Reliable)
 	void Server_StartGame();
-
-	/** 踢出玩家（仅主机） */
-	UFUNCTION(Server, Reliable)
-	void Server_KickPlayer(int32 PlayerId);
 
 	/** 房主请求离开并触发迁移 */
 	UFUNCTION(Server, Reliable)
@@ -171,16 +146,6 @@ public:
 	 */
 	UFUNCTION(Client, Reliable, Category = "Quest")
 	void Client_NotifyQuestMessage(const FString& Message);
-
-	// ===== 对话事件委托（供蓝图 UI 监听） =====
-
-	/** 对话推进到新一行台词时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
-	FOnDialogueLineAdvanced OnDialogueLineAdvanced;
-
-	/** 对话结束时广播（DialogueID + RelatedQuestID 供 Task5 钩入） */
-	UPROPERTY(BlueprintAssignable, Category = "Dialogue|Events")
-	FOnDialogueEnded OnDialogueEnded;
 
 	/**
 	 * 交互按键入口：从相机前方做 trace 寻找 APP_NPCActor，若命中则调用其 Interact

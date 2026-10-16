@@ -493,19 +493,6 @@ FName UPP_SessionManager::GetPlayerCharacterSelection(const FString& PlayerName)
 	return NAME_None;
 }
 
-FName UPP_SessionManager::ConsumePlayerCharacterSelection(const FString& PlayerName)
-{
-	FName CharacterId = NAME_None;
-	if (const FName* Found = PlayerCharacterSelections.Find(PlayerName))
-	{
-		CharacterId = *Found;
-		PlayerCharacterSelections.Remove(PlayerName);
-		UE_LOG(LogPP, Log, TEXT("[SessionManager] ConsumePlayerCharacterSelection - Player: %s, Character: %s"),
-			*PlayerName, *CharacterId.ToString());
-	}
-	return CharacterId;
-}
-
 void UPP_SessionManager::ClearPlayerCharacterSelection(const FString& PlayerName)
 {
 	PlayerCharacterSelections.Remove(PlayerName);

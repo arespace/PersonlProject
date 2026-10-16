@@ -7,7 +7,7 @@
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "Components/CapsuleComponent.h"
 #include "Framework/PP_DataManager.h"
-#include "Game/PP_GameInstance.h"
+#include "Framework/PP_SessionManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Player/PP_PlayerController.h"
@@ -121,12 +121,12 @@ void APP_PlayerCharacter::RestoreCharacterSelection()
 		}
 	}
 
-	// 优先级3: GameInstance（转发到 SessionManager）的最后选择
+	// 优先级3: SessionManager 的最后选择
 	if (CharId.IsNone())
 	{
-		if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
+		if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
 		{
-			CharId = GI->GetLastCharacterSelection();
+			CharId = SM->GetLastCharacterSelection();
 			if (!CharId.IsNone())
 			{
 				PS->SetSelectedCharacterId(CharId);

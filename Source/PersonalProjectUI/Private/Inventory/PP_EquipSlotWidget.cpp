@@ -17,7 +17,6 @@ void UPP_EquipSlotWidget::NativeConstruct()
 	Super::NativeConstruct();
 	if (SlotButton)
 	{
-		SlotButton->OnClicked.RemoveDynamic(this, &UPP_EquipSlotWidget::HandleSlotClicked);
 		SlotButton->OnClicked.AddDynamic(this, &UPP_EquipSlotWidget::HandleSlotClicked);
 	}
 }
@@ -140,12 +139,9 @@ void UPP_EquipSlotWidget::HideTooltip()
 {
 	if (ActiveTooltip)
 	{
-		if (UGameInstance* GI = GetGameInstance())
+		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->PopWidget(ActiveTooltip);
-			}
+			Mgr->PopWidget(ActiveTooltip);
 		}
 		ActiveTooltip = nullptr;
 	}

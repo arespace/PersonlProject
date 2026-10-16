@@ -40,12 +40,9 @@ void UPP_QuestEventBridge::BeginPlay()
 void UPP_QuestEventBridge::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// 退订 EventBus 事件（Bridge 生命周期短于 GameInstance，必须成对退订）
-	if (UWorld* World = GetWorld())
+	if (UPP_EventBus* EventBus = UPP_EventBus::Get(this))
 	{
-		if (UPP_EventBus* EventBus = World->GetGameInstance()->GetSubsystem<UPP_EventBus>())
-		{
-			EventBus->Unsubscribe(GatherEventHandle);
-		}
+		EventBus->Unsubscribe(GatherEventHandle);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -55,16 +52,13 @@ void UPP_QuestEventBridge::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UPP_QuestEventBridge::BindToGatherSystem()
 {
 	// 订阅 EventBus 采集完成事件（替代原全局静态委托，采集系统与任务系统解耦）
-	if (UWorld* World = GetWorld())
+	if (UPP_EventBus* EventBus = UPP_EventBus::Get(this))
 	{
-		if (UPP_EventBus* EventBus = World->GetGameInstance()->GetSubsystem<UPP_EventBus>())
-		{
-			GatherEventHandle = EventBus->Subscribe<FPP_GatherEvent>(
-				[this](const FPP_GatherEvent& Event)
-				{
-					OnGatherEvent(Event);
-				});
-		}
+		GatherEventHandle = EventBus->Subscribe<FPP_GatherEvent>(
+			[this](const FPP_GatherEvent& Event)
+			{
+				OnGatherEvent(Event);
+			});
 	}
 	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] Bound to GatherSystem (EventBus)"));
 }

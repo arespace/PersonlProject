@@ -1,4 +1,4 @@
-﻿// UI系统 — 屏幕空间Widget基类
+// UI系统 — 屏幕空间Widget基类
 // 提供层级集成、生命周期回调和UIManager自动注册
 
 #pragma once
@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Framework/PP_UIManager.h"
+#include "Framework/PP_EventBus.h"
 #include "PP_UIUserWidget.generated.h"
 
 /**
@@ -67,4 +68,29 @@ public:
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
+
+    // ===== EventBus 订阅管理 =====
+
+    /**
+     * 订阅 EventBus 事件并由基类托管句柄
+     * 句柄统一存入 EventBusHandles，NativeDestruct 时自动退订，子类无需手动管理
+     */
+    template<typename EventType>
+    void SubscribeEventBus(TFunction<void(const EventType&)> Callback);
+
+    /** 退订全部已托管的 EventBus 订阅（重新订阅前调用，避免重复订阅） */
+    void UnsubscribeEventBus();
+
+private:
+    /** 托管的 EventBus 订阅句柄（NativeDestruct 统一退订） */
+    TArray<FDelegateHandle> EventBusHandles;
 };
+
+template<typename EventType>
+void UPP_UIUserWidget::SubscribeEventBus(TFunction<void(const EventType&)> Callback)
+{
+    if (UPP_EventBus* Bus = UPP_EventBus::Get(this))
+    {
+        EventBusHandles.Add(Bus->Subscribe<EventType>(MoveTemp(Callback)));
+    }
+}

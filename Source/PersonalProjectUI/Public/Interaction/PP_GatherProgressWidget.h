@@ -1,4 +1,4 @@
-﻿// 采集系统 — 采集进度条Widget
+// 采集系统 — 采集进度条Widget
 // 显示采集进度 0.0 → 1.0，采集开始时显示，完成/取消时隐藏
 
 #pragma once
@@ -40,10 +40,6 @@ public:
 	/** 隐藏进度条Widget */
 	UFUNCTION(BlueprintCallable, Category = "Gather|UI")
 	void HideWidget();
-
-	/** 设置采集物名称提示文本（可选） */
-	UFUNCTION(BlueprintCallable, Category = "Gather|UI")
-	void SetGatherItemName(const FText& InName);
 
 protected:
 	/** 进度条控件 — 蓝图中放置同名 ProgressBar 控件 */

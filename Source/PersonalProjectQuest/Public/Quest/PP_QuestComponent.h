@@ -11,21 +11,6 @@
 
 class UPP_InventoryComponent;
 
-/** 任务接取事件 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnQuestAccepted, FName, QuestID);
-
-/** 任务完成事件 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnQuestCompleted, FName, QuestID);
-
-/** 目标进度更新事件 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnObjectiveUpdated, FName, QuestID, int32, ObjectiveIndex);
-
-/** 任务失败事件 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnQuestFailed, FName, QuestID);
-
-/** 任务列表变更事件（客户端 OnRep 时广播，供 UI 刷新） */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnQuestsUpdated);
-
 /**
  * 任务管理组件
  *
@@ -70,14 +55,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Quest")
 	bool AcceptQuest(FName QuestID);
-
-	/**
-	 * 放弃任务
-	 * @param QuestID 要放弃的任务ID
-	 * @return 是否成功放弃
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Quest")
-	bool AbandonQuest(FName QuestID);
 
 	/**
 	 * 提交任务
@@ -129,28 +106,6 @@ public:
 
 	/** 从任务数据表查找任务信息 */
 	const FPP_QuestInfo* FindQuestInfo(FName QuestID) const;
-
-	// ===== 委托 =====
-
-	/** 任务接取时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Quest|Events")
-	FOnQuestAccepted OnQuestAccepted;
-
-	/** 任务完成时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Quest|Events")
-	FOnQuestCompleted OnQuestCompleted;
-
-	/** 目标进度更新时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Quest|Events")
-	FOnObjectiveUpdated OnObjectiveUpdated;
-
-	/** 任务失败时广播 */
-	UPROPERTY(BlueprintAssignable, Category = "Quest|Events")
-	FOnQuestFailed OnQuestFailed;
-
-	/** 任务列表变更时广播（客户端 OnRep 触发，服务端 Accept/Submit 后也会触发） */
-	UPROPERTY(BlueprintAssignable, Category = "Quest|Events")
-	FOnQuestsUpdated OnQuestsUpdated;
 
 protected:
 	// ===== OnRep 回调 =====

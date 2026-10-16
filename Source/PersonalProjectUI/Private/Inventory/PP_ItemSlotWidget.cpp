@@ -17,7 +17,6 @@ void UPP_ItemSlotWidget::NativeConstruct()
 	Super::NativeConstruct();
 	if (SlotButton)
 	{
-		SlotButton->OnClicked.RemoveDynamic(this, &UPP_ItemSlotWidget::HandleSlotClicked);
 		SlotButton->OnClicked.AddDynamic(this, &UPP_ItemSlotWidget::HandleSlotClicked);
 	}
 }
@@ -141,12 +140,9 @@ void UPP_ItemSlotWidget::HideTooltip()
 	if (ActiveTooltip)
 	{
 		// 通过 UIManager 弹出，避免直接 RemoveFromParent 导致 NativeDestruct 中重复弹出
-		if (UGameInstance* GI = GetGameInstance())
+		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->PopWidget(ActiveTooltip);
-			}
+			Mgr->PopWidget(ActiveTooltip);
 		}
 		ActiveTooltip = nullptr;
 	}

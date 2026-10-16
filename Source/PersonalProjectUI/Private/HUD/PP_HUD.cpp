@@ -25,10 +25,38 @@
 #include "Engine/GameInstance.h"
 #include "Framework/PP_EventBus.h"
 #include "Framework/PP_EventTypes.h"
+#include "Utils/PP_BlueprintLibrary.h"
 
 APP_HUD::APP_HUD()
 {
 	PrimaryActorTick.bCanEverTick = false;
+}
+
+template<typename TWidget>
+TWidget* APP_HUD::GetOrCreateWidget(TObjectPtr<TWidget>& WidgetPtr, TSubclassOf<UUserWidget> WidgetClass)
+{
+	if (!WidgetPtr && WidgetClass && PlayerOwner)
+	{
+		WidgetPtr = CreateWidget<TWidget>(PlayerOwner, WidgetClass);
+		if (WidgetPtr)
+		{
+			AddToViewportByLayer(WidgetPtr);
+		}
+	}
+	return WidgetPtr;
+}
+
+template<typename TWidget>
+void APP_HUD::PopAndClearWidget(TObjectPtr<TWidget>& WidgetPtr)
+{
+	if (WidgetPtr)
+	{
+		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
+		{
+			Mgr->PopWidget(WidgetPtr);
+		}
+		WidgetPtr = nullptr;
+	}
 }
 
 void APP_HUD::AddToViewportByLayer(UPP_UIUserWidget* Widget)
@@ -45,12 +73,9 @@ void APP_HUD::BeginPlay()
 	Super::BeginPlay();
 
 	// SeamlessTravel 后从 Lobby UI-Only 模式恢复为游戏输入
-	if (UGameInstance* GI = GetGameInstance())
+	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
-		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-		{
-			Mgr->SetInputModeGameplay();
-		}
+		Mgr->SetInputModeGameplay();
 	}
 
 	InitializeViewModel();
@@ -58,7 +83,7 @@ void APP_HUD::BeginPlay()
 	BindViewModelDelegates();
 
 	// 订阅任务完成事件（EventBus 广播 → 通知栏显示），任务系统不再直接依赖 HUD
-	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
+	if (UPP_EventBus* EventBus = UPP_EventBus::Get(this))
 	{
 		QuestCompletedEventHandle = EventBus->Subscribe<FPP_QuestCompletedEvent>(
 			[this](const FPP_QuestCompletedEvent& Event)
@@ -71,7 +96,7 @@ void APP_HUD::BeginPlay()
 void APP_HUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// 退订 EventBus 事件（HUD 生命周期短于 GameInstance，必须成对退订）
-	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
+	if (UPP_EventBus* EventBus = UPP_EventBus::Get(this))
 	{
 		EventBus->Unsubscribe(QuestCompletedEventHandle);
 	}
@@ -145,14 +170,7 @@ void APP_HUD::CreateHUDWidgets()
 	{
 		if (APlayerState* PS = PlayerOwner->GetPlayerState<APlayerState>())
 		{
-			for (UActorComponent* Comp : PS->GetComponents())
-			{
-				if (Comp && Comp->Implements<UPP_QuestQuery>())
-				{
-					QuestSource = Comp;
-					break;
-				}
-			}
+			QuestSource = UPP_BlueprintLibrary::FindComponentImplementing(PS, UPP_QuestQuery::StaticClass());
 		}
 	}
 
@@ -196,12 +214,9 @@ void APP_HUD::CreateHUDWidgets()
 
 	// 所有 Widget 创建完毕后，强制归一为游戏输入模式
 	// （批量创建期间的构造期推栈可能已按栈逻辑重算，此处确保最终状态为 Gameplay）
-	if (UGameInstance* GI = GetGameInstance())
+	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
-		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-		{
-			Mgr->SetInputModeGameplay();
-		}
+		Mgr->SetInputModeGameplay();
 	}
 }
 
@@ -224,30 +239,13 @@ void APP_HUD::BindViewModelDelegates()
 
 void APP_HUD::ShowPauseMenu()
 {
-	if (!PauseMenuWidget && PauseMenuWidgetClass && PlayerOwner)
-	{
-		PauseMenuWidget = CreateWidget<UPP_PauseMenuWidget>(PlayerOwner, PauseMenuWidgetClass);
-		if (PauseMenuWidget)
-		{
-			AddToViewportByLayer(PauseMenuWidget);
-			// NativeConstruct → UIManager::PushWidget(Modal, bConsumesAllInput) → 自动 SetInputModeUI
-		}
-	}
+	// NativeConstruct → UIManager::PushWidget(Modal, bConsumesAllInput) → 自动 SetInputModeUI
+	GetOrCreateWidget(PauseMenuWidget, PauseMenuWidgetClass);
 }
 
 void APP_HUD::HidePauseMenu()
 {
-	if (PauseMenuWidget)
-	{
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->PopWidget(PauseMenuWidget);
-			}
-		}
-		PauseMenuWidget = nullptr;
-	}
+	PopAndClearWidget(PauseMenuWidget);
 }
 
 bool APP_HUD::IsPauseMenuVisible() const
@@ -257,42 +255,17 @@ bool APP_HUD::IsPauseMenuVisible() const
 
 void APP_HUD::ShowScoreboard()
 {
-	if (!ScoreboardWidget && ScoreboardWidgetClass && PlayerOwner)
-	{
-		ScoreboardWidget = CreateWidget<UPP_ScoreboardWidget>(PlayerOwner, ScoreboardWidgetClass);
-		if (ScoreboardWidget)
-		{
-			AddToViewportByLayer(ScoreboardWidget);
-		}
-	}
+	GetOrCreateWidget(ScoreboardWidget, ScoreboardWidgetClass);
 }
 
 void APP_HUD::HideScoreboard()
 {
-	if (ScoreboardWidget)
-	{
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->PopWidget(ScoreboardWidget);
-			}
-		}
-		ScoreboardWidget = nullptr;
-	}
+	PopAndClearWidget(ScoreboardWidget);
 }
 
 void APP_HUD::ShowDeathScreen(float RespawnTime)
 {
-	if (!DeathScreenWidget && DeathScreenWidgetClass && PlayerOwner)
-	{
-		DeathScreenWidget = CreateWidget<UPP_DeathScreenWidget>(PlayerOwner, DeathScreenWidgetClass);
-		if (DeathScreenWidget)
-		{
-			AddToViewportByLayer(DeathScreenWidget);
-		}
-	}
-	if (DeathScreenWidget)
+	if (GetOrCreateWidget(DeathScreenWidget, DeathScreenWidgetClass))
 	{
 		DeathScreenWidget->ShowRespawnCountdown(RespawnTime);
 	}
@@ -300,17 +273,7 @@ void APP_HUD::ShowDeathScreen(float RespawnTime)
 
 void APP_HUD::HideDeathScreen()
 {
-	if (DeathScreenWidget)
-	{
-		if (UGameInstance* GI = GetGameInstance())
-		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->PopWidget(DeathScreenWidget);
-			}
-		}
-		DeathScreenWidget = nullptr;
-	}
+	PopAndClearWidget(DeathScreenWidget);
 }
 
 void APP_HUD::ToggleMainHUD()
@@ -426,12 +389,9 @@ void APP_HUD::ToggleQuestLog()
 	}
 
 	// 输入模式由 UIManager 根据栈+可见性重算（QuestListWidget 位于 Overlay 层）
-	if (UGameInstance* GI = GetGameInstance())
+	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
-		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-		{
-			Mgr->RefreshInputMode();
-		}
+		Mgr->RefreshInputMode();
 	}
 }
 
@@ -440,12 +400,9 @@ void APP_HUD::ToggleInventory()
 	if (InventoryWidget && InventoryWidget->IsInViewport())
 	{
 		// 关闭背包：通过 UIManager 弹出
-		if (UGameInstance* GI = GetGameInstance())
+		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 		{
-			if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
-			{
-				Mgr->PopWidget(InventoryWidget);
-			}
+			Mgr->PopWidget(InventoryWidget);
 		}
 		else
 		{
@@ -468,14 +425,7 @@ void APP_HUD::ToggleInventory()
 			{
 				if (APlayerState* PS = PlayerOwner->GetPlayerState<APlayerState>())
 				{
-					for (UActorComponent* Comp : PS->GetComponents())
-					{
-						if (Comp && Comp->Implements<UPP_InventoryQuery>())
-						{
-							InvSource = Comp;
-							break;
-						}
-					}
+					InvSource = UPP_BlueprintLibrary::FindComponentImplementing(PS, UPP_InventoryQuery::StaticClass());
 				}
 			}
 

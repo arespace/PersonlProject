@@ -116,11 +116,6 @@ protected:
 	TWeakObjectPtr<UObject> BoundInventory;
 
 private:
-	/** EventBus 订阅句柄 */
-	FDelegateHandle InventoryUpdatedHandle;
-	FDelegateHandle EquipmentUpdatedHandle;
-	FDelegateHandle GoldUpdatedHandle;
-
 	/** ItemID → Widget 映射，支持增量更新（避免 ClearChildren 全量重建） */
 	UPROPERTY()
 	TMap<FName, TObjectPtr<UPP_ItemSlotWidget>> ItemWidgetMap;

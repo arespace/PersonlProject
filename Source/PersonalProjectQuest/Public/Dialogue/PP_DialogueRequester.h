@@ -48,18 +48,4 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Dialogue")
 	void ConfirmDialogueEndAction(UObject* NPC, FName DialogueID, EPP_DialogueEndAction Action);
-
-	/**
-	 * 通知对话推进到新台词（UI 侧调用）
-	 * 实现方负责：广播自身 OnDialogueLineAdvanced 委托
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Dialogue")
-	void NotifyDialogueLineAdvanced(int32 NewLineIndex);
-
-	/**
-	 * 通知对话结束（UI 侧调用）
-	 * 实现方负责：广播自身 OnDialogueEnded 委托
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Dialogue")
-	void NotifyDialogueEnded(FName DialogueID, FName RelatedQuestID);
 };

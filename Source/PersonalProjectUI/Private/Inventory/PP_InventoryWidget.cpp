@@ -25,35 +25,14 @@ void UPP_InventoryWidget::NativeConstruct()
 
 void UPP_InventoryWidget::NativeDestruct()
 {
-	// 解除 EventBus 订阅，避免悬挂回调
-	if (UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr)
-	{
-		EventBus->Unsubscribe(InventoryUpdatedHandle);
-		EventBus->Unsubscribe(EquipmentUpdatedHandle);
-		EventBus->Unsubscribe(GoldUpdatedHandle);
-	}
-	InventoryUpdatedHandle.Reset();
-	EquipmentUpdatedHandle.Reset();
-	GoldUpdatedHandle.Reset();
-
 	ItemWidgetMap.Empty();
 	Super::NativeDestruct();
 }
 
 void UPP_InventoryWidget::BindInventory(UObject* InInventory)
 {
-	UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr;
-
-	// 解绑旧的订阅
-	if (EventBus)
-	{
-		EventBus->Unsubscribe(InventoryUpdatedHandle);
-		EventBus->Unsubscribe(EquipmentUpdatedHandle);
-		EventBus->Unsubscribe(GoldUpdatedHandle);
-	}
-	InventoryUpdatedHandle.Reset();
-	EquipmentUpdatedHandle.Reset();
-	GoldUpdatedHandle.Reset();
+	// 退订旧的订阅，避免重复绑定
+	UnsubscribeEventBus();
 
 	// 清空旧映射 + 容器子控件
 	ItemWidgetMap.Empty();
@@ -64,13 +43,14 @@ void UPP_InventoryWidget::BindInventory(UObject* InInventory)
 
 	BoundInventory = InInventory;
 
-	if (InInventory && InInventory->Implements<UPP_InventoryQuery>() && EventBus)
+	if (InInventory && InInventory->Implements<UPP_InventoryQuery>())
 	{
-		InventoryUpdatedHandle = EventBus->Subscribe<FPP_InventoryUpdatedEvent>(
+		// 句柄由基类托管，NativeDestruct 自动退订
+		SubscribeEventBus<FPP_InventoryUpdatedEvent>(
 			[this](const FPP_InventoryUpdatedEvent& Event) { HandleInventoryUpdated(Event); });
-		EquipmentUpdatedHandle = EventBus->Subscribe<FPP_EquipmentUpdatedEvent>(
+		SubscribeEventBus<FPP_EquipmentUpdatedEvent>(
 			[this](const FPP_EquipmentUpdatedEvent& Event) { HandleEquipmentUpdated(Event); });
-		GoldUpdatedHandle = EventBus->Subscribe<FPP_GoldUpdatedEvent>(
+		SubscribeEventBus<FPP_GoldUpdatedEvent>(
 			[this](const FPP_GoldUpdatedEvent& Event) { HandleGoldUpdated(Event); });
 	}
 

@@ -459,40 +459,25 @@ void UPP_InventoryComponent::RequestUseConsumable_Implementation(FName ItemID)
 
 void UPP_InventoryComponent::BroadcastInventoryUpdatedEvent()
 {
-	UWorld* World = GetWorld();
-	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-	UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
-	if (!EventBus) return;
-
 	FPP_InventoryUpdatedEvent Event;
 	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
 	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
-	EventBus->Broadcast(Event);
+	UPP_EventBus::BroadcastEvent(this, Event);
 }
 
 void UPP_InventoryComponent::BroadcastEquipmentUpdatedEvent()
 {
-	UWorld* World = GetWorld();
-	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-	UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
-	if (!EventBus) return;
-
 	FPP_EquipmentUpdatedEvent Event;
 	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
 	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
-	EventBus->Broadcast(Event);
+	UPP_EventBus::BroadcastEvent(this, Event);
 }
 
 void UPP_InventoryComponent::BroadcastGoldUpdatedEvent(int32 NewGold)
 {
-	UWorld* World = GetWorld();
-	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-	UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
-	if (!EventBus) return;
-
 	FPP_GoldUpdatedEvent Event;
 	const APlayerState* OwnerPS = Cast<APlayerState>(GetOwner());
 	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
 	Event.NewGold = NewGold;
-	EventBus->Broadcast(Event);
+	UPP_EventBus::BroadcastEvent(this, Event);
 }

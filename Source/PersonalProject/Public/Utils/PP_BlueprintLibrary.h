@@ -75,4 +75,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Crash|Abilities")
 	static TArray<AActor*> ApplyKnockback(AActor* AvatarActor, const TArray<AActor*>& HitActors, float InnerRadius, float OuterRadius, float LaunchForceMagnitude, float RotationAngle = 45.f, bool bDrawDebugs = false);
+
+	/**
+	 * 按接口能力查找 Actor 上的组件（返回第一个实现指定接口的组件，无则 nullptr）
+	 * UI 等调用方借此避免「遍历 GetComponents + Implements」的重复样板
+	 */
+	static UObject* FindComponentImplementing(AActor* Owner, TSubclassOf<UInterface> InterfaceClass);
 };

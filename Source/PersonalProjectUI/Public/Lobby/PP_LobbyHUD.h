@@ -41,7 +41,6 @@ public:
 	// ===== 菜单控制 =====
 
 	void ShowMainMenu();
-	void HideMainMenu();
 
 	/**
 	 * 当前是否还在房间里
@@ -53,7 +52,6 @@ public:
 	bool IsInRoom() const;
 
 	void ShowLobby();
-	void HideLobby();
 
 	void ShowHostSettings();
 	void HideHostSettings();
@@ -166,9 +164,6 @@ private:
 
 	/** 设置输入模式为UI */
 	void SetUIInputMode();
-
-	/** 设置输入模式为GameAndUI */
-	void SetGameAndUIInputMode();
 
 	/** 隐藏所有菜单 Widget */
 	void HideAllMenus();

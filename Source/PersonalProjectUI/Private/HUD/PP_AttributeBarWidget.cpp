@@ -52,14 +52,6 @@ void UPP_AttributeBarWidget::SetValueTextColor(FLinearColor Color)
 	}
 }
 
-void UPP_AttributeBarWidget::SetValueText(FText Text)
-{
-	if (ValueText)
-	{
-		ValueText->SetText(Text);
-	}
-}
-
 float UPP_AttributeBarWidget::GetPercent() const
 {
 	if (CurrentMaxValue <= 0.f)

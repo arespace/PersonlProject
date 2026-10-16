@@ -110,35 +110,6 @@ bool UPP_UIViewModel::IsAlive() const
 	return GetHealth() > 0.f;
 }
 
-float UPP_UIViewModel::GetAbilityCooldownRemaining(const FGameplayTag& AbilityTag) const
-{
-	if (!ASC.IsValid())
-	{
-		return 0.f;
-	}
-
-	// 使用ASC的冷却查询接口
-	return ASC->GetCooldownRemainingForTag(AbilityTag);
-}
-
-float UPP_UIViewModel::GetAbilityCooldownPercent(const FGameplayTag& AbilityTag) const
-{
-	if (!ASC.IsValid())
-	{
-		return 0.f;
-	}
-
-	const float Remaining = ASC->GetCooldownRemainingForTag(AbilityTag);
-	const float Duration = ASC->GetCooldownDurationForTag(AbilityTag);
-
-	if (Duration <= 0.f)
-	{
-		return 0.f;
-	}
-
-	return FMath::Clamp(Remaining / Duration, 0.f, 1.f);
-}
-
 void UPP_UIViewModel::BindToASC()
 {
 	if (!ASC.IsValid() || !AttributeSet.IsValid())

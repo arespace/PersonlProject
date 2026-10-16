@@ -8,7 +8,6 @@
 #include "Player/PP_PlayerState.h"
 #include "AbilitySystemComponent.h"
 #include "Quest/PP_QuestEventBridge.h"
-#include "Game/PP_GameInstance.h"
 #include "Framework/PP_SessionManager.h"
 #include "Framework/PP_Log.h"
 
@@ -31,15 +30,14 @@ void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
 	APP_PlayerState* PS = NewPlayer->GetPlayerState<APP_PlayerState>();
 	if (!PS) return;
 
-	// 从 GameInstance（转发到 SessionManager）恢复大厅选择的角色ID
-	UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld());
-	if (GI)
+	// 从 SessionManager 恢复大厅选择的角色ID
+	if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
 	{
-		FName CharId = GI->GetPlayerCharacterSelection(PS->GetPlayerName());
+		FName CharId = SM->GetPlayerCharacterSelection(PS->GetPlayerName());
 		if (CharId.IsNone())
 		{
 			// 后备：不依赖 PlayerName 的最后选择
-			CharId = GI->GetLastCharacterSelection();
+			CharId = SM->GetLastCharacterSelection();
 		}
 
 		if (!CharId.IsNone())
@@ -96,12 +94,12 @@ void APP_CrashGameMode::RestartPlayer(AController* NewPlayer)
 	// 优先从 PlayerController 的 PendingCharacterId（跨 ServerTravel 传递）
 	FName CharId = PC->GetPendingCharacterId();
 
-	// 后备：从 GameInstance（转发到 SessionManager）获取最后选择
+	// 后备：从 SessionManager 获取最后选择
 	if (CharId.IsNone())
 	{
-		if (UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld()))
+		if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
 		{
-			CharId = GI->GetLastCharacterSelection();
+			CharId = SM->GetLastCharacterSelection();
 		}
 	}
 

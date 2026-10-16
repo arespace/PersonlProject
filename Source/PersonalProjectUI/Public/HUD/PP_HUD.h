@@ -210,6 +210,14 @@ private:
 	/** 初始化ViewModel */
 	void InitializeViewModel();
 
+	/** 按需创建 Widget 并加入视口（已存在则复用），返回 Widget */
+	template<typename TWidget>
+	TWidget* GetOrCreateWidget(TObjectPtr<TWidget>& WidgetPtr, TSubclassOf<UUserWidget> WidgetClass);
+
+	/** 经 UIManager 弹出 Widget 并清空引用 */
+	template<typename TWidget>
+	void PopAndClearWidget(TObjectPtr<TWidget>& WidgetPtr);
+
 	/**
 	 * 以 Widget 自身 OwningLayer 作为 ZOrder 添加到视口
 	 * 层级唯一真相来源是 UPP_UIUserWidget::OwningLayer（蓝图配置），HUD 不再维护独立 ZOrder 常量

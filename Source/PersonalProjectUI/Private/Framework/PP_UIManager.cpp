@@ -8,6 +8,18 @@
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Engine/World.h"
+
+UPP_UIManager* UPP_UIManager::Get(const UObject* WorldContext)
+{
+    if (!WorldContext)
+    {
+        return nullptr;
+    }
+    const UWorld* World = WorldContext->GetWorld();
+    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+    return GI ? GI->GetSubsystem<UPP_UIManager>() : nullptr;
+}
 
 void UPP_UIManager::PushWidget(UPP_UIUserWidget* Widget, EPP_UILayer Layer)
 {

@@ -21,6 +21,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Engine/DataTable.h"
 #include "Framework/PP_Log.h"
+#include "Utils/PP_BlueprintLibrary.h"
 
 // ============================================================
 // APP_HUD — 战斗 HUD 网关实现
@@ -196,14 +197,7 @@ void APP_HUD::RequestOpenShop_Implementation(UObject* NPC, TSubclassOf<UUserWidg
 	{
 		if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
 		{
-			for (UActorComponent* Comp : PS->GetComponents())
-			{
-				if (Comp && Comp->Implements<UPP_InventoryQuery>())
-				{
-					Inventory = Comp;
-					break;
-				}
-			}
+			Inventory = UPP_BlueprintLibrary::FindComponentImplementing(PS, UPP_InventoryQuery::StaticClass());
 		}
 	}
 

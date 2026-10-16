@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 
 #include "Utils/PP_BlueprintLibrary.h"
@@ -8,6 +8,7 @@
 #include "GameplayEffect.h"
 #include "Characters/PP_BaseCharacter.h"
 #include "Characters/PP_EnemyCharacter.h"
+#include "Components/ActorComponent.h"
 #include "Engine/OverlapResult.h"
 #include "GameplayTags/PPTags.h"
 #include "Kismet/GameplayStatics.h"
@@ -281,4 +282,21 @@ TArray<AActor*> UPP_BlueprintLibrary::ApplyKnockback(AActor* AvatarActor, const 
 		HitCharacter->LaunchCharacter(KnockbackForce, true, true);
 	}
 	return HitActors;
+}
+
+UObject* UPP_BlueprintLibrary::FindComponentImplementing(AActor* Owner, TSubclassOf<UInterface> InterfaceClass)
+{
+	if (!IsValid(Owner) || !InterfaceClass)
+	{
+		return nullptr;
+	}
+
+	for (UActorComponent* Comp : Owner->GetComponents())
+	{
+		if (Comp && Comp->GetClass()->ImplementsInterface(InterfaceClass))
+		{
+			return Comp;
+		}
+	}
+	return nullptr;
 }

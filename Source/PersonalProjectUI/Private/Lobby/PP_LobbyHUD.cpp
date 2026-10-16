@@ -136,11 +136,6 @@ void APP_LobbyHUD::ShowMainMenu()
 	}
 }
 
-void APP_LobbyHUD::HideMainMenu()
-{
-	if (MainMenuWidget) { MainMenuWidget->SetVisibility(ESlateVisibility::Hidden); }
-}
-
 bool APP_LobbyHUD::IsInRoom() const
 {
 	const UWorld* World = GetWorld();
@@ -157,11 +152,6 @@ void APP_LobbyHUD::ShowLobby()
 		// 正常进入大厅时清掉上一次的迁移提示
 		LobbyWidget->SetMigrationBannerVisible(false);
 	}
-}
-
-void APP_LobbyHUD::HideLobby()
-{
-	if (LobbyWidget) { LobbyWidget->SetVisibility(ESlateVisibility::Hidden); }
 }
 
 void APP_LobbyHUD::ShowHostSettings()
@@ -267,15 +257,6 @@ void APP_LobbyHUD::SetUIInputMode()
 	{
 		PlayerOwner->SetShowMouseCursor(true);
 		PlayerOwner->SetInputMode(FInputModeUIOnly());
-	}
-}
-
-void APP_LobbyHUD::SetGameAndUIInputMode()
-{
-	if (PlayerOwner)
-	{
-		PlayerOwner->SetShowMouseCursor(true);
-		PlayerOwner->SetInputMode(FInputModeGameAndUI());
 	}
 }
 

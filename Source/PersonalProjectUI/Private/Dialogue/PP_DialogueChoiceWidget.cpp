@@ -30,17 +30,6 @@ void UPP_DialogueChoiceWidget::NativeConstruct()
 	if (CloseButton)       CloseButton->OnClicked.AddDynamic(this, &ThisClass::OnCloseClicked);
 }
 
-void UPP_DialogueChoiceWidget::NativeDestruct()
-{
-	if (OfferQuestButton)  OfferQuestButton->OnClicked.RemoveDynamic(this, &ThisClass::OnOfferQuestClicked);
-	if (SubmitQuestButton) SubmitQuestButton->OnClicked.RemoveDynamic(this, &ThisClass::OnSubmitQuestClicked);
-	if (OpenShopButton)    OpenShopButton->OnClicked.RemoveDynamic(this, &ThisClass::OnOpenShopClicked);
-	if (ContinueButton)    ContinueButton->OnClicked.RemoveDynamic(this, &ThisClass::OnContinueClicked);
-	if (CloseButton)       CloseButton->OnClicked.RemoveDynamic(this, &ThisClass::OnCloseClicked);
-
-	Super::NativeDestruct();
-}
-
 void UPP_DialogueChoiceWidget::SetupChoices(EPP_DialogueEndAction InAction, UObject* InOwningNPC, FName InDialogueID, APlayerController* InOwnerPC)
 {
 	CurrentAction = InAction;
@@ -131,37 +120,14 @@ void UPP_DialogueChoiceWidget::CloseChoices()
 	// 先保存 PlayerController 引用（RemoveFromParent 后 this 可能处于析构中）
 	APlayerController* PC = OwnerPC.Get();
 
-	// 触发 PC 侧对话结束委托（经 IPP_DialogueRequester 接口，UI 不直连 PC）
-	if (PC)
-	{
-		FName RelatedQuest = NAME_None;
-		if (OwningNPC.IsValid() && OwningNPC->Implements<UPP_DialogueSource>())
-		{
-			if (UDataTable* DT = IPP_DialogueSource::Execute_QueryDialogueTable(OwningNPC.Get()))
-			{
-				if (FPP_DialogueData* Row = DT->FindRow<FPP_DialogueData>(CurrentDialogueID, TEXT("CloseChoices")))
-				{
-					RelatedQuest = Row->RelatedQuestID;
-				}
-			}
-		}
-		if (IPP_DialogueRequester* Requester = Cast<IPP_DialogueRequester>(PC))
-		{
-			IPP_DialogueRequester::Execute_NotifyDialogueEnded(PC, CurrentDialogueID, RelatedQuest);
-		}
-	}
-
 	// 通过 UIManager 统一弹出，避免 RemoveFromParent 与 PopWidget 重复调用导致 Slate 输入状态混乱
 	bool bPoppedViaManager = false;
-	if (UGameInstance* GI = GetGameInstance())
+	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
-		if (UPP_UIManager* Mgr = GI->GetSubsystem<UPP_UIManager>())
+		if (Mgr->IsWidgetInStack(this))
 		{
-			if (Mgr->IsWidgetInStack(this))
-			{
-				Mgr->PopWidget(this);
-				bPoppedViaManager = true;
-			}
+			Mgr->PopWidget(this);
+			bPoppedViaManager = true;
 		}
 	}
 	if (!bPoppedViaManager)

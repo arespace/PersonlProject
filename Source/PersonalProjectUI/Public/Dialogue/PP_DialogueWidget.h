@@ -69,7 +69,6 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 	// ===== 蓝图绑定控件（BindWidgetOptional，允许蓝图自由命名/缺省） =====

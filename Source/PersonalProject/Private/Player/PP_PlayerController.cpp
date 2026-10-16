@@ -226,16 +226,6 @@ void APP_PlayerController::Client_ReceiveChatMessage_Implementation(const FStrin
 	ForwardToUIGateway(&IPP_UIGateway::Execute_PushChatMessage, PlayerName, Message);
 }
 
-void APP_PlayerController::Client_ReceiveNotification_Implementation(const FString& Message)
-{
-	ForwardToUIGateway(&IPP_UIGateway::Execute_PushNotification, Message);
-}
-
-void APP_PlayerController::Client_UpdateScoreboard_Implementation(const TArray<FScoreboardEntry>& Entries)
-{
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestUpdateScoreboard, Entries);
-}
-
 void APP_PlayerController::Client_NotifyQuestMessage_Implementation(const FString& Message)
 {
 	if (!IsLocalController()) return;
@@ -255,20 +245,10 @@ void APP_PlayerController::OpenDialogueUI_Implementation(APP_NPCActor* NPC, FNam
 	Client_OpenDialogueUI(NPC, DialogueID);
 }
 
-// UI 侧（对话 Widget）经 Execute_ 调用：转发到 Server RPC / 广播自身委托
+// UI 侧（对话 Widget）经 Execute_ 调用：转发到 Server RPC
 void APP_PlayerController::ConfirmDialogueEndAction_Implementation(UObject* NPC, FName DialogueID, EPP_DialogueEndAction Action)
 {
 	Server_ConfirmDialogueEndAction(Cast<APP_NPCActor>(NPC), DialogueID, Action);
-}
-
-void APP_PlayerController::NotifyDialogueLineAdvanced_Implementation(int32 NewLineIndex)
-{
-	OnDialogueLineAdvanced.Broadcast(NewLineIndex);
-}
-
-void APP_PlayerController::NotifyDialogueEnded_Implementation(FName DialogueID, FName RelatedQuestID)
-{
-	OnDialogueEnded.Broadcast(DialogueID, RelatedQuestID);
 }
 
 // ===== IPP_LobbyActions 接口实现（UI 大厅 Widget 经 Execute_ 调用，转发到 Server RPC）=====
@@ -304,14 +284,6 @@ void APP_PlayerController::RequestSelectCharacter_Implementation(FName Character
 }
 
 // ===== 大厅阶段 RPC 实现 =====
-
-void APP_PlayerController::Server_SetPlayerName_Implementation(const FString& NewName)
-{
-	if (PlayerState && !NewName.IsEmpty())
-	{
-		PlayerState->SetPlayerName(NewName);
-	}
-}
 
 void APP_PlayerController::Server_SetReady_Implementation(bool bReady)
 {
@@ -354,26 +326,6 @@ void APP_PlayerController::Server_StartGame_Implementation()
 	if (LobbyGM)
 	{
 		LobbyGM->StartGame();
-	}
-}
-
-void APP_PlayerController::Server_KickPlayer_Implementation(int32 PlayerId)
-{
-	APP_LobbyPlayerState* HostPS = GetPlayerState<APP_LobbyPlayerState>();
-	if (!HostPS || !HostPS->IsHost()) return;
-
-	APP_LobbyGameMode* LobbyGM = GetWorld()->GetAuthGameMode<APP_LobbyGameMode>();
-	if (!LobbyGM || !LobbyGM->GameSession) return;
-
-	// 遍历找到对应序号的玩家并踢出
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
-	{
-		APP_LobbyPlayerState* LobbyPS = It->Get()->GetPlayerState<APP_LobbyPlayerState>();
-		if (LobbyPS && LobbyPS->GetPlayerIndex() == PlayerId)
-		{
-			LobbyGM->GameSession->KickPlayer(It->Get(), FText::FromString(TEXT("Kicked by host")));
-			break;
-		}
 	}
 }
 
@@ -537,8 +489,6 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 				}
 			}
 		}
-		// 广播对话结束事件
-		OnDialogueEnded.Broadcast(DialogueID, FName());
 		UE_LOG(LogPP, Log, TEXT("[PlayerController] Server_ConfirmDialogueEndAction - OfferQuest for DialogueID '%s'"), *DialogueID.ToString());
 		break;
 	}
@@ -563,8 +513,6 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 				}
 			}
 		}
-		// 广播对话结束事件
-		OnDialogueEnded.Broadcast(DialogueID, FName());
 		UE_LOG(LogPP, Log, TEXT("[PlayerController] Server_ConfirmDialogueEndAction - SubmitQuest for DialogueID '%s'"), *DialogueID.ToString());
 		break;
 	}

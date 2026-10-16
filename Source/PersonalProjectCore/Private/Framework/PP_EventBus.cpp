@@ -1,6 +1,19 @@
 // Chen Tianbao uses GAS to create online battle games
 
 #include "Framework/PP_EventBus.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+
+UPP_EventBus* UPP_EventBus::Get(const UObject* WorldContext)
+{
+	if (!WorldContext)
+	{
+		return nullptr;
+	}
+	const UWorld* World = WorldContext->GetWorld();
+	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+	return GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr;
+}
 
 void UPP_EventBus::Unsubscribe(FDelegateHandle Handle)
 {

@@ -33,17 +33,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
 	void InitializeTracker(UObject* InQuestSource);
 
-	/** 设置追踪的任务 */
-	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
-	void TrackQuest(FName QuestID);
-
 	/** 刷新追踪器显示 */
 	UFUNCTION(BlueprintCallable, Category = "Quest|UI")
 	void RefreshTracker();
 
 protected:
-	virtual void NativeDestruct() override;
-
 	// ===== 蓝图绑定控件 =====
 
 	/** 追踪目标列表容器 */
@@ -65,7 +59,4 @@ private:
 	/** 任务数据源（实现 IPP_QuestQuery 接口的对象，通常是 PlayerState 上的任务组件） */
 	UPROPERTY()
 	TObjectPtr<UObject> QuestSource;
-
-	/** EventBus 订阅句柄（NativeDestruct 时退订） */
-	FDelegateHandle QuestsUpdatedHandle;
 };

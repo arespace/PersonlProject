@@ -58,14 +58,6 @@ public:
 	/** 玩家是否存活 */
 	bool IsAlive() const;
 
-	// ===== 能力冷却查询接口 =====
-
-	/** 获取指定能力标签的冷却剩余时间 */
-	float GetAbilityCooldownRemaining(const FGameplayTag& AbilityTag) const;
-
-	/** 获取指定能力标签的冷却百分比 (0~1) */
-	float GetAbilityCooldownPercent(const FGameplayTag& AbilityTag) const;
-
 	// ===== 委托广播 - UI订阅这些委托获取数据更新 =====
 
 	/** 生命值变更时广播 */

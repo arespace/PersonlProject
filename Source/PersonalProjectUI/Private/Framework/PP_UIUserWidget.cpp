@@ -9,28 +9,40 @@ void UPP_UIUserWidget::NativeConstruct()
     Super::NativeConstruct();
 
     // 自动向 UIManager 注册
-    if (UGameInstance* GI = GetGameInstance())
+    if (UPP_UIManager* UIManager = UPP_UIManager::Get(this))
     {
-        if (UPP_UIManager* UIManager = GI->GetSubsystem<UPP_UIManager>())
-        {
-            UIManager->PushWidget(this, OwningLayer);
-        }
+        UIManager->PushWidget(this, OwningLayer);
     }
 }
 
 void UPP_UIUserWidget::NativeDestruct()
 {
+    // 统一退订托管的 EventBus 订阅
+    UnsubscribeEventBus();
+
     // 从 UIManager 注销（仅当仍在栈中时）
-    if (UGameInstance* GI = GetGameInstance())
+    if (UPP_UIManager* UIManager = UPP_UIManager::Get(this))
     {
-        if (UPP_UIManager* UIManager = GI->GetSubsystem<UPP_UIManager>())
+        if (UIManager->IsWidgetInStack(this))
         {
-            if (UIManager->IsWidgetInStack(this))
-            {
-                UIManager->PopWidget(this);
-            }
+            UIManager->PopWidget(this);
         }
     }
 
     Super::NativeDestruct();
+}
+
+void UPP_UIUserWidget::UnsubscribeEventBus()
+{
+    if (EventBusHandles.Num() > 0)
+    {
+        if (UPP_EventBus* Bus = UPP_EventBus::Get(this))
+        {
+            for (const FDelegateHandle& Handle : EventBusHandles)
+            {
+                Bus->Unsubscribe(Handle);
+            }
+        }
+        EventBusHandles.Empty();
+    }
 }

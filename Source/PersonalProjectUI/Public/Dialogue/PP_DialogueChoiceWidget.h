@@ -53,7 +53,6 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
 
 	// ===== 蓝图绑定按钮（具名，避免与 UWidget::Slot 冲突） =====
 

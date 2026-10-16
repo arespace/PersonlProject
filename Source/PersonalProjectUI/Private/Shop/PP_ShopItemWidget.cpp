@@ -23,7 +23,6 @@ void UPP_ShopItemWidget::NativeConstruct()
 
 	if (ActionButton)
 	{
-		ActionButton->OnClicked.RemoveDynamic(this, &UPP_ShopItemWidget::OnActionButtonClicked);
 		ActionButton->OnClicked.AddDynamic(this, &UPP_ShopItemWidget::OnActionButtonClicked);
 	}
 }

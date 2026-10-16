@@ -32,33 +32,13 @@ void UPP_QuestTrackerWidget::InitializeTracker(UObject* InQuestSource)
 
 	QuestSource = InQuestSource;
 
-	// 订阅任务列表变更事件（EventBus，替代原对 QuestComponent 委托的直连绑定）
-	if (UPP_EventBus* EventBus = GetGameInstance()->GetSubsystem<UPP_EventBus>())
-	{
-		QuestsUpdatedHandle = EventBus->Subscribe<FPP_QuestsUpdatedEvent>(
-			[this](const FPP_QuestsUpdatedEvent& Event)
-			{
-				HandleQuestsUpdated(Event);
-			});
-	}
+	// 订阅任务列表变更事件（EventBus，替代原对 QuestComponent 委托的直连绑定；句柄由基类托管）
+	SubscribeEventBus<FPP_QuestsUpdatedEvent>(
+		[this](const FPP_QuestsUpdatedEvent& Event)
+		{
+			HandleQuestsUpdated(Event);
+		});
 
-	RefreshTracker();
-}
-
-void UPP_QuestTrackerWidget::NativeDestruct()
-{
-	if (UPP_EventBus* EventBus = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPP_EventBus>() : nullptr)
-	{
-		EventBus->Unsubscribe(QuestsUpdatedHandle);
-	}
-	QuestsUpdatedHandle.Reset();
-
-	Super::NativeDestruct();
-}
-
-void UPP_QuestTrackerWidget::TrackQuest(FName QuestID)
-{
-	TrackedQuestID = QuestID;
 	RefreshTracker();
 }
 

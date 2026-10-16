@@ -24,11 +24,3 @@ void UPP_GatherProgressWidget::HideWidget()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
 }
-
-void UPP_GatherProgressWidget::SetGatherItemName(const FText& InName)
-{
-	if (GatherItemNameText)
-	{
-		GatherItemNameText->SetText(InName);
-	}
-}

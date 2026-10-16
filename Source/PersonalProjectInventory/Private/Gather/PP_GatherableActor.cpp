@@ -149,17 +149,6 @@ void APP_GatherableActor::NotifyPickup(AActor* Gatherer)
 
 void APP_GatherableActor::BroadcastGatherCompleted(AActor* Gatherer, FName InItemID, int32 InCount)
 {
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-	UPP_EventBus* EventBus = World->GetGameInstance()->GetSubsystem<UPP_EventBus>();
-	if (!EventBus)
-	{
-		return;
-	}
-
 	FPP_GatherEvent Event;
 	// Gatherer 传入的是 Pawn/Character，转换为 PlayerController（事件以 PC 标识玩家）
 	if (const APawn* GathererPawn = Cast<APawn>(Gatherer))
@@ -168,7 +157,7 @@ void APP_GatherableActor::BroadcastGatherCompleted(AActor* Gatherer, FName InIte
 	}
 	Event.ItemID = InItemID;
 	Event.Count = InCount;
-	EventBus->Broadcast(Event);
+	UPP_EventBus::BroadcastEvent(this, Event);
 }
 
 void APP_GatherableActor::CompleteGather(AActor* Gatherer)

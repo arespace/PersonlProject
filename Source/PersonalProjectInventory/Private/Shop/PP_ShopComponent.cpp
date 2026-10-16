@@ -191,15 +191,11 @@ void UPP_ShopComponent::Server_BuyItem_Implementation(APlayerController* Buyer, 
 	OnPurchaseCompletedDelegate.Broadcast(Buyer, ItemID, Count);
 
 	// 同步广播到 EventBus（UI 通过事件总线刷新商店列表，无需持有组件引用）
-	UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-	if (UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr)
-	{
-		FPP_PurchaseCompletedEvent Event;
-		Event.Buyer = Buyer;
-		Event.ItemID = ItemID;
-		Event.Count = Count;
-		EventBus->Broadcast(Event);
-	}
+	FPP_PurchaseCompletedEvent Event;
+	Event.Buyer = Buyer;
+	Event.ItemID = ItemID;
+	Event.Count = Count;
+	UPP_EventBus::BroadcastEvent(this, Event);
 
 	UE_LOG(LogPP, Log, TEXT("[Shop] BuyItem: %s 购买 %s x%d 花费 %d"),
 		*Buyer->GetName(), *ItemID.ToString(), Count, TotalPrice);
@@ -272,14 +268,9 @@ void UPP_ShopComponent::Server_SellItem_Implementation(APlayerController* Seller
 void UPP_ShopComponent::Client_OnShopResult_Implementation(const FText& Message)
 {
 	// 广播到 EventBus（UI 通过事件总线感知操作结果，无需持有组件引用）
-	UWorld* World = GetWorld();
-	UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-	if (UPP_EventBus* EventBus = GI ? GI->GetSubsystem<UPP_EventBus>() : nullptr)
-	{
-		FPP_ShopResultEvent Event;
-		Event.Message = Message;
-		EventBus->Broadcast(Event);
-	}
+	FPP_ShopResultEvent Event;
+	Event.Message = Message;
+	UPP_EventBus::BroadcastEvent(this, Event);
 }
 
 // ===== IPP_ShopQuery 接口实现 =====

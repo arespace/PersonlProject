@@ -1,7 +1,6 @@
 // Chen Tianbao uses GAS to create online battle games
 
 #include "Game/PP_LobbyGameMode.h"
-#include "Game/PP_GameInstance.h"
 #include "Framework/PP_SessionManager.h"
 #include "Player/PP_LobbyPlayerState.h"
 #include "Player/PP_PlayerController.h"
@@ -184,9 +183,7 @@ void APP_LobbyGameMode::StartGame()
 		return;
 	}
 
-	// 将每个玩家的角色选择存入（跨 SeamlessTravel 持久化）
-	// 同时存入 GameInstance（真正持久）和 SessionManager（备用）
-	UPP_GameInstance* GI = UPP_GameInstance::Get(GetWorld());
+	// 将每个玩家的角色选择存入 SessionManager（跨 SeamlessTravel 持久化）
 	UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld());
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
@@ -203,10 +200,6 @@ void APP_LobbyGameMode::StartGame()
 				// 直接存到 PlayerController 上（最可靠，PC 跨地图不销毁）
 			PC->SetPendingCharacterId(CharId);
 
-			if (GI)
-			{
-				GI->SetPlayerCharacterSelection(PlayerName, CharId);
-			}
 			if (SM)
 			{
 				SM->SetPlayerCharacterSelection(PlayerName, CharId);
