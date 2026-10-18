@@ -19,6 +19,10 @@ Content/CrashCourse/**/*.umap          filter=lfs diff=lfs merge=lfs -text
 Content/__ExternalActors__/**/*.uasset filter=lfs diff=lfs merge=lfs -text
 Content/__ExternalObjects__/**/*.uasset filter=lfs diff=lfs merge=lfs -text
 
+# ALS 插件资产（POC 分支引入）：同属二进制资产，路径限定不影响既有跟踪文件
+Plugins/ALS/Content/**/*.uasset        filter=lfs diff=lfs merge=lfs -text
+Plugins/ALS/Content/**/*.umap          filter=lfs diff=lfs merge=lfs -text
+
 # ===== 换行规范化：暂不启用 =====
 #
 # 若加 `*.h text eol=lf` 之类的规则，会让所有已入库源码在下一次 add 时被
