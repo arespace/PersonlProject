@@ -24,7 +24,11 @@ public class PersonalProject : ModuleRules
 			"OnlineSubsystem",
 			"PersonalProjectCore",
 			"PersonalProjectInventory",
-			"PersonalProjectQuest"
+			"PersonalProjectQuest",
+			// ALS 集成 POC：APP_ALSPlayerCharacter 继承 AAlsCharacterExample
+			"ALS",
+			"ALSExtras",
+			"ALSCamera"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule" });
