@@ -65,6 +65,18 @@ void APP_HUD::AddToViewportByLayer(UPP_UIUserWidget* Widget)
 	{
 		// ZOrder 唯一来源：Widget 自身的 OwningLayer（蓝图配置）
 		Widget->AddToViewport(static_cast<int32>(Widget->GetOwningLayer()));
+
+		// ===== ALS 鼠标 Hit Test 修复 =====
+		// 常驻 HUD（Gameplay/Notification 层，ZOrder < Modal=40）默认 HitTestInvisible：
+		//   - Slate Hit Test 不会被全屏 Canvas 根容器拦截，鼠标 XY 事件能流向 EnhancedInputSubsystem
+		//   - 子控件（血量条/准星等 Canvas 子项）不受影响，正常 Hit Test
+		// Modal/Overlay 层（商店、对话框、暂停菜单）保持 Visible：它们确实需要拦截鼠标
+		// Hidden 状态的 Widget（如 QuestListWidget）保持 Hidden
+		if (Widget->GetOwningLayer() < EPP_UILayer::Modal
+			&& Widget->GetVisibility() != ESlateVisibility::Hidden)
+		{
+			Widget->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
 	}
 }
 

@@ -21,7 +21,9 @@ public class PersonalProjectCore : ModuleRules
 			"GameplayAbilities",
 			"GameplayTasks",
 			// Public 头 PP_SessionManager.h 持有 IOnlineSessionPtr，OnlineSubsystem 必须公开
-			"OnlineSubsystem"
+			"OnlineSubsystem",
+			// PP_BaseCharacter 继承 AAlsCharacter（ALS 全面迁移），Core 必须公开依赖 ALS
+			"ALS"
 		});
 	}
 }

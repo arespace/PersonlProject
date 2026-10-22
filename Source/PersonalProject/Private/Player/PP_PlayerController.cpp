@@ -36,10 +36,13 @@ void APP_PlayerController::SetupInputComponent()
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem =ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem)) return;
 	
+	// PC 侧旧 IMC 恢复——ALS IMC（priority=0）处理视角/移动，PC 侧旧 IMC（priority=1）处理技能/UI。
+	// 两者按键不冲突（ALS 用鼠标XY/WASD，PC侧用鼠标1-5键/功能键），priority 设 1 保证 ALS 鼠标路由优先。
 	for (UInputMappingContext* Context : InputMappingContexts)
 	{
-		InputSubsystem->AddMappingContext(Context,0);
+		InputSubsystem->AddMappingContext(Context, 1);
 	}
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] PlayerController::SetupInputComponent PC侧IMC已恢复 priority=1, NumContexts=%d"), InputMappingContexts.Num());
 	
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
@@ -105,6 +108,8 @@ void APP_PlayerController::Move(const FInputActionValue& Value)
 	if (!IsAlive()) return;
 
 	const FVector2D MoveVector = Value.Get<FVector2D>();
+
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] PlayerController::Move  X=%.3f Y=%.3f"), MoveVector.X, MoveVector.Y);
 	
 	//Find which way is forward
 	const FRotator YawRotation(0.f, GetControlRotation().Yaw,0.f);
@@ -120,7 +125,9 @@ void APP_PlayerController::Look(const FInputActionValue& Value)
 {
 	if (!IsAlive()) return;
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
-	
+
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] PlayerController::Look  X=%.3f Y=%.3f"), LookAxisVector.X, LookAxisVector.Y);
+
 	AddYawInput(LookAxisVector.X);
 	AddPitchInput(LookAxisVector.Y);
 	

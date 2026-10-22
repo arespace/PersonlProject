@@ -18,7 +18,7 @@
 
 APP_EnemyCharacter::APP_EnemyCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// ALS 需要 Tick，不得禁用 PrimaryActorTick
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPP_AbilitySystemComponent>("AbilitySystemComponent");
 	AbilitySystemComponent->SetIsReplicated(true);

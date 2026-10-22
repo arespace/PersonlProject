@@ -8,6 +8,8 @@ UPP_ScoreboardWidget::UPP_ScoreboardWidget(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 {
 	OwningLayer = EPP_UILayer::Overlay;
+	// 计分板是纯展示型 Widget（按 Tab 显示时不该拦截视角移动），不消费输入模式
+	bConsumesAllInput = false;
 }
 
 void UPP_ScoreboardWidget::UpdateScoreboard(const TArray<FScoreboardEntry>& Entries)
