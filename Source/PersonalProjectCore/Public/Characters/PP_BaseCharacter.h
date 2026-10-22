@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+#include "AlsCharacter.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayEffect.h"
 
@@ -21,7 +21,7 @@ struct FOnAttributeChangeData;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FASCInitialized, UAbilitySystemComponent*, ASC, UAttributeSet*, AS);
 
 UCLASS(Abstract)
-class PERSONALPROJECTCORE_API APP_BaseCharacter : public ACharacter, public IAbilitySystemInterface 
+class PERSONALPROJECTCORE_API APP_BaseCharacter : public AAlsCharacter, public IAbilitySystemInterface 
 {
 	GENERATED_BODY()
 
@@ -48,6 +48,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Crash|AI")
 	float SearchRange{1000.f};
 protected:
+	virtual void PostInitializeComponents() override;
+
 	void GiveStartupAbilities();
 	void InitializeAttributes() const;
 	

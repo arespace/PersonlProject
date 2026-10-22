@@ -1,64 +1,148 @@
 // Chen Tianbao uses GAS to create online battle games
 
-
 #include "Characters/PP_PlayerCharacter.h"
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
+#include "AlsCameraComponent.h"
+#include "AlsCameraSettings.h"
+#include "Animation/AnimInstance.h"
 #include "Components/CapsuleComponent.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
 #include "Framework/PP_DataManager.h"
+#include "Framework/PP_Log.h"
 #include "Framework/PP_SessionManager.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "InputAction.h"
+#include "InputMappingContext.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"
-
+#include "UObject/ConstructorHelpers.h"
+#include "Utility/AlsVector.h"
 
 APP_PlayerCharacter::APP_PlayerCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
-	
-	GetCapsuleComponent()->InitCapsuleSize(42.f,96.f);
-	
-	bUseControllerRotationPitch = false;
-	bUseControllerRotationRoll = false;
-	bUseControllerRotationYaw = false;
-	
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.0f,540.0f,0.0f);
-	GetCharacterMovement()->JumpZVelocity = 500.f;
-	GetCharacterMovement()->AirControl = 0.35f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
-	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-	GetCharacterMovement()->BrakingDecelerationFalling = 1500.f;
-	
-	
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>("CameraBoom");
-	CameraBoom->SetupAttachment(GetRootComponent());
-	CameraBoom->TargetArmLength = 300.0f;
-	CameraBoom->bUsePawnControlRotation = true;
-	
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>("FollowCamera");
-	FollowCamera->SetupAttachment(CameraBoom,USpringArmComponent::SocketName);
-	FollowCamera->bUsePawnControlRotation = false;
+	// ALS 自管 Tick、移动、旋转，不覆盖 BaseCharacter/AAlsCharacter 的任何相关配置
+
+	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 
 	Tags.Add(PersonalTags::Player);
+
+	// ===== ALS 相机组件（移自 AAlsCharacterExample） =====
+	Camera = CreateDefaultSubobject<UAlsCameraComponent>(FName{TEXTVIEW("Camera")});
+	Camera->SetupAttachment(GetMesh());
+	Camera->SetRelativeRotation_Direct({0.0f, 90.0f, 0.0f});
+
+	// ===== ALS 输入资产兜底（改父类后蓝图配置会被清空） =====
+	static ConstructorHelpers::FObjectFinder<UInputMappingContext> DefaultInputMappingContext(
+		TEXT("/ALS/ALS/Data/Input/IMC_Als_Default.IMC_Als_Default"));
+	if (DefaultInputMappingContext.Succeeded())
+	{
+		InputMappingContext = DefaultInputMappingContext.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultLookMouseAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_LookMouse.IA_Als_LookMouse"));
+	if (DefaultLookMouseAction.Succeeded()) { LookMouseAction = DefaultLookMouseAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultLookAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look"));
+	if (DefaultLookAction.Succeeded()) { LookAction = DefaultLookAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultMoveAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Move.IA_Als_Move"));
+	if (DefaultMoveAction.Succeeded()) { MoveAction = DefaultMoveAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultSprintAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Sprint.IA_Als_Sprint"));
+	if (DefaultSprintAction.Succeeded()) { SprintAction = DefaultSprintAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultWalkAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Walk.IA_Als_Walk"));
+	if (DefaultWalkAction.Succeeded()) { WalkAction = DefaultWalkAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultCrouchAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Crouch.IA_Als_Crouch"));
+	if (DefaultCrouchAction.Succeeded()) { CrouchAction = DefaultCrouchAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultJumpAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Jump.IA_Als_Jump"));
+	if (DefaultJumpAction.Succeeded()) { JumpAction = DefaultJumpAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultAimAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Aim.IA_Als_Aim"));
+	if (DefaultAimAction.Succeeded()) { AimAction = DefaultAimAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultRagdollAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Ragdoll.IA_Als_Ragdoll"));
+	if (DefaultRagdollAction.Succeeded()) { RagdollAction = DefaultRagdollAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultRollAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_Roll.IA_Als_Roll"));
+	if (DefaultRollAction.Succeeded()) { RollAction = DefaultRollAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultRotationModeAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_RotationMode.IA_Als_RotationMode"));
+	if (DefaultRotationModeAction.Succeeded()) { RotationModeAction = DefaultRotationModeAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultViewModeAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_ViewMode.IA_Als_ViewMode"));
+	if (DefaultViewModeAction.Succeeded()) { ViewModeAction = DefaultViewModeAction.Object; }
+
+	static ConstructorHelpers::FObjectFinder<UInputAction> DefaultSwitchShoulderAction(
+		TEXT("/ALS/ALS/Data/Input/IA_Als_SwitchShoulder.IA_Als_SwitchShoulder"));
+	if (DefaultSwitchShoulderAction.Succeeded()) { SwitchShoulderAction = DefaultSwitchShoulderAction.Object; }
+
+	// ===== ALS Character 自身 Settings/MovementSettings 兜底已在 PP_BaseCharacter 构造函数里完成 =====
+
+	// ===== 相机组件资产兜底（改父类后 B_Als_Character 的相机配置会丢失） =====
+	if (Camera)
+	{
+		static ConstructorHelpers::FObjectFinder<UAlsCameraSettings> DefaultCameraSettings(
+			TEXT("/ALS/ALSCamera/Data/CS_Als_Default.CS_Als_Default"));
+		if (DefaultCameraSettings.Succeeded())
+		{
+			if (FObjectPropertyBase* SettingsProp = FindFProperty<FObjectPropertyBase>(
+				Camera->GetClass(), TEXT("Settings")))
+			{
+				SettingsProp->SetObjectPropertyValue_InContainer(Camera, DefaultCameraSettings.Object);
+			}
+		}
+
+		static ConstructorHelpers::FObjectFinder<USkeletalMesh> DefaultCameraMesh(
+			TEXT("/ALS/ALSCamera/SKM_Als_Camera.SKM_Als_Camera"));
+		if (DefaultCameraMesh.Succeeded())
+		{
+			Camera->SetSkeletalMesh(DefaultCameraMesh.Object);
+		}
+
+		static ConstructorHelpers::FClassFinder<UAnimInstance> DefaultCameraAnimClass(
+			TEXT("/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera_C"));
+		if (DefaultCameraAnimClass.Succeeded())
+		{
+			Camera->SetAnimInstanceClass(DefaultCameraAnimClass.Class);
+		}
+	}
 }
+
+// ===== GAS 接入（保留原样，ASC 已在 PlayerState） =====
 
 UAbilitySystemComponent* APP_PlayerCharacter::GetAbilitySystemComponent() const
 {
-	APP_PlayerState* PPplayerState =  Cast<APP_PlayerState>(GetPlayerState());
+	APP_PlayerState* PPplayerState = Cast<APP_PlayerState>(GetPlayerState());
 	if (!IsValid(PPplayerState)) return nullptr;
-	
+
 	return PPplayerState->GetAbilitySystemComponent();
 }
 
 UAttributeSet* APP_PlayerCharacter::GetAttributeSet() const
 {
-	APP_PlayerState* PPplayerState =  Cast<APP_PlayerState>(GetPlayerState());
+	APP_PlayerState* PPplayerState = Cast<APP_PlayerState>(GetPlayerState());
 	if (!IsValid(PPplayerState)) return nullptr;
-	
+
 	return PPplayerState->GetAttributeSet();
 }
 
@@ -71,8 +155,8 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 
 	if (!IsValid(GetAbilitySystemComponent()) || !HasAuthority()) return;
 
-	GetAbilitySystemComponent()->InitAbilityActorInfo(GetPlayerState(),this);
-	OnASCInitialized.Broadcast(GetAbilitySystemComponent(),GetAttributeSet());
+	GetAbilitySystemComponent()->InitAbilityActorInfo(GetPlayerState(), this);
+	OnASCInitialized.Broadcast(GetAbilitySystemComponent(), GetAttributeSet());
 	GiveStartupAbilities();
 	InitializeAttributes();
 
@@ -91,8 +175,8 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 
 	if (!IsValid(GetAbilitySystemComponent())) return;
 
-	GetAbilitySystemComponent()->InitAbilityActorInfo(GetPlayerState(),this);
-	OnASCInitialized.Broadcast(GetAbilitySystemComponent(),GetAttributeSet());
+	GetAbilitySystemComponent()->InitAbilityActorInfo(GetPlayerState(), this);
+	OnASCInitialized.Broadcast(GetAbilitySystemComponent(), GetAttributeSet());
 
 	UPP_AttributeSet* PP_AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
 	if (!IsValid(PP_AttributeSet)) return;
@@ -163,4 +247,280 @@ void APP_PlayerCharacter::ApplyCharacterAppearance(FName CharacterId)
 	}
 }
 
+// ===== ALS 相机（移植自 AAlsCharacterExample） =====
 
+namespace
+{
+	// 运行时兜底：蓝图父类变更后新 UPROPERTY 可能为空（未序列化），
+	// 构造函数的 ConstructorHelpers 无法覆盖蓝图空值，只能在首次使用时重新 Load
+	template<typename T>
+	void EnsureAsset(TObjectPtr<T>& Ptr, const TCHAR* Path)
+	{
+		if (IsValid(Ptr)) return;
+		Ptr = LoadObject<T>(nullptr, Path);
+	}
+}
+
+void APP_PlayerCharacter::NotifyControllerChanged()
+{
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged START  InputMappingContext valid=%s"),
+		IsValid(InputMappingContext) ? TEXT("YES(pre)") : TEXT("NO(pre)"));
+
+	// 运行时兜底：确保 ALS IMC 不为 null（蓝图空值会覆盖 C++ 构造函数）
+	EnsureAsset(InputMappingContext, TEXT("/ALS/ALS/Data/Input/IMC_Als_Default.IMC_Als_Default"));
+
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged AFTER EnsureAsset  IMC valid=%s  name=%s"),
+		IsValid(InputMappingContext) ? TEXT("YES") : TEXT("NO"),
+		IsValid(InputMappingContext) ? *InputMappingContext->GetName() : TEXT("null"));
+
+	const auto* PreviousPlayer{Cast<APlayerController>(PreviousController)};
+	if (IsValid(PreviousPlayer))
+	{
+		auto* InputSubsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PreviousPlayer->GetLocalPlayer())};
+		if (IsValid(InputSubsystem))
+		{
+			InputSubsystem->RemoveMappingContext(InputMappingContext);
+		}
+	}
+
+	auto* NewPlayer{Cast<APlayerController>(GetController())};
+	if (IsValid(NewPlayer))
+	{
+		NewPlayer->InputYawScale_DEPRECATED = 1.0f;
+		NewPlayer->InputPitchScale_DEPRECATED = 1.0f;
+		NewPlayer->InputRollScale_DEPRECATED = 1.0f;
+
+		auto* InputSubsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(NewPlayer->GetLocalPlayer())};
+		if (IsValid(InputSubsystem))
+		{
+			if (IsValid(InputMappingContext))
+			{
+				FModifyContextOptions Options;
+				Options.bNotifyUserSettings = true;
+				// 和 ALS 源码 AAlsCharacterExample::NotifyControllerChanged 保持一致（priority=0）
+				InputSubsystem->AddMappingContext(InputMappingContext, 0, Options);
+				UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged  ALS IMC ADDED priority=0 to Subsystem"));
+			}
+			else
+			{
+				UE_LOG(LogPP, Error, TEXT("[ALS_Input] NotifyControllerChanged  InputMappingContext is STILL NULL after EnsureAsset!"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogPP, Error, TEXT("[ALS_Input] NotifyControllerChanged  InputSubsystem is NULL!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged  no NewPlayer controller"));
+	}
+
+	Super::NotifyControllerChanged();
+}
+
+void APP_PlayerCharacter::CalcCamera(const float DeltaTime, FMinimalViewInfo& ViewInfo)
+{
+	if (Camera->IsActive())
+	{
+		UE_LOG(LogPP, Log, TEXT("[ALS_Camera] CalcCamera -> UAlsCameraComponent  IsActive=YES"));
+		Camera->GetViewInfo(ViewInfo);
+		return;
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[ALS_Camera] CalcCamera -> Super(ACharacter 默认路径)  Camera IsActive=NO"));
+	Super::CalcCamera(DeltaTime, ViewInfo);
+}
+
+// ===== ALS 输入绑定（移植自 AAlsCharacterExample） =====
+
+void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
+{
+	Super::SetupPlayerInputComponent(Input);
+
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent START"));
+
+	// 运行时兜底：确保所有 IA 不为 null
+	EnsureAsset(LookMouseAction, TEXT("/ALS/ALS/Data/Input/IA_Als_LookMouse.IA_Als_LookMouse"));
+	EnsureAsset(LookAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Look.IA_Als_Look"));
+	EnsureAsset(MoveAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Move.IA_Als_Move"));
+	EnsureAsset(SprintAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Sprint.IA_Als_Sprint"));
+	EnsureAsset(WalkAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Walk.IA_Als_Walk"));
+	EnsureAsset(CrouchAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Crouch.IA_Als_Crouch"));
+	EnsureAsset(JumpAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Jump.IA_Als_Jump"));
+	EnsureAsset(AimAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Aim.IA_Als_Aim"));
+	EnsureAsset(RagdollAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Ragdoll.IA_Als_Ragdoll"));
+	EnsureAsset(RollAction, TEXT("/ALS/ALS/Data/Input/IA_Als_Roll.IA_Als_Roll"));
+	EnsureAsset(RotationModeAction, TEXT("/ALS/ALS/Data/Input/IA_Als_RotationMode.IA_Als_RotationMode"));
+	EnsureAsset(ViewModeAction, TEXT("/ALS/ALS/Data/Input/IA_Als_ViewMode.IA_Als_ViewMode"));
+	EnsureAsset(SwitchShoulderAction, TEXT("/ALS/ALS/Data/Input/IA_Als_SwitchShoulder.IA_Als_SwitchShoulder"));
+
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent AFTER EnsureAsset  LookMouseAction valid=%s  MoveAction valid=%s  JumpAction valid=%s"),
+		IsValid(LookMouseAction) ? TEXT("YES") : TEXT("NO"),
+		IsValid(MoveAction) ? TEXT("YES") : TEXT("NO"),
+		IsValid(JumpAction) ? TEXT("YES") : TEXT("NO"));
+
+	auto* EnhancedInput{Cast<UEnhancedInputComponent>(Input)};
+	if (IsValid(EnhancedInput))
+	{
+		UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent EnhancedInputComponent valid, binding..."));
+
+		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);
+		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnLookMouse);
+		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLook);
+		EnhancedInput->BindAction(LookAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnLook);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnMove);
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnMove);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSprint);
+		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnSprint);
+		EnhancedInput->BindAction(WalkAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnWalk);
+		EnhancedInput->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnCrouch);
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnJump);
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnJump);
+		EnhancedInput->BindAction(AimAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnAim);
+		EnhancedInput->BindAction(AimAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnAim);
+		EnhancedInput->BindAction(RagdollAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRagdoll);
+		EnhancedInput->BindAction(RollAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRoll);
+		EnhancedInput->BindAction(RotationModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRotationMode);
+		EnhancedInput->BindAction(ViewModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnViewMode);
+		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
+
+		UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent  ALL ALS IA BOUND"));
+	}
+	else
+	{
+		UE_LOG(LogPP, Error, TEXT("[ALS_Input] SetupPlayerInputComponent  EnhancedInputComponent is NULL!"));
+	}
+}
+
+void APP_PlayerCharacter::Input_OnLookMouse(const FInputActionValue& ActionValue)
+{
+	const FVector2f Value{ActionValue.Get<FVector2D>()};
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] Input_OnLookMouse  X=%.3f Y=%.3f (Sens R=%.2f U=%.2f)"), 
+		Value.X, Value.Y, LookRightMouseSensitivity, LookUpMouseSensitivity);
+
+	AddControllerPitchInput(-Value.Y * LookUpMouseSensitivity);
+	AddControllerYawInput(Value.X * LookRightMouseSensitivity);
+}
+
+void APP_PlayerCharacter::Input_OnLook(const FInputActionValue& ActionValue)
+{
+	const FVector2f Value{ActionValue.Get<FVector2D>()};
+
+	AddControllerPitchInput(Value.Y * LookUpRate);
+	AddControllerYawInput(Value.X * LookRightRate);
+}
+
+void APP_PlayerCharacter::Input_OnMove(const FInputActionValue& ActionValue)
+{
+	const auto Value{UAlsVector::ClampMagnitude012D(ActionValue.Get<FVector2D>())};
+	UE_LOG(LogPP, Log, TEXT("[ALS_Input] Input_OnMove  X=%.3f Y=%.3f"), Value.X, Value.Y);
+
+	auto ViewRotation{GetViewState().Rotation};
+
+	if (IsValid(GetController()))
+	{
+		FVector ViewLocation;
+		GetController()->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	}
+
+	const auto ForwardDirection{UAlsVector::AngleToDirectionXY(UE_REAL_TO_FLOAT(ViewRotation.Yaw))};
+	const auto RightDirection{UAlsVector::PerpendicularCounterClockwiseXY(ForwardDirection)};
+
+	AddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);
+}
+
+void APP_PlayerCharacter::Input_OnSprint(const FInputActionValue& ActionValue)
+{
+	SetDesiredGait(ActionValue.Get<bool>() ? AlsGaitTags::Sprinting : AlsGaitTags::Running);
+}
+
+void APP_PlayerCharacter::Input_OnWalk()
+{
+	if (GetDesiredGait() == AlsGaitTags::Walking)
+	{
+		SetDesiredGait(AlsGaitTags::Running);
+	}
+	else if (GetDesiredGait() == AlsGaitTags::Running)
+	{
+		SetDesiredGait(AlsGaitTags::Walking);
+	}
+}
+
+void APP_PlayerCharacter::Input_OnCrouch()
+{
+	if (GetDesiredStance() == AlsStanceTags::Standing)
+	{
+		SetDesiredStance(AlsStanceTags::Crouching);
+	}
+	else if (GetDesiredStance() == AlsStanceTags::Crouching)
+	{
+		SetDesiredStance(AlsStanceTags::Standing);
+	}
+}
+
+void APP_PlayerCharacter::Input_OnJump(const FInputActionValue& ActionValue)
+{
+	if (ActionValue.Get<bool>())
+	{
+		if (StopRagdolling())
+		{
+			return;
+		}
+
+		if (StartMantling())
+		{
+			return;
+		}
+
+		if (GetStance() == AlsStanceTags::Crouching)
+		{
+			SetDesiredStance(AlsStanceTags::Standing);
+			return;
+		}
+
+		Jump();
+	}
+	else
+	{
+		StopJumping();
+	}
+}
+
+void APP_PlayerCharacter::Input_OnAim(const FInputActionValue& ActionValue)
+{
+	SetDesiredAiming(ActionValue.Get<bool>());
+}
+
+void APP_PlayerCharacter::Input_OnRagdoll()
+{
+	if (!StopRagdolling())
+	{
+		StartRagdolling();
+	}
+}
+
+void APP_PlayerCharacter::Input_OnRoll()
+{
+	static constexpr auto PlayRate{1.3f};
+
+	StartRollingGrounded(PlayRate);
+}
+
+void APP_PlayerCharacter::Input_OnRotationMode()
+{
+	SetDesiredRotationMode(GetDesiredRotationMode() == AlsRotationModeTags::VelocityDirection
+			                       ? AlsRotationModeTags::ViewDirection
+			                       : AlsRotationModeTags::VelocityDirection);
+}
+
+void APP_PlayerCharacter::Input_OnViewMode()
+{
+	SetViewMode(GetViewMode() == AlsViewModeTags::ThirdPerson ? AlsViewModeTags::FirstPerson : AlsViewModeTags::ThirdPerson);
+}
+
+// ReSharper disable once CppMemberFunctionMayBeConst
+void APP_PlayerCharacter::Input_OnSwitchShoulder()
+{
+	Camera->SetRightShoulder(!Camera->IsRightShoulder());
+}
