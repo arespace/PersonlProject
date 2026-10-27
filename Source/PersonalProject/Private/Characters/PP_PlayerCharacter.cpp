@@ -27,6 +27,10 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 {
 	// ALS 自管 Tick、移动、旋转，不覆盖 BaseCharacter/AAlsCharacter 的任何相关配置
 
+	// 玩家依赖 ALS 相机与视角刷新，必须保证 AnimationInstance 是 UAlsAnimationInstance，
+	// 否则 AAlsCharacter::Tick 会因守卫提前 return，相机不再刷新。
+	bForceAlsAnimationBlueprint = true;
+
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 
 	Tags.Add(PersonalTags::Player);
@@ -233,17 +237,35 @@ void APP_PlayerCharacter::ApplyCharacterAppearance(FName CharacterId)
 	if (!Row) return;
 
 	// 应用骨骼网格体
-	USkeletalMesh* LoadedMesh = Row->CharacterMesh.LoadSynchronous();
+	// 注意：启用 ALS 动画蓝图的角色（玩家）必须用曼尼昆骨架的 SKM_Als，
+	// 因为 AB_Als 是基于曼尼昆骨架制作的；若套用 Greystone 等其他骨架会导致
+	// 骨骼比例错位、躯干拉长、武器位置异常。因此这里对 bForceAlsAnimationBlueprint
+	// 的角色强制 SKM_Als，忽略 DT_Characters 里配的 CharacterMesh。
+	USkeletalMesh* LoadedMesh = nullptr;
+	if (bForceAlsAnimationBlueprint)
+	{
+		static USkeletalMesh* CachedAlsMesh = LoadObject<USkeletalMesh>(
+			nullptr, TEXT("/ALS/ALS/Character/SKM_Als.SKM_Als"));
+		LoadedMesh = CachedAlsMesh;
+	}
+	else
+	{
+		LoadedMesh = Row->CharacterMesh.LoadSynchronous();
+	}
 	if (LoadedMesh && GetMesh())
 	{
 		GetMesh()->SetSkeletalMesh(LoadedMesh);
 	}
 
 	// 应用动画蓝图
-	UClass* AnimClass = Row->AnimBlueprintClass.LoadSynchronous();
-	if (AnimClass && GetMesh())
+	// bForceAlsAnimationBlueprint 的角色由 PostInit 兜底强制 AB_Als，这里不覆盖。
+	if (!bForceAlsAnimationBlueprint)
 	{
-		GetMesh()->SetAnimInstanceClass(AnimClass);
+		UClass* AnimClass = Row->AnimBlueprintClass.LoadSynchronous();
+		if (AnimClass && GetMesh())
+		{
+			GetMesh()->SetAnimInstanceClass(AnimClass);
+		}
 	}
 }
 
@@ -263,15 +285,8 @@ namespace
 
 void APP_PlayerCharacter::NotifyControllerChanged()
 {
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged START  InputMappingContext valid=%s"),
-		IsValid(InputMappingContext) ? TEXT("YES(pre)") : TEXT("NO(pre)"));
-
 	// 运行时兜底：确保 ALS IMC 不为 null（蓝图空值会覆盖 C++ 构造函数）
 	EnsureAsset(InputMappingContext, TEXT("/ALS/ALS/Data/Input/IMC_Als_Default.IMC_Als_Default"));
-
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged AFTER EnsureAsset  IMC valid=%s  name=%s"),
-		IsValid(InputMappingContext) ? TEXT("YES") : TEXT("NO"),
-		IsValid(InputMappingContext) ? *InputMappingContext->GetName() : TEXT("null"));
 
 	const auto* PreviousPlayer{Cast<APlayerController>(PreviousController)};
 	if (IsValid(PreviousPlayer))
@@ -299,7 +314,6 @@ void APP_PlayerCharacter::NotifyControllerChanged()
 				Options.bNotifyUserSettings = true;
 				// 和 ALS 源码 AAlsCharacterExample::NotifyControllerChanged 保持一致（priority=0）
 				InputSubsystem->AddMappingContext(InputMappingContext, 0, Options);
-				UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged  ALS IMC ADDED priority=0 to Subsystem"));
 			}
 			else
 			{
@@ -311,10 +325,6 @@ void APP_PlayerCharacter::NotifyControllerChanged()
 			UE_LOG(LogPP, Error, TEXT("[ALS_Input] NotifyControllerChanged  InputSubsystem is NULL!"));
 		}
 	}
-	else
-	{
-		UE_LOG(LogPP, Log, TEXT("[ALS_Input] NotifyControllerChanged  no NewPlayer controller"));
-	}
 
 	Super::NotifyControllerChanged();
 }
@@ -323,12 +333,10 @@ void APP_PlayerCharacter::CalcCamera(const float DeltaTime, FMinimalViewInfo& Vi
 {
 	if (Camera->IsActive())
 	{
-		UE_LOG(LogPP, Log, TEXT("[ALS_Camera] CalcCamera -> UAlsCameraComponent  IsActive=YES"));
 		Camera->GetViewInfo(ViewInfo);
 		return;
 	}
 
-	UE_LOG(LogPP, Log, TEXT("[ALS_Camera] CalcCamera -> Super(ACharacter 默认路径)  Camera IsActive=NO"));
 	Super::CalcCamera(DeltaTime, ViewInfo);
 }
 
@@ -337,8 +345,6 @@ void APP_PlayerCharacter::CalcCamera(const float DeltaTime, FMinimalViewInfo& Vi
 void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 {
 	Super::SetupPlayerInputComponent(Input);
-
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent START"));
 
 	// 运行时兜底：确保所有 IA 不为 null
 	EnsureAsset(LookMouseAction, TEXT("/ALS/ALS/Data/Input/IA_Als_LookMouse.IA_Als_LookMouse"));
@@ -355,16 +361,9 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 	EnsureAsset(ViewModeAction, TEXT("/ALS/ALS/Data/Input/IA_Als_ViewMode.IA_Als_ViewMode"));
 	EnsureAsset(SwitchShoulderAction, TEXT("/ALS/ALS/Data/Input/IA_Als_SwitchShoulder.IA_Als_SwitchShoulder"));
 
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent AFTER EnsureAsset  LookMouseAction valid=%s  MoveAction valid=%s  JumpAction valid=%s"),
-		IsValid(LookMouseAction) ? TEXT("YES") : TEXT("NO"),
-		IsValid(MoveAction) ? TEXT("YES") : TEXT("NO"),
-		IsValid(JumpAction) ? TEXT("YES") : TEXT("NO"));
-
 	auto* EnhancedInput{Cast<UEnhancedInputComponent>(Input)};
 	if (IsValid(EnhancedInput))
 	{
-		UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent EnhancedInputComponent valid, binding..."));
-
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLookMouse);
 		EnhancedInput->BindAction(LookMouseAction, ETriggerEvent::Canceled, this, &ThisClass::Input_OnLookMouse);
 		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnLook);
@@ -384,8 +383,6 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(RotationModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRotationMode);
 		EnhancedInput->BindAction(ViewModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnViewMode);
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
-
-		UE_LOG(LogPP, Log, TEXT("[ALS_Input] SetupPlayerInputComponent  ALL ALS IA BOUND"));
 	}
 	else
 	{
@@ -396,10 +393,8 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 void APP_PlayerCharacter::Input_OnLookMouse(const FInputActionValue& ActionValue)
 {
 	const FVector2f Value{ActionValue.Get<FVector2D>()};
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] Input_OnLookMouse  X=%.3f Y=%.3f (Sens R=%.2f U=%.2f)"), 
-		Value.X, Value.Y, LookRightMouseSensitivity, LookUpMouseSensitivity);
 
-	AddControllerPitchInput(-Value.Y * LookUpMouseSensitivity);
+	AddControllerPitchInput(Value.Y * LookUpMouseSensitivity);
 	AddControllerYawInput(Value.X * LookRightMouseSensitivity);
 }
 
@@ -414,7 +409,6 @@ void APP_PlayerCharacter::Input_OnLook(const FInputActionValue& ActionValue)
 void APP_PlayerCharacter::Input_OnMove(const FInputActionValue& ActionValue)
 {
 	const auto Value{UAlsVector::ClampMagnitude012D(ActionValue.Get<FVector2D>())};
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] Input_OnMove  X=%.3f Y=%.3f"), Value.X, Value.Y);
 
 	auto ViewRotation{GetViewState().Rotation};
 
