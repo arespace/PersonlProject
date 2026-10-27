@@ -42,15 +42,21 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		InputSubsystem->AddMappingContext(Context, 1);
 	}
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] PlayerController::SetupInputComponent PC侧IMC已恢复 priority=1, NumContexts=%d"), InputMappingContexts.Num());
-	
+
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!IsValid(EnhancedInputComponent)) return;
 	
-	EnhancedInputComponent->BindAction(JumpAction,ETriggerEvent::Started,this,&ThisClass::Jump);
-	EnhancedInputComponent->BindAction(JumpAction,ETriggerEvent::Completed,this,&ThisClass::StopJumping);
-	EnhancedInputComponent->BindAction(MoveAction,ETriggerEvent::Triggered,this,&ThisClass::Move);
-	EnhancedInputComponent->BindAction(LookAction,ETriggerEvent::Triggered,this,&ThisClass::Look);
+	// 移动与跳跃统一交给 ALS：IMC_Als_Default → IA_Als_Move / IA_Als_Jump
+	// → APP_PlayerCharacter::Input_OnMove / Input_OnJump。
+	// IMC_Movement 中的 WASD→IA_Move、Space→IA_Jump 映射已删除，避免 PC 侧抢占导致
+	// ALS 的步态/蹲伏/翻滚等逻辑收不到输入。
+	// EnhancedInputComponent->BindAction(JumpAction,ETriggerEvent::Started,this,&ThisClass::Jump);
+	// EnhancedInputComponent->BindAction(JumpAction,ETriggerEvent::Completed,this,&ThisClass::StopJumping);
+	// EnhancedInputComponent->BindAction(MoveAction,ETriggerEvent::Triggered,this,&ThisClass::Move);
+	// 鼠标视角统一交给 ALS：IMC_Als_Default(priority=0) → IA_Als_LookMouse
+	// → APP_PlayerCharacter::Input_OnLookMouse。
+	// IMC_Movement 中的 Mouse2D → IA_Look 映射已删除，避免它与 ALS 争抢鼠标 XY。
+	// EnhancedInputComponent->BindAction(LookAction,ETriggerEvent::Triggered,this,&ThisClass::Look);
 	
 	EnhancedInputComponent->BindAction(PrimaryAction,ETriggerEvent::Started,this,&ThisClass::Primary);
 	EnhancedInputComponent->BindAction(SecondaryAction,ETriggerEvent::Started,this,&ThisClass::Secondary);
@@ -108,8 +114,6 @@ void APP_PlayerController::Move(const FInputActionValue& Value)
 	if (!IsAlive()) return;
 
 	const FVector2D MoveVector = Value.Get<FVector2D>();
-
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] PlayerController::Move  X=%.3f Y=%.3f"), MoveVector.X, MoveVector.Y);
 	
 	//Find which way is forward
 	const FRotator YawRotation(0.f, GetControlRotation().Yaw,0.f);
@@ -126,10 +130,10 @@ void APP_PlayerController::Look(const FInputActionValue& Value)
 	if (!IsAlive()) return;
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
 
-	UE_LOG(LogPP, Log, TEXT("[ALS_Input] PlayerController::Look  X=%.3f Y=%.3f"), LookAxisVector.X, LookAxisVector.Y);
-
 	AddYawInput(LookAxisVector.X);
-	AddPitchInput(LookAxisVector.Y);
+	// IMC_Movement 的 Mouse2D → IA_Look 映射自带 Swizzle + Negate 修饰器，
+	// 传进来的 Y 与实际鼠标上下方向相反，这里取负抵消，保证"鼠标上移=抬头"。
+	AddPitchInput(-LookAxisVector.Y);
 	
 }
 

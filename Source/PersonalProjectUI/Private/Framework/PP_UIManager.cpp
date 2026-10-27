@@ -191,10 +191,6 @@ void UPP_UIManager::RecalculateInputMode()
         UPP_UIUserWidget* Top = GetTopWidgetInLayer(Layer);
         if (Top && Top->DoesConsumeAllInput() && Top->IsVisible())
         {
-            UE_LOG(LogTemp, Log, TEXT("[UIManager] Recalculate → Top %s layer: %s  ConsumeAll=YES  Visible=YES → %s"),
-                *UEnum::GetDisplayValueAsText(Layer).ToString(),
-                *GetNameSafe(Top),
-                Layer == EPP_UILayer::Modal ? TEXT("UI") : TEXT("GameAndUI"));
             if (Layer == EPP_UILayer::Modal)
             {
                 SetInputModeUI();
@@ -208,7 +204,6 @@ void UPP_UIManager::RecalculateInputMode()
     }
 
     // 没有任何 Modal/Overlay Widget 消费输入 → 纯游戏
-    UE_LOG(LogTemp, Log, TEXT("[UIManager] Recalculate → no Modal/Overlay consumes → Gameplay"));
     SetInputModeGameplay();
 }
 
