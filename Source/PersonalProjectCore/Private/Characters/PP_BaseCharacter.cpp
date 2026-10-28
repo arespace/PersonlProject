@@ -82,7 +82,8 @@ void APP_BaseCharacter::PostInitializeComponents()
 			nullptr, TEXT("/ALS/ALS/Character/SKM_Als.SKM_Als"));
 		if (CachedAlsMesh && GetMesh()->GetSkeletalMeshAsset() != CachedAlsMesh)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[ALS_FIX] Overriding Mesh %s → SKM_Als"),
+			// 玩家强制 ALS 网格属于预期行为，不是配置错误，降级为 Verbose 避免每次 spawn 刷屏
+			UE_LOG(LogTemp, Verbose, TEXT("[ALS_FIX] Overriding Mesh %s → SKM_Als"),
 				*GetNameSafe(GetMesh()->GetSkeletalMeshAsset()));
 			GetMesh()->SetSkeletalMesh(CachedAlsMesh);
 		}
@@ -109,7 +110,8 @@ void APP_BaseCharacter::PostInitializeComponents()
 			nullptr, TEXT("/ALS/ALS/Character/AB_Als.AB_Als_C"));
 		if (CachedDefaultAnimClass && GetMesh()->GetAnimClass() != CachedDefaultAnimClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[ALS_FIX] Overriding AnimClass %s → AB_Als"),
+			// 同上：玩家强制 AB_Als 是预期行为，降级为 Verbose
+			UE_LOG(LogTemp, Verbose, TEXT("[ALS_FIX] Overriding AnimClass %s → AB_Als"),
 				*GetNameSafe(GetMesh()->GetAnimClass()));
 			GetMesh()->SetAnimInstanceClass(CachedDefaultAnimClass);
 		}
