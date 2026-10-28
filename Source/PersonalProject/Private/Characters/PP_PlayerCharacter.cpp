@@ -15,6 +15,7 @@
 #include "Framework/PP_Log.h"
 #include "Framework/PP_SessionManager.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTags/PPTags.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "Net/UnrealNetwork.h"
@@ -186,6 +187,20 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 	if (!IsValid(PP_AttributeSet)) return;
 
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+}
+
+void APP_PlayerCharacter::ServerRespawn()
+{
+	if (IsAlive()) return;
+
+	// 移除授予 Status.Dead 标签的 GE（原由死亡 GA 的 Respawn 流程移除，
+	// 但服务端 GA 的蒙太奇回调会被 Ragdoll 卡死，改由这里兜底）
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(PPTags::Status::Dead));
+	}
+
+	Super::ServerRespawn();
 }
 
 void APP_PlayerCharacter::RestoreCharacterSelection()

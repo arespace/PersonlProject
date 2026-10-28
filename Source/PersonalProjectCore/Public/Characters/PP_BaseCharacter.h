@@ -58,12 +58,32 @@ protected:
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	// ALS 的模拟代理会忽略服务端复制的旋转（ALS 自行控制角色朝向）。
+	// 非 ALS 角色（敌人）没有这套机制，必须恢复默认行为，否则客户端上敌人永远不转向。
+	virtual void PostNetReceiveLocationAndRotation() override;
 
 	void GiveStartupAbilities();
 	void InitializeAttributes() const;
 	
 	void OnHealthChanged(const FOnAttributeChangeData& AttributeChangeData);
 	virtual void HandleDeath();
+
+	// 复活由服务端在 HandleDeath 里启动计时器触发，不再依赖死亡 GA 的蒙太奇回调——
+	// 玩家死亡会 StartRagdolling，网格进入物理模拟后蒙太奇任务不会播放，
+	// 其回调（OnCompleted/Interrupted/Cancelled）都不广播，服务端 GA 实例会卡死。
+	// ShouldRespawn：玩家恒 true；敌人为 false（敌人不 Ragdoll，蒙太奇链路正常，复活在死亡 GA 里处理）。
+	virtual bool ShouldRespawn() const { return false; }
+	virtual void ServerRespawn();
+
+	// 复活后通知 owning 客户端恢复输入（DisableInput/EnableInput 只对本机 PlayerController 有效，
+	// 服务端实例上的 EnableInput 不影响客户端；不能依赖死亡 GA 的客户端回调，蒙太奇可能不播放）
+	UFUNCTION(Client, Reliable)
+	void ClientOnRespawn();
+
+	UPROPERTY(EditDefaultsOnly, Category = "Crash|Death")
+	float RespawnDelay{3.f};
+
+	FTimerHandle RespawnTimerHandle;
 
 	// 受击反应：临时切换到 ALS Injured 覆盖层，短暂后恢复 Default。
 	// 死亡（血量归零）走 HandleDeath→StartRagdolling，不触发受击反应。

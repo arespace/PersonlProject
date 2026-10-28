@@ -42,4 +42,9 @@ private:
 
 	UFUNCTION()
 	void OnDeathMontageFinished();
+
+	// Ragdoll 接管死亡表现后，蒙太奇回调（尤其服务端）不可靠。
+	// 玩家复活已移到 APP_BaseCharacter::ServerRespawn（HandleDeath 启动的服务端计时器）；
+	// 此守卫防止 GA 侧回调与角色侧复活重复执行。
+	bool bRespawnHandled = false;
 };

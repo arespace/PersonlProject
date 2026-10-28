@@ -23,7 +23,9 @@ public class PersonalProjectCore : ModuleRules
 			// Public 头 PP_SessionManager.h 持有 IOnlineSessionPtr，OnlineSubsystem 必须公开
 			"OnlineSubsystem",
 			// PP_BaseCharacter 继承 AAlsCharacter（ALS 全面迁移），Core 必须公开依赖 ALS
-			"ALS"
+			"ALS",
+			// PP_BaseCharacter::Tick 读取 AAIController::GetFocusActor（敌人静止时面向目标）
+			"AIModule"
 		});
 	}
 }

@@ -25,6 +25,10 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
 
+	// 玩家死亡后由服务端计时器复活（基类 HandleDeath 启动）
+	virtual bool ShouldRespawn() const override { return true; }
+	virtual void ServerRespawn() override;
+
 public:
 	/** 根据角色ID应用外观（模型+动画） */
 	void ApplyCharacterAppearance(FName CharacterId);
