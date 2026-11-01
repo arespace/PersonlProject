@@ -4,6 +4,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
+#include "AlsAnimationInstance.h"
 #include "AlsCameraComponent.h"
 #include "AlsCameraSettings.h"
 #include "Animation/AnimInstance.h"
@@ -251,36 +252,54 @@ void APP_PlayerCharacter::ApplyCharacterAppearance(FName CharacterId)
 	const FCharacterDataRow* Row = DataManager->GetCharacterData(CharacterId);
 	if (!Row) return;
 
-	// 应用骨骼网格体
-	// 注意：启用 ALS 动画蓝图的角色（玩家）必须用曼尼昆骨架的 SKM_Als，
-	// 因为 AB_Als 是基于曼尼昆骨架制作的；若套用 Greystone 等其他骨架会导致
-	// 骨骼比例错位、躯干拉长、武器位置异常。因此这里对 bForceAlsAnimationBlueprint
-	// 的角色强制 SKM_Als，忽略 DT_Characters 里配的 CharacterMesh。
-	USkeletalMesh* LoadedMesh = nullptr;
-	if (bForceAlsAnimationBlueprint)
+	// 外观完全由 DT_Characters 决定：每个角色配自己的网格 + 该角色专属的 ALS 重定向动画蓝图。
+	// 数据表留空时回落到 ALS 默认资产（曼尼昆 + AB_Als），保证未配置的角色仍可运行。
+	USkeletalMesh* LoadedMesh = Row->CharacterMesh.LoadSynchronous();
+	UClass* LoadedAnimClass = Row->AnimBlueprintClass.LoadSynchronous();
+
+	if (!LoadedMesh)
 	{
 		static USkeletalMesh* CachedAlsMesh = LoadObject<USkeletalMesh>(
 			nullptr, TEXT("/ALS/ALS/Character/SKM_Als.SKM_Als"));
 		LoadedMesh = CachedAlsMesh;
 	}
-	else
+
+	if (!LoadedAnimClass)
 	{
-		LoadedMesh = Row->CharacterMesh.LoadSynchronous();
+		static UClass* CachedAlsAnimClass = LoadClass<UAnimInstance>(
+			nullptr, TEXT("/ALS/ALS/Character/AB_Als.AB_Als_C"));
+		LoadedAnimClass = CachedAlsAnimClass;
 	}
-	if (LoadedMesh && GetMesh())
+
+	if (!GetMesh() || (!LoadedMesh && !LoadedAnimClass)) return;
+
+	if (LoadedMesh)
 	{
+		// 先断开上一套动画实例：PostInitializeComponents 会为 bForceAlsAnimationBlueprint 的角色
+		// 强制套上曼尼昆的 AB_Als_C，这套实例连同它的一串联动子实例（AB_Als_Layering /
+		// AB_Als_Standing / AB_Als_Grounded…）会一直残留在同一个网格组件上。
+		// 它们虽然不是 AnimScriptInstance，但在特定视角/曲线权重下会短暂参与混合，
+		// 把曼尼昆的骨骼长度（spine_01=10.84、neck_01=16.56）掺回躯干，表现为角色一瞬被拉长。
+		GetMesh()->SetAnimInstanceClass(nullptr);
+
 		GetMesh()->SetSkeletalMesh(LoadedMesh);
 	}
 
-	// 应用动画蓝图
-	// bForceAlsAnimationBlueprint 的角色由 PostInit 兜底强制 AB_Als，这里不覆盖。
-	if (!bForceAlsAnimationBlueprint)
+	if (LoadedAnimClass)
 	{
-		UClass* AnimClass = Row->AnimBlueprintClass.LoadSynchronous();
-		if (AnimClass && GetMesh())
-		{
-			GetMesh()->SetAnimInstanceClass(AnimClass);
-		}
+		GetMesh()->SetAnimInstanceClass(LoadedAnimClass);
+	}
+
+	// 换网格/动画类后动画实例会被重建，AAlsCharacter 缓存的 AnimationInstance 会失效
+	// （失效会导致 ALS Tick 的守卫提前 return，相机与移动刷新全部停摆），这里重新缓存。
+	GetMesh()->InitAnim(true);
+	AnimationInstance = Cast<UAlsAnimationInstance>(GetMesh()->GetAnimInstance());
+
+	if (!AnimationInstance.IsValid())
+	{
+		UE_LOG(LogPP, Error,
+			TEXT("[Appearance] %s 的动画蓝图 %s 不是 UAlsAnimationInstance 子类，ALS 移动/相机会失效"),
+			*GetNameSafe(this), *GetNameSafe(LoadedAnimClass));
 	}
 }
 

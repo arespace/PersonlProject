@@ -33,5 +33,16 @@ public class PersonalProject : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AIModule" });
 
+		// 编辑器专用工具（PP_AlsRetargetTool.cpp）：复制动画蓝图、切换骨架、重映射动画引用
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"UnrealEd",
+				"AssetTools",
+				"AssetRegistry"
+			});
+		}
+
 	}
 }
