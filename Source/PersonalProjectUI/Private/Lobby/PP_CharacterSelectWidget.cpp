@@ -78,6 +78,16 @@ void UPP_CharacterSelectWidget::SetSelectedCharacter(FName CharacterId)
 	}
 
 	BP_OnCharacterSelected(CharacterId);
+
+	// 翻到即选中：同步提交到服务器，避免只更新了本地预览而 PlayerState 里仍为空，
+	// 导致进入战斗地图后拿不到 CharId、外观回落到默认资产。
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (IPP_LobbyActions* Actions = Cast<IPP_LobbyActions>(PC))
+		{
+			IPP_LobbyActions::Execute_RequestSelectCharacter(PC, CurrentlySelected);
+		}
+	}
 }
 
 void UPP_CharacterSelectWidget::OnBackClicked()
