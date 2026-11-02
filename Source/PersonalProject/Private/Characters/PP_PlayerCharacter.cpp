@@ -16,6 +16,7 @@
 #include "Framework/PP_Log.h"
 #include "Framework/PP_SessionManager.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayTags/PPTags.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
@@ -23,6 +24,7 @@
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Utility/AlsGameplayTags.h"
 #include "Utility/AlsVector.h"
 
 APP_PlayerCharacter::APP_PlayerCharacter()
@@ -170,6 +172,9 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 	if (!IsValid(PP_AttributeSet)) return;
 
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
+
+	ApplyStaminaPassiveEffects();
 }
 
 void APP_PlayerCharacter::OnRep_PlayerState()
@@ -188,6 +193,130 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 	if (!IsValid(PP_AttributeSet)) return;
 
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
+}
+
+void APP_PlayerCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	UpdateStaminaStateTags();
+	UpdateRollStaminaCost();
+}
+
+void APP_PlayerCharacter::UpdateStaminaStateTags()
+{
+	// 耐力消耗由服务端权威 GE 执行，状态 tag 只在服务端维护
+	if (!HasAuthority() || !IsValid(GetAbilitySystemComponent()))
+	{
+		return;
+	}
+
+	// "真的在冲刺"才算：ALS 的 Gait 在速度为 0 时仍可能保持 Sprinting，
+	// 必须叠加"在地面 + 无翻滚/倒地等动作"判断，避免站着不动或翻滚时掉耐力。
+	const UCharacterMovementComponent* Movement = GetCharacterMovement();
+	const bool bNowSprinting =
+		IsAlive()
+		&& GetGait() == AlsGaitTags::Sprinting
+		&& !GetLocomotionAction().IsValid()
+		&& Movement && Movement->IsMovingOnGround();
+
+	const bool bHasSprintingTag = GetAbilitySystemComponent()->HasMatchingGameplayTag(PPTags::Status::Sprinting);
+	if (bNowSprinting && !bHasSprintingTag)
+	{
+		GetAbilitySystemComponent()->AddLooseGameplayTag(PPTags::Status::Sprinting);
+	}
+	else if (!bNowSprinting && bHasSprintingTag)
+	{
+		GetAbilitySystemComponent()->RemoveLooseGameplayTag(PPTags::Status::Sprinting);
+	}
+}
+
+void APP_PlayerCharacter::ApplyStaminaPassiveEffects()
+{
+	if (!IsValid(GetAbilitySystemComponent()))
+	{
+		return;
+	}
+
+	// 两个常驻 Infinite 周期 GE：是否真正生效由 OngoingTagRequirements 决定
+	const TSubclassOf<UGameplayEffect> PassiveEffects[] = {StaminaRegenEffect, StaminaSprintDrainEffect};
+	for (const TSubclassOf<UGameplayEffect>& EffectClass : PassiveEffects)
+	{
+		if (!EffectClass)
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponent()->MakeEffectContext();
+		ContextHandle.AddSourceObject(this);
+		FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponent()->MakeOutgoingSpec(EffectClass, 1.f, ContextHandle);
+		if (SpecHandle.IsValid())
+		{
+			GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		}
+	}
+}
+
+void APP_PlayerCharacter::UpdateRollStaminaCost()
+{
+	// 翻滚是 ALS 动作状态，只在服务端扣体力
+	if (!HasAuthority() || !IsValid(GetAbilitySystemComponent()))
+	{
+		bWasRolling = false;
+		return;
+	}
+
+	const bool bRolling = GetLocomotionAction() == AlsLocomotionActionTags::Rolling;
+	if (bRolling && !bWasRolling)
+	{
+		ApplyStaminaCost(RollStaminaCost);
+	}
+
+	bWasRolling = bRolling;
+}
+
+void APP_PlayerCharacter::ApplyStaminaCost(float Amount)
+{
+	if (Amount <= 0.f || !StaminaCostEffect || !IsValid(GetAbilitySystemComponent()))
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponent()->MakeEffectContext();
+	ContextHandle.AddSourceObject(this);
+	FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponent()->MakeOutgoingSpec(StaminaCostEffect, 1.f, ContextHandle);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// SetByCaller 传负值，Instant GE 用加法扣减
+	SpecHandle.Data->SetSetByCallerMagnitude(PPTags::SetByCaller::StaminaCost, -Amount);
+	GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+void APP_PlayerCharacter::OnStaminaChanged(const FOnAttributeChangeData& AttributeChangeData)
+{
+	// 只处理"消耗"（耐力下降）；回复不触发延迟
+	if (AttributeChangeData.NewValue >= AttributeChangeData.OldValue || !IsAlive())
+	{
+		return;
+	}
+
+	if (!IsValid(GetAbilitySystemComponent()) || !StaminaRegenDelayEffect)
+	{
+		return;
+	}
+
+	// 每次消耗都刷新延迟窗口（GE 使用 Aggregate + Refresh 叠加策略，不会叠加堆栈）
+	FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponent()->MakeEffectContext();
+	ContextHandle.AddSourceObject(this);
+	FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponent()->MakeOutgoingSpec(StaminaRegenDelayEffect, 1.f, ContextHandle);
+	if (SpecHandle.IsValid())
+	{
+		GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	}
 }
 
 void APP_PlayerCharacter::ServerRespawn()
@@ -234,6 +363,20 @@ void APP_PlayerCharacter::RestoreCharacterSelection()
 			if (!CharId.IsNone())
 			{
 				PS->SetSelectedCharacterId(CharId);
+			}
+		}
+	}
+
+	// 优先级4: DataManager 角色表第一行（项目默认角色，改数据表行顺序即可切换默认）
+	if (CharId.IsNone())
+	{
+		if (UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld()))
+		{
+			CharId = DataManager->GetDefaultCharacterId();
+			if (!CharId.IsNone())
+			{
+				PS->SetSelectedCharacterId(CharId);
+				UE_LOG(LogPP, Log, TEXT("[Appearance] 未指定角色选择，回落到项目默认角色: %s"), *CharId.ToString());
 			}
 		}
 	}
@@ -531,6 +674,15 @@ void APP_PlayerCharacter::Input_OnRagdoll()
 void APP_PlayerCharacter::Input_OnRoll()
 {
 	static constexpr auto PlayRate{1.3f};
+
+	// 体力不足以支付翻滚消耗时不翻滚（客户端用复制过来的体力值判断，服务端 Tick 里扣费）
+	if (const UPP_AttributeSet* AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet()))
+	{
+		if (AttributeSet->GetStamina() < RollStaminaCost)
+		{
+			return;
+		}
+	}
 
 	StartRollingGrounded(PlayRate);
 }

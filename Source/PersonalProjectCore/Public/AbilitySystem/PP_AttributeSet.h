@@ -55,6 +55,17 @@ public:
 	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Defense)
 	FGameplayAttributeData Defense;
 
+	/** 耐力：奔跑、翻滚等身体动作消耗的资源（普攻不耗，黑神话式双资源） */
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_Stamina)
+	FGameplayAttributeData Stamina;
+
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_MaxStamina)
+	FGameplayAttributeData MaxStamina;
+
+	/** 每秒耐力回复量：做成属性，便于后续 Buff/装备用 GameplayEffect 修改 */
+	UPROPERTY(BlueprintReadOnly,ReplicatedUsing = OnRep_StaminaRegenRate)
+	FGameplayAttributeData StaminaRegenRate;
+
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
 	
@@ -73,10 +84,22 @@ public:
 	UFUNCTION()
 	void OnRep_Defense(const FGameplayAttributeData& OldValue);
 
+	UFUNCTION()
+	void OnRep_Stamina(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxStamina(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_StaminaRegenRate(const FGameplayAttributeData& OldValue);
+
 	ATTRIBUTE_ACCESSORS(ThisClass,Health);
 	ATTRIBUTE_ACCESSORS(ThisClass,MaxHealth);
 	ATTRIBUTE_ACCESSORS(ThisClass,Mana);
 	ATTRIBUTE_ACCESSORS(ThisClass,MaxMana);
 	ATTRIBUTE_ACCESSORS(ThisClass,Attack);
 	ATTRIBUTE_ACCESSORS(ThisClass,Defense);
+	ATTRIBUTE_ACCESSORS(ThisClass,Stamina);
+	ATTRIBUTE_ACCESSORS(ThisClass,MaxStamina);
+	ATTRIBUTE_ACCESSORS(ThisClass,StaminaRegenRate);
 };

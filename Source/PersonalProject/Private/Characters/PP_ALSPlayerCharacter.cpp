@@ -16,6 +16,9 @@
 #include "Settings/AlsMovementSettings.h"
 #include "AlsCameraComponent.h"
 #include "AlsCameraSettings.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameplayTags/PPTags.h"
+#include "Utility/AlsGameplayTags.h"
 
 APP_ALSPlayerCharacter::APP_ALSPlayerCharacter()
 {

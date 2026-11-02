@@ -9,6 +9,7 @@
 #include "AbilitySystemComponent.h"
 #include "Quest/PP_QuestEventBridge.h"
 #include "Framework/PP_SessionManager.h"
+#include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
 
 APP_CrashGameMode::APP_CrashGameMode()
@@ -31,21 +32,30 @@ void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
 	if (!PS) return;
 
 	// 从 SessionManager 恢复大厅选择的角色ID
+	FName CharId = NAME_None;
 	if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
 	{
-		FName CharId = SM->GetPlayerCharacterSelection(PS->GetPlayerName());
+		CharId = SM->GetPlayerCharacterSelection(PS->GetPlayerName());
 		if (CharId.IsNone())
 		{
-			// 后备：不依赖 PlayerName 的最后选择
 			CharId = SM->GetLastCharacterSelection();
 		}
+	}
 
-		if (!CharId.IsNone())
+	// 兜底：DataManager 角色表第一行（项目默认角色）
+	if (CharId.IsNone())
+	{
+		if (UPP_DataManager* DM = UPP_DataManager::Get(GetWorld()))
 		{
-			PS->SetSelectedCharacterId(CharId);
-			UE_LOG(LogPP, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection for %s: %s"),
-				*PS->GetPlayerName(), *CharId.ToString());
+			CharId = DM->GetDefaultCharacterId();
 		}
+	}
+
+	if (!CharId.IsNone())
+	{
+		PS->SetSelectedCharacterId(CharId);
+		UE_LOG(LogPP, Log, TEXT("[CrashGameMode] PostLogin - Restored character selection for %s: %s"),
+			*PS->GetPlayerName(), *CharId.ToString());
 	}
 
 	GrantAbilitiesForCharacter(PS);
@@ -103,8 +113,22 @@ void APP_CrashGameMode::RestartPlayer(AController* NewPlayer)
 		}
 	}
 
+	// 兜底：DataManager 角色表第一行（项目默认角色）
+	if (CharId.IsNone())
+	{
+		if (UPP_DataManager* DM = UPP_DataManager::Get(GetWorld()))
+		{
+			CharId = DM->GetDefaultCharacterId();
+		}
+	}
+
 	if (!CharId.IsNone())
 	{
+		// 同步写入 PlayerState，确保 GrantAbilitiesForCharacter 等后续链路也能拿到
+		if (APP_PlayerState* PS = PC->GetPlayerState<APP_PlayerState>())
+		{
+			PS->SetSelectedCharacterId(CharId);
+		}
 		UE_LOG(LogPP, Log, TEXT("[CrashGameMode] RestartPlayer - Applying appearance: %s"), *CharId.ToString());
 		PlayerChar->ApplyCharacterAppearance(CharId);
 	}

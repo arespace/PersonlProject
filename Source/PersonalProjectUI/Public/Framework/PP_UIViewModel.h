@@ -55,6 +55,12 @@ public:
 	/** 获取最大法力值 */
 	float GetMaxMana() const;
 
+	/** 获取当前耐力值 */
+	float GetStamina() const;
+
+	/** 获取最大耐力值 */
+	float GetMaxStamina() const;
+
 	/** 玩家是否存活 */
 	bool IsAlive() const;
 
@@ -67,6 +73,10 @@ public:
 	/** 法力值变更时广播 */
 	UPROPERTY(BlueprintAssignable)
 	FOnUIAttributeChanged OnManaChanged;
+
+	/** 耐力值变更时广播 */
+	UPROPERTY(BlueprintAssignable)
+	FOnUIAttributeChanged OnStaminaChanged;
 
 	/** 接收伤害时广播 - 伤害数字Widget使用 */
 	UPROPERTY(BlueprintAssignable)
@@ -105,9 +115,17 @@ private:
 	/** MaxMana属性变更回调 */
 	void OnMaxManaAttributeChanged(const FOnAttributeChangeData& Data);
 
+	/** Stamina属性变更回调 */
+	void OnStaminaAttributeChanged(const FOnAttributeChangeData& Data);
+
+	/** MaxStamina属性变更回调 */
+	void OnMaxStaminaAttributeChanged(const FOnAttributeChangeData& Data);
+
 	/** 缓存当前属性值，避免频繁访问ASC */
 	float CachedHealth = 0.f;
 	float CachedMaxHealth = 0.f;
 	float CachedMana = 0.f;
 	float CachedMaxMana = 0.f;
+	float CachedStamina = 0.f;
+	float CachedMaxStamina = 0.f;
 };

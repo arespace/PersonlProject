@@ -1,6 +1,7 @@
 // Copyright Personal Project. All Rights Reserved.
 
 #include "Characters/PP_CharacterPreviewActor.h"
+#include "AlsAnimationInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SceneComponent.h"
@@ -77,7 +78,16 @@ void APP_CharacterPreviewActor::SetPreviewCharacter(const FCharacterDataRow& Cha
 
 	if (UClass* AnimClass = CharacterData.AnimBlueprintClass.LoadSynchronous())
 	{
-		PreviewMesh->SetAnimInstanceClass(AnimClass);
+		// ALS 动画蓝图要求 Owner 是 AAlsCharacter，预览 Actor 不满足，
+		// 直接套用会触发 ALS 的 ensure(Character) 断言，因此预览跳过它
+		if (!AnimClass->IsChildOf(UAlsAnimationInstance::StaticClass()))
+		{
+			PreviewMesh->SetAnimInstanceClass(AnimClass);
+		}
+		else
+		{
+			PreviewMesh->SetAnimInstanceClass(nullptr);
+		}
 	}
 }
 

@@ -6,6 +6,7 @@ namespace PPTags
 	namespace SetByCaller
 	{
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Projectile,"PPTags.SetByCaller.Projectile","Tag for Set by Caller Magnitude for Projectiles")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(StaminaCost,"PPTags.SetByCaller.StaminaCost","Tag for Set by Caller Magnitude for Stamina Cost")
 
 		namespace Player
 		{
@@ -63,5 +64,7 @@ namespace PPTags
 	namespace Status
 	{
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Dead,"PPTags.Status.Dead","Tag granted by GE_Death while dead")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sprinting,"PPTags.Status.Sprinting","Loose tag while the player is actually sprinting")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(StaminaRegenBlocked,"PPTags.Status.StaminaRegenBlocked","Tag granted by GE_StaminaRegenDelay to suppress stamina regeneration")
 	}
 }

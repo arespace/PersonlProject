@@ -53,6 +53,12 @@ public:
 	/** 获取角色表全部行名（角色选择界面动态填充角色列表用） */
 	TArray<FName> GetCharacterRowNames();
 
+	/** 角色表第一行的行名（作为项目默认角色；改数据表行顺序即可换默认，无需改代码） */
+	FName GetDefaultCharacterId();
+
+	/** 角色表第一行的完整配置（同上） */
+	const FCharacterDataRow* GetDefaultCharacterRow();
+
 	/** 角色表是否可用（已配置且加载成功），用于调用方在产生副作用前校验 */
 	bool HasCharacterTable()
 	{
