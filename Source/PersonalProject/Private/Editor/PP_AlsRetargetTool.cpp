@@ -67,9 +67,10 @@ static const TArray<FString> SourceBlendSpaces =
 	TEXT("/ALS/ALS/Animations/View/BS_Als_Look")
 };
 
-// 需要处理的分层动画蓝图（源资产是曼尼昆骨架）
+// 需要处理的动画蓝图（源资产是曼尼昆骨架）——含最顶层壳蓝图 AB_Als + 21 个分层蓝图
 static const TArray<FString> SourceAnimBlueprints =
 {
+	TEXT("/ALS/ALS/Character/AB_Als_Monolithic"),
 	TEXT("/ALS/ALS/Character/AnimationInstances/AB_Als_Locomotion"),
 	TEXT("/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded"),
 	TEXT("/ALS/ALS/Character/AnimationInstances/AB_Als_Layering"),
@@ -93,11 +94,20 @@ static const TArray<FString> SourceAnimBlueprints =
 	TEXT("/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied")
 };
 
-// 记录重定向目录里找不到对应资产的原始名字，跑完后统一打印
-static TSet<FString> MissingAnimations;
+// 把「目标骨架 / 输出目录 / 资产后缀」打包成上下文，让同一套函数服务多个角色。
+// 调用方（Kwang / Shinbi / 未来更多角色）各自构造 ctx 后直接跑，不用改函数体。
+struct FRetargetContext
+{
+	FString DestFolder;         // /Game/PersonalProject/Animations/AlsKwang
+	FString RetargetSuffix;     // Kwang
+	FString TargetSkeletonPath; // /Game/ParagonKwang/.../Kwang_Skeleton.Kwang_Skeleton
+};
+
+// 记录重定向目录里找不到对应资产的原始名字，跑完后统一打印（栈变量，随调用周期重置）
+using FMissingAnimSet = TSet<FString>;
 
 // 把一条 ALS 原始动画资产换成重定向后的同名资产；不是 ALS 资产或已经换过则返回 nullptr
-static UAnimationAsset* FindRetargetedAnimation(UObject* Original)
+static UAnimationAsset* FindRetargetedAnimation(UObject* Original, const FRetargetContext& Ctx, FMissingAnimSet* OutMissing)
 {
 	if (!Original || !Original->IsA(UAnimationAsset::StaticClass()))
 	{
@@ -110,19 +120,19 @@ static UAnimationAsset* FindRetargetedAnimation(UObject* Original)
 		return nullptr;
 	}
 
-	const FString NewName = Original->GetName() + RetargetSuffix;
-	const FString NewObjectPath = FString::Printf(TEXT("%s/%s.%s"), *DestFolder, *NewName, *NewName);
+	const FString NewName = Original->GetName() + Ctx.RetargetSuffix;
+	const FString NewObjectPath = FString::Printf(TEXT("%s/%s.%s"), *Ctx.DestFolder, *NewName, *NewName);
 
 	UAnimationAsset* NewAsset = LoadObject<UAnimationAsset>(nullptr, *NewObjectPath);
-	if (!NewAsset)
+	if (!NewAsset && OutMissing)
 	{
-		MissingAnimations.Add(Original->GetName());
+		OutMissing->Add(Original->GetName());
 	}
 	return NewAsset;
 }
 
 // 递归遍历结构体（动画节点的 Node、混合空间的采样数据都是结构体），替换里面的动画资产引用
-static int32 ReplaceAssetsInStruct(const UStruct* Struct, void* StructAddress)
+static int32 ReplaceAssetsInStruct(const UStruct* Struct, void* StructAddress, const FRetargetContext& Ctx, FMissingAnimSet* OutMissing)
 {
 	int32 ReplacedCount = 0;
 
@@ -130,7 +140,7 @@ static int32 ReplaceAssetsInStruct(const UStruct* Struct, void* StructAddress)
 	{
 		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
-			ReplacedCount += ReplaceAssetsInStruct(StructProperty->Struct, StructProperty->ContainerPtrToValuePtr<void>(StructAddress));
+			ReplacedCount += ReplaceAssetsInStruct(StructProperty->Struct, StructProperty->ContainerPtrToValuePtr<void>(StructAddress), Ctx, OutMissing);
 		}
 		else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
@@ -141,7 +151,7 @@ static int32 ReplaceAssetsInStruct(const UStruct* Struct, void* StructAddress)
 			{
 				for (int32 Index = 0; Index < Helper.Num(); ++Index)
 				{
-					if (UAnimationAsset* NewAsset = FindRetargetedAnimation(InnerObjectProperty->GetObjectPropertyValue(Helper.GetRawPtr(Index))))
+					if (UAnimationAsset* NewAsset = FindRetargetedAnimation(InnerObjectProperty->GetObjectPropertyValue(Helper.GetRawPtr(Index)), Ctx, OutMissing))
 					{
 						InnerObjectProperty->SetObjectPropertyValue(Helper.GetRawPtr(Index), NewAsset);
 						++ReplacedCount;
@@ -153,14 +163,14 @@ static int32 ReplaceAssetsInStruct(const UStruct* Struct, void* StructAddress)
 			{
 				for (int32 Index = 0; Index < Helper.Num(); ++Index)
 				{
-					ReplacedCount += ReplaceAssetsInStruct(InnerStructProperty->Struct, Helper.GetRawPtr(Index));
+					ReplacedCount += ReplaceAssetsInStruct(InnerStructProperty->Struct, Helper.GetRawPtr(Index), Ctx, OutMissing);
 				}
 			}
 		}
 		else if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 		{
 			void* ValueAddress = ObjectProperty->ContainerPtrToValuePtr<void>(StructAddress);
-			if (UAnimationAsset* NewAsset = FindRetargetedAnimation(ObjectProperty->GetObjectPropertyValue(ValueAddress)))
+			if (UAnimationAsset* NewAsset = FindRetargetedAnimation(ObjectProperty->GetObjectPropertyValue(ValueAddress), Ctx, OutMissing))
 			{
 				ObjectProperty->SetObjectPropertyValue(ValueAddress, NewAsset);
 				++ReplacedCount;
@@ -172,11 +182,12 @@ static int32 ReplaceAssetsInStruct(const UStruct* Struct, void* StructAddress)
 }
 
 // 处理单个资产：复制到目标目录 + 切换骨架 + 重映射内部所有动画引用 + 重新编译（仅蓝图）
-static void ProcessAsset(const FString& SourcePackagePath, IAssetTools& AssetTools, UObject* TargetSkeleton)
+static void ProcessAsset(const FString& SourcePackagePath, IAssetTools& AssetTools, UObject* TargetSkeleton,
+	const FRetargetContext& Ctx, FMissingAnimSet* OutMissing)
 {
 	const FString SourceName = FPackageName::GetShortName(SourcePackagePath);
-	const FString NewName = SourceName + RetargetSuffix;
-	const FString NewObjectPath = FString::Printf(TEXT("%s/%s.%s"), *DestFolder, *NewName, *NewName);
+	const FString NewName = SourceName + Ctx.RetargetSuffix;
+	const FString NewObjectPath = FString::Printf(TEXT("%s/%s.%s"), *Ctx.DestFolder, *NewName, *NewName);
 
 	// 已存在就直接复用，方便反复执行
 	UObject* NewAsset = LoadObject<UObject>(nullptr, *NewObjectPath);
@@ -189,7 +200,7 @@ static void ProcessAsset(const FString& SourcePackagePath, IAssetTools& AssetToo
 			return;
 		}
 
-		NewAsset = AssetTools.DuplicateAsset(NewName, DestFolder, SourceAsset);
+		NewAsset = AssetTools.DuplicateAsset(NewName, Ctx.DestFolder, SourceAsset);
 		if (!NewAsset)
 		{
 			UE_LOG(LogTemp, Error, TEXT("[RetargetTool] 复制失败：%s"), *NewName);
@@ -228,7 +239,7 @@ static void ProcessAsset(const FString& SourcePackagePath, IAssetTools& AssetToo
 	int32 ReplacedCount = 0;
 	for (UObject* Object : ObjectsToProcess)
 	{
-		ReplacedCount += ReplaceAssetsInStruct(Object->GetClass(), Object);
+		ReplacedCount += ReplaceAssetsInStruct(Object->GetClass(), Object, Ctx, OutMissing);
 	}
 
 	// 4) 动画蓝图重新编译；混合空间不需要
@@ -243,55 +254,55 @@ static void ProcessAsset(const FString& SourcePackagePath, IAssetTools& AssetToo
 	UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] %s 完成：替换动画引用 %d 处"), *NewName, ReplacedCount);
 }
 
-static void Run()
+static void Run(const FRetargetContext& Ctx)
 {
-	UObject* TargetSkeleton = LoadObject<UObject>(nullptr, *TargetSkeletonObjectPath);
+	UObject* TargetSkeleton = LoadObject<UObject>(nullptr, *Ctx.TargetSkeletonPath);
 	if (!TargetSkeleton)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[RetargetTool] 找不到目标骨架：%s"), *TargetSkeletonObjectPath);
+		UE_LOG(LogTemp, Error, TEXT("[RetargetTool] 找不到目标骨架：%s"), *Ctx.TargetSkeletonPath);
 		return;
 	}
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-	MissingAnimations.Reset();
+	FMissingAnimSet Missing;
 
 	// 顺序很重要：混合空间要先就位，动画蓝图里的混合空间引用才能被替换
 	for (const FString& SourcePackagePath : SourceBlendSpaces)
 	{
-		ProcessAsset(SourcePackagePath, AssetTools, TargetSkeleton);
+		ProcessAsset(SourcePackagePath, AssetTools, TargetSkeleton, Ctx, &Missing);
 	}
 
 	for (const FString& SourcePackagePath : SourceAnimBlueprints)
 	{
-		ProcessAsset(SourcePackagePath, AssetTools, TargetSkeleton);
+		ProcessAsset(SourcePackagePath, AssetTools, TargetSkeleton, Ctx, &Missing);
 	}
 
-	if (MissingAnimations.Num() > 0)
+	if (Missing.Num() > 0)
 	{
-		const FString MissingList = FString::Join(MissingAnimations.Array(), TEXT(", "));
-		UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] 以下 %d 个动画在 %s 里找不到对应重定向资产：%s"), MissingAnimations.Num(), *DestFolder, *MissingList);
+		const FString MissingList = FString::Join(Missing.Array(), TEXT(", "));
+		UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] 以下 %d 个动画在 %s 里找不到对应重定向资产：%s"), Missing.Num(), *Ctx.DestFolder, *MissingList);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] 全部完成。请执行 File > Save All 把新资产落盘。"));
+	UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] %s 全部完成。请执行 File > Save All 把新资产落盘。"), *Ctx.RetargetSuffix);
 }
 
 // 二次修复：批量导出生成的动画/蒙太奇不在上面的处理清单里，它们内部可能残留曼尼昆骨架的
 // 原始动画引用（最典型的是加性动画的 Base Pose = RefPoseSeq、蒙太奇片段、SequenceEvaluator）。
 // 这些引用会和 Kwang 骨架混用，运行时表现为「身体拉长/压扁」。
 // 用法：在编辑器控制台执行  PP.FixAlsKwangRefs
-static void FixExistingReferences()
+static void FixExistingReferences(const FRetargetContext& Ctx)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
 	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(*DestFolder));
+	Filter.PackagePaths.Add(FName(*Ctx.DestFolder));
 	Filter.bRecursivePaths = true;
 
 	TArray<FAssetData> AssetDataList;
 	AssetRegistry.GetAssets(Filter, AssetDataList);
 
-	MissingAnimations.Reset();
+	FMissingAnimSet Missing;
 
 	int32 ProcessedAssets = 0;
 	int32 ReplacedTotal = 0;
@@ -313,10 +324,10 @@ static void FixExistingReferences()
 		TArray<UObject*> ObjectsToProcess;
 		ObjectsToProcess.Add(Asset);
 
-		// 蓝图（含 AB_Als_Kwang 主 AB）需要扫包内全部对象：
+		// 蓝图（含壳主 AB）需要扫包内全部对象：
 		// 动画节点 struct 的引用在图节点上，而事件图里「Play Slot Animation as Dynamic Montage」
 		// 的转身序列引用是引脚默认值（UEdGraphPin::DefaultObject）或蓝图变量（存在 CDO 上），
-		// 只收 UEdGraphNode 会漏掉它们，导致转身蒙太奇仍播曼尼昆原版动画（躯干拉长）。
+		// 只收 UEdGraphNode 会漏掉它们。
 		if (Asset->IsA(UBlueprint::StaticClass()))
 		{
 			ForEachObjectWithPackage(Asset->GetOutermost(), [&ObjectsToProcess](UObject* Object)
@@ -330,7 +341,7 @@ static void FixExistingReferences()
 		int32 ReplacedCount = 0;
 		for (UObject* Object : ObjectsToProcess)
 		{
-			ReplacedCount += ReplaceAssetsInStruct(Object->GetClass(), Object);
+			ReplacedCount += ReplaceAssetsInStruct(Object->GetClass(), Object, Ctx, &Missing);
 		}
 
 		if (ReplacedCount > 0)
@@ -364,15 +375,15 @@ static void FixExistingReferences()
 		}
 	}
 
-	if (MissingAnimations.Num() > 0)
+	if (Missing.Num() > 0)
 	{
-		const FString MissingList = FString::Join(MissingAnimations.Array(), TEXT(", "));
-		UE_LOG(LogTemp, Error, TEXT("[RetargetTool] 以下 %d 个 ALS 动画在 %s 里没有对应的 Kwang 资产，需要补导出：%s"),
-			MissingAnimations.Num(), *DestFolder, *MissingList);
+		const FString MissingList = FString::Join(Missing.Array(), TEXT(", "));
+		UE_LOG(LogTemp, Error, TEXT("[RetargetTool] 以下 %d 个 ALS 动画在 %s 里没有对应的 %s 资产，需要补导出：%s"),
+			Missing.Num(), *Ctx.DestFolder, *Ctx.RetargetSuffix, *MissingList);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] 引用修复完成：处理 %d 个资产，共替换 %d 处。请执行 File > Save All 落盘。"),
-		ProcessedAssets, ReplacedTotal);
+	UE_LOG(LogTemp, Warning, TEXT("[RetargetTool] %s 引用修复完成：处理 %d 个资产，共替换 %d 处。请执行 File > Save All 落盘。"),
+		*Ctx.RetargetSuffix, ProcessedAssets, ReplacedTotal);
 }
 
 // 诊断：找出工程里到底哪些资产还在引用曼尼昆原版转身序列。
@@ -586,11 +597,11 @@ static int32 ReplaceObjectRefInStruct(const UStruct* Struct, void* StructAddress
 // 修复躯干拉长：PP.FindTurnRefs 已定位残留引用在插件数据资产 AIS_Als_Default 里——
 // 它的 AlsTurnInPlaceSettings_0~7 子对象的 Sequence 仍指向曼尼昆原版转身序列，
 // C++ UAlsAnimationInstance 转身时从该资产取序列往 TurnInPlaceStanding 槽播动态蒙太奇，
-// 曼尼昆比例混入 Kwang 骨架就是躯干拉长的来源（蓝图包里没有任何引用，扫蓝图永远找不到）。
-// 这里复制一份 AIS_Als_Kwang、把 8 处序列换成重定向版，再把 AlsKwang 目录里所有
-// 蓝图（主要是 AB_Als_Kwang 的类默认值 Settings）对该资产的引用切到新资产。
-// 用法：在编辑器控制台执行  PP.FixTurnRefs，然后 File > Save All
-static void FixTurnSequenceRefs()
+// 曼尼昆比例混入目标骨架就是躯干拉长的来源（蓝图包里没有任何引用，扫蓝图永远找不到）。
+// 这里复制一份 AIS_Als_<Suffix>、把 8 处序列换成重定向版，再把 DestFolder 目录里所有
+// 蓝图（主要是壳 AB_Als_<Suffix> 的类默认值 Settings）对该资产的引用切到新资产。
+// 用法：PP.FixTurnRefs（Kwang） / PP.FixTurnRefs_Shinbi
+static void FixTurnSequenceRefs(const FRetargetContext& Ctx)
 {
 	const FString SourceObjectPath = TEXT("/ALS/ALS/Data/AnimationInstance/AIS_Als_Default.AIS_Als_Default");
 	UObject* SourceSettings = LoadObject<UObject>(nullptr, *SourceObjectPath);
@@ -602,13 +613,13 @@ static void FixTurnSequenceRefs()
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-	// 1) 复制设置资产到 AlsKwang（已存在则复用，方便反复执行）
-	const FString NewName = TEXT("AIS_Als_Kwang");
-	const FString NewObjectPath = FString::Printf(TEXT("%s/%s.%s"), *DestFolder, *NewName, *NewName);
+	// 1) 复制设置资产到目标目录（已存在则复用，方便反复执行）
+	const FString NewName = FString::Printf(TEXT("AIS_Als_%s"), *Ctx.RetargetSuffix);
+	const FString NewObjectPath = FString::Printf(TEXT("%s/%s.%s"), *Ctx.DestFolder, *NewName, *NewName);
 	UObject* NewSettings = LoadObject<UObject>(nullptr, *NewObjectPath);
 	if (!NewSettings)
 	{
-		NewSettings = AssetTools.DuplicateAsset(NewName, DestFolder, SourceSettings);
+		NewSettings = AssetTools.DuplicateAsset(NewName, Ctx.DestFolder, SourceSettings);
 		if (!NewSettings)
 		{
 			UE_LOG(LogTemp, Error, TEXT("[FixTurnRefs] 复制失败：%s"), *NewName);
@@ -617,7 +628,7 @@ static void FixTurnSequenceRefs()
 	}
 
 	// 2) 替换新资产包内所有 /ALS/ 动画引用（AlsTurnInPlaceSettings_* 子对象的 Sequence）
-	MissingAnimations.Reset();
+	FMissingAnimSet Missing;
 	TArray<UObject*> ObjectsToProcess;
 	ForEachObjectWithPackage(NewSettings->GetOutermost(), [&ObjectsToProcess](UObject* Object)
 	{
@@ -629,23 +640,23 @@ static void FixTurnSequenceRefs()
 	int32 ReplacedCount = 0;
 	for (UObject* Object : ObjectsToProcess)
 	{
-		ReplacedCount += ReplaceAssetsInStruct(Object->GetClass(), Object);
+		ReplacedCount += ReplaceAssetsInStruct(Object->GetClass(), Object, Ctx, &Missing);
 	}
 	NewSettings->MarkPackageDirty();
 	NewSettings->GetOutermost()->MarkPackageDirty();
 	UE_LOG(LogTemp, Warning, TEXT("[FixTurnRefs] %s：替换动画引用 %d 处"), *NewName, ReplacedCount);
 
-	if (MissingAnimations.Num() > 0)
+	if (Missing.Num() > 0)
 	{
-		const FString MissingList = FString::Join(MissingAnimations.Array(), TEXT(", "));
-		UE_LOG(LogTemp, Error, TEXT("[FixTurnRefs] 以下 %d 个 ALS 动画在 %s 里没有对应的 Kwang 资产，需要补导出：%s"),
-			MissingAnimations.Num(), *DestFolder, *MissingList);
+		const FString MissingList = FString::Join(Missing.Array(), TEXT(", "));
+		UE_LOG(LogTemp, Error, TEXT("[FixTurnRefs] 以下 %d 个 ALS 动画在 %s 里没有对应的 %s 资产，需要补导出：%s"),
+			Missing.Num(), *Ctx.DestFolder, *Ctx.RetargetSuffix, *MissingList);
 	}
 
-	// 3) 把 AlsKwang 目录里所有蓝图包内指向旧设置资产的引用换成新资产（类默认值 Settings 在 CDO 上）
+	// 3) 把 DestFolder 目录里所有蓝图包内指向旧设置资产的引用换成新资产（类默认值 Settings 在 CDO 上）
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(*DestFolder));
+	Filter.PackagePaths.Add(FName(*Ctx.DestFolder));
 	Filter.bRecursivePaths = true;
 
 	TArray<FAssetData> AssetDataList;
@@ -682,7 +693,7 @@ static void FixTurnSequenceRefs()
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[FixTurnRefs] 完成。请执行 File > Save All 落盘。"));
+	UE_LOG(LogTemp, Warning, TEXT("[FixTurnRefs] %s 完成。请执行 File > Save All 落盘。"), *Ctx.RetargetSuffix);
 }
 
 // 收尾清理：BP_PP_PlayerCharacter 的 CharacterMesh0 上残留 Paragon 模板时代的默认值
@@ -732,16 +743,61 @@ static void CleanPlayerBPDefaults()
 	UE_LOG(LogTemp, Warning, TEXT("[CleanPlayerBP] 已把默认值改为 SKM_Als + AB_Als_C。请 File > Save All 落盘。"));
 }
 
+// 角色预设：每个角色一条，命令入口各自构造 ctx 后调通用实现。
+static FRetargetContext MakeKwangCtx()
+{
+	return { TEXT("/Game/PersonalProject/Animations/AlsKwang"),
+	        TEXT("Kwang"),
+	        TEXT("/Game/ParagonKwang/Characters/Heroes/Kwang/Meshes/Kwang_Skeleton.Kwang_Skeleton") };
+}
+static FRetargetContext MakeShinbiCtx()
+{
+	return { TEXT("/Game/PersonalProject/Animations/AlsShinbi"),
+	        TEXT("Shinbi"),
+	        TEXT("/Game/ParagonShinbi/Characters/Heroes/Shinbi/Meshes/Shinbi_Skeleton.Shinbi_Skeleton") };
+}
+
+// 前置声明：包装函数定义在通用实现之前，需要声明。
+static void Run(const FRetargetContext& Ctx);
+static void FixExistingReferences(const FRetargetContext& Ctx);
+static void FixTurnSequenceRefs(const FRetargetContext& Ctx);
+static void FixAlsKwangLayers(const FRetargetContext& Ctx);
+static void FixKwangBlendSpaces(const FRetargetContext& Ctx);
+static void ClearRetargetSource(const FRetargetContext& Ctx);
+
+static void CmdRunKwang()               { Run(MakeKwangCtx()); }
+static void CmdRunShinbi()              { Run(MakeShinbiCtx()); }
+static void CmdFixKwangRefs()           { FixExistingReferences(MakeKwangCtx()); }
+static void CmdFixShinbiRefs()          { FixExistingReferences(MakeShinbiCtx()); }
+static void CmdFixTurnRefsKwang()       { FixTurnSequenceRefs(MakeKwangCtx()); }
+static void CmdFixTurnRefsShinbi()      { FixTurnSequenceRefs(MakeShinbiCtx()); }
+static void CmdFixLayersKwang()         { FixAlsKwangLayers(MakeKwangCtx()); }
+static void CmdFixLayersShinbi()        { FixAlsKwangLayers(MakeShinbiCtx()); }
+static void CmdFixBlendSpacesKwang()    { FixKwangBlendSpaces(MakeKwangCtx()); }
+static void CmdFixBlendSpacesShinbi()   { FixKwangBlendSpaces(MakeShinbiCtx()); }
+static void CmdClearRetargetSrcKwang()  { ClearRetargetSource(MakeKwangCtx()); }
+static void CmdClearRetargetSrcShinbi() { ClearRetargetSource(MakeShinbiCtx()); }
+
 static FAutoConsoleCommand RetargetAlsAnimBPCommand(
 	TEXT("PP.RetargetAlsAnimBP"),
 	TEXT("把 ALS 混合空间和分层动画蓝图复制到 Kwang 骨架，并重映射所有动画引用"),
-	FConsoleCommandDelegate::CreateStatic(&Run)
+	FConsoleCommandDelegate::CreateStatic(&CmdRunKwang)
+);
+static FAutoConsoleCommand RetargetAlsAnimBP_ShinbiCommand(
+	TEXT("PP.RetargetAlsAnimBP_Shinbi"),
+	TEXT("把 ALS 混合空间和分层动画蓝图复制到 Shinbi 骨架，并重映射所有动画引用"),
+	FConsoleCommandDelegate::CreateStatic(&CmdRunShinbi)
 );
 
 static FAutoConsoleCommand FixAlsKwangRefsCommand(
 	TEXT("PP.FixAlsKwangRefs"),
 	TEXT("扫描 AlsKwang 目录下全部资产，把残留的曼尼昆动画引用换成对应的 Kwang 重定向资产"),
-	FConsoleCommandDelegate::CreateStatic(&FixExistingReferences)
+	FConsoleCommandDelegate::CreateStatic(&CmdFixKwangRefs)
+);
+static FAutoConsoleCommand FixAlsShinbiRefsCommand(
+	TEXT("PP.FixAlsShinbiRefs"),
+	TEXT("扫描 AlsShinbi 目录下全部资产，把残留的曼尼昆动画引用换成对应的 Shinbi 重定向资产"),
+	FConsoleCommandDelegate::CreateStatic(&CmdFixShinbiRefs)
 );
 
 static FAutoConsoleCommand FindTurnRefsCommand(
@@ -753,7 +809,12 @@ static FAutoConsoleCommand FindTurnRefsCommand(
 static FAutoConsoleCommand FixTurnRefsCommand(
 	TEXT("PP.FixTurnRefs"),
 	TEXT("复制 AIS_Als_Default 为 AIS_Als_Kwang 并把转身序列换成 Kwang 重定向版，同时切换 AlsKwang 蓝图对该资产的引用"),
-	FConsoleCommandDelegate::CreateStatic(&FixTurnSequenceRefs)
+	FConsoleCommandDelegate::CreateStatic(&CmdFixTurnRefsKwang)
+);
+static FAutoConsoleCommand FixTurnRefsShinbiCommand(
+	TEXT("PP.FixTurnRefs_Shinbi"),
+	TEXT("复制 AIS_Als_Default 为 AIS_Als_Shinbi 并把转身序列换成 Shinbi 重定向版，同时切换 AlsShinbi 蓝图对该资产的引用"),
+	FConsoleCommandDelegate::CreateStatic(&CmdFixTurnRefsShinbi)
 );
 
 static FAutoConsoleCommand CleanPlayerBPDefaultsCommand(
@@ -1346,25 +1407,25 @@ static FAutoConsoleCommand CheckKwangAnimDataCommand(
 // /ALS/ 的原始资产）。混合空间没有 TargetSkeleton 属性，必须先换 Skeleton 再换采样动画，
 // 顺序反了引擎的采样校验会因为骨架不匹配把采样判非。
 // 用法：在编辑器控制台执行  PP.FixKwangBlendSpaces
-static void FixKwangBlendSpaces()
+static void FixKwangBlendSpaces(const FRetargetContext& Ctx)
 {
-	USkeleton* TargetSkeleton = LoadObject<USkeleton>(nullptr, *TargetSkeletonObjectPath);
+	USkeleton* TargetSkeleton = LoadObject<USkeleton>(nullptr, *Ctx.TargetSkeletonPath);
 	if (!TargetSkeleton)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[BlendSpace] 找不到目标骨架：%s"), *TargetSkeletonObjectPath);
+		UE_LOG(LogTemp, Error, TEXT("[BlendSpace] 找不到目标骨架：%s"), *Ctx.TargetSkeletonPath);
 		return;
 	}
 
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
 	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(*DestFolder));
+	Filter.PackagePaths.Add(FName(*Ctx.DestFolder));
 	Filter.bRecursivePaths = true;
 
 	TArray<FAssetData> AssetDataList;
 	AssetRegistry.GetAssets(Filter, AssetDataList);
 
-	MissingAnimations.Reset();
+	FMissingAnimSet Missing;
 
 	int32 FixedCount = 0;
 	int32 ReplacedTotal = 0;
@@ -1385,7 +1446,7 @@ static void FixKwangBlendSpaces()
 
 		BlendSpace->Modify();
 
-		// 1) 先把混合空间本身的骨架换成 Kwang
+		// 1) 先把混合空间本身的骨架换成目标骨架
 		if (FObjectProperty* SkeletonProperty = FindFProperty<FObjectProperty>(BlendSpace->GetClass(), TEXT("Skeleton")))
 		{
 			SkeletonProperty->SetObjectPropertyValue_InContainer(BlendSpace, TargetSkeleton);
@@ -1396,7 +1457,7 @@ static void FixKwangBlendSpaces()
 		}
 
 		// 2) 再把采样动画换成同名重定向资产
-		const int32 Replaced = ReplaceAssetsInStruct(BlendSpace->GetClass(), BlendSpace);
+		const int32 Replaced = ReplaceAssetsInStruct(BlendSpace->GetClass(), BlendSpace, Ctx, &Missing);
 
 		BlendSpace->MarkPackageDirty();
 		++FixedCount;
@@ -1406,20 +1467,25 @@ static void FixKwangBlendSpaces()
 			*BlendSpace->GetName(), Replaced, *GetNameSafe(BlendSpace->GetSkeleton()));
 	}
 
-	if (MissingAnimations.Num() > 0)
+	if (Missing.Num() > 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[BlendSpace] 以下 %d 个采样动画在 %s 里没有同名重定向资产：%s"),
-			MissingAnimations.Num(), *DestFolder, *FString::Join(MissingAnimations.Array(), TEXT(", ")));
+			Missing.Num(), *Ctx.DestFolder, *FString::Join(Missing.Array(), TEXT(", ")));
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[BlendSpace] 完成：处理 %d 个混合空间，共替换 %d 处。请执行 File > Save All 落盘。"),
-		FixedCount, ReplacedTotal);
+	UE_LOG(LogTemp, Warning, TEXT("[BlendSpace] %s 完成：处理 %d 个混合空间，共替换 %d 处。请执行 File > Save All 落盘。"),
+		*Ctx.RetargetSuffix, FixedCount, ReplacedTotal);
 }
 
 static FAutoConsoleCommand FixKwangBlendSpacesCommand(
 	TEXT("PP.FixKwangBlendSpaces"),
-	TEXT("把 9 个混合空间的骨架换成 Kwang，并把采样动画换成同名重定向资产"),
-	FConsoleCommandDelegate::CreateStatic(&FixKwangBlendSpaces)
+	TEXT("把 AlsKwang 目录混合空间的骨架换成 Kwang，并把采样动画换成同名重定向资产"),
+	FConsoleCommandDelegate::CreateStatic(&CmdFixBlendSpacesKwang)
+);
+static FAutoConsoleCommand FixShinbiBlendSpacesCommand(
+	TEXT("PP.FixShinbiBlendSpaces"),
+	TEXT("把 AlsShinbi 目录混合空间的骨架换成 Shinbi，并把采样动画换成同名重定向资产"),
+	FConsoleCommandDelegate::CreateStatic(&CmdFixBlendSpacesShinbi)
 );
 
 // 递归遍历结构体，把「指向曼尼昆动画蓝图生成类」的引用换成对应的 Kwang 版本。
@@ -1427,15 +1493,35 @@ static FAutoConsoleCommand FixKwangBlendSpacesCommand(
 // 壳 AB_Als_Kwang 里的联动节点如果还指向 AB_Als_Standing，站立层就会播放 /ALS/ 的
 // A_Als_Stand_Pose（曼尼昆数据），再二次重定向到 Kwang 骨架——位移按 Animation 模式原样保留，
 // 躯干长度就还是曼尼昆的（实测 10.84/19.24/13.38/16.56/9.29）。
-static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddress, const FString& ObjectLabel)
+// 剥掉 AB_Als_* 类名里可能残留的任何角色后缀（Kwang / Shinbi / ...），
+// 确保从任意中间态都能回到纯基名再加目标后缀。
+static const TArray<FString> KnownRoleSuffixes = { TEXT("Kwang"), TEXT("Shinbi") };
+static FString StripKnownSuffixes(const FString& BaseName)
 {
+	FString Result = BaseName;
+	for (const FString& S : KnownRoleSuffixes)
+	{
+		if (Result.EndsWith(S))
+		{
+			Result.LeftInline(Result.Len() - S.Len());
+			break;
+		}
+	}
+	return Result;
+}
+
+static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddress, const FString& ObjectLabel,
+	const FRetargetContext& Ctx, FMissingAnimSet* OutMissing)
+{
+	const FString& Suffix = Ctx.RetargetSuffix;
 	int32 ReplacedCount = 0;
 
 	for (FProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
-			ReplacedCount += ReplaceAnimInstanceClasses(StructProperty->Struct, StructProperty->ContainerPtrToValuePtr<void>(StructAddress), ObjectLabel);
+			ReplacedCount += ReplaceAnimInstanceClasses(StructProperty->Struct, StructProperty->ContainerPtrToValuePtr<void>(StructAddress),
+				ObjectLabel, Ctx, OutMissing);
 		}
 		else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
@@ -1446,15 +1532,15 @@ static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddre
 				for (int32 Index = 0; Index < Helper.Num(); ++Index)
 				{
 					UClass* ValueClass = Cast<UClass>(InnerObjectProperty->GetObjectPropertyValue(Helper.GetRawPtr(Index)));
-					if (!ValueClass || !ValueClass->GetName().StartsWith(TEXT("AB_Als_")) || ValueClass->GetName().Contains(TEXT("Kwang")))
+					if (!ValueClass || !ValueClass->GetName().StartsWith(TEXT("AB_Als_")) || ValueClass->GetName().Contains(Suffix))
 					{
 						continue;
 					}
 
-					const FString BaseName = ValueClass->GetName().LeftChop(2); // 去掉末尾的 _C
-					const FString NewAssetName = BaseName + RetargetSuffix;
+					const FString BaseName = StripKnownSuffixes(ValueClass->GetName().LeftChop(2)); // 去掉末尾 _C + 任何角色后缀
+					const FString NewAssetName = BaseName + Suffix;
 					UObject* NewClass = LoadObject<UObject>(nullptr,
-						*FString::Printf(TEXT("%s/%s.%s_C"), *DestFolder, *NewAssetName, *NewAssetName));
+						*FString::Printf(TEXT("%s/%s.%s_C"), *Ctx.DestFolder, *NewAssetName, *NewAssetName));
 					if (NewClass)
 					{
 						InnerObjectProperty->SetObjectPropertyValue(Helper.GetRawPtr(Index), NewClass);
@@ -1462,9 +1548,9 @@ static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddre
 							*ObjectLabel, *Property->GetName(), Index, *ValueClass->GetName(), *NewClass->GetName());
 						++ReplacedCount;
 					}
-					else
+					else if (OutMissing)
 					{
-						MissingAnimations.Add(NewAssetName);
+						OutMissing->Add(NewAssetName);
 					}
 				}
 			}
@@ -1472,7 +1558,8 @@ static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddre
 			{
 				for (int32 Index = 0; Index < Helper.Num(); ++Index)
 				{
-					ReplacedCount += ReplaceAnimInstanceClasses(InnerStructProperty->Struct, Helper.GetRawPtr(Index), ObjectLabel);
+					ReplacedCount += ReplaceAnimInstanceClasses(InnerStructProperty->Struct, Helper.GetRawPtr(Index),
+						ObjectLabel, Ctx, OutMissing);
 				}
 			}
 		}
@@ -1480,15 +1567,15 @@ static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddre
 		{
 			void* ValueAddress = ObjectProperty->ContainerPtrToValuePtr<void>(StructAddress);
 			UClass* ValueClass = Cast<UClass>(ObjectProperty->GetObjectPropertyValue(ValueAddress));
-			if (!ValueClass || !ValueClass->GetName().StartsWith(TEXT("AB_Als_")) || ValueClass->GetName().Contains(TEXT("Kwang")))
+			if (!ValueClass || !ValueClass->GetName().StartsWith(TEXT("AB_Als_")) || ValueClass->GetName().Contains(Suffix))
 			{
 				continue;
 			}
 
-			const FString BaseName = ValueClass->GetName().LeftChop(2); // 去掉末尾的 _C
-			const FString NewAssetName = BaseName + RetargetSuffix;
+			const FString BaseName = StripKnownSuffixes(ValueClass->GetName().LeftChop(2)); // 去掉末尾 _C + 任何角色后缀
+			const FString NewAssetName = BaseName + Suffix;
 			UObject* NewClass = LoadObject<UObject>(nullptr,
-				*FString::Printf(TEXT("%s/%s.%s_C"), *DestFolder, *NewAssetName, *NewAssetName));
+				*FString::Printf(TEXT("%s/%s.%s_C"), *Ctx.DestFolder, *NewAssetName, *NewAssetName));
 			if (NewClass)
 			{
 				ObjectProperty->SetObjectPropertyValue(ValueAddress, NewClass);
@@ -1496,9 +1583,9 @@ static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddre
 					*ObjectLabel, *Property->GetName(), *ValueClass->GetName(), *NewClass->GetName());
 				++ReplacedCount;
 			}
-			else
+			else if (OutMissing)
 			{
-				MissingAnimations.Add(NewAssetName);
+				OutMissing->Add(NewAssetName);
 			}
 		}
 	}
@@ -1511,18 +1598,19 @@ static int32 ReplaceAnimInstanceClasses(const UStruct* Struct, void* StructAddre
 // Grounded / Standing 联动节点还是曼尼昆类，运行期就是它们把 A_Als_Stand_Pose 播出来的
 // （DumpKwangPose 里同时出现的 AB_Als_Standing_C / AB_Als_Grounded_C 就是证据）。
 // 用法：在编辑器控制台执行  PP.FixAlsKwangLayers，然后 File > Save All
-static void FixAlsKwangLayers()
+static void FixAlsKwangLayers(const FRetargetContext& Ctx)
 {
+	const FString& Suffix = Ctx.RetargetSuffix;
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
 	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(*DestFolder));
+	Filter.PackagePaths.Add(FName(*Ctx.DestFolder));
 	Filter.bRecursivePaths = true;
 
 	TArray<FAssetData> AssetDataList;
 	AssetRegistry.GetAssets(Filter, AssetDataList);
 
-	MissingAnimations.Reset();
+	FMissingAnimSet Missing;
 
 	int32 ScannedBlueprintCount = 0;
 	int32 FixedBlueprintCount = 0;
@@ -1560,7 +1648,7 @@ static void FixAlsKwangLayers()
 		int32 ReplacedCount = 0;
 		for (UObject* Object : ObjectsToProcess)
 		{
-			ReplacedCount += ReplaceAnimInstanceClasses(Object->GetClass(), Object, Object->GetName());
+			ReplacedCount += ReplaceAnimInstanceClasses(Object->GetClass(), Object, Object->GetName(), Ctx, &Missing);
 		}
 
 		// 图节点引脚上的默认值不在 UPROPERTY 遍历范围内（UEdGraphNode::Pins 没有 UPROPERTY 标记，
@@ -1582,15 +1670,15 @@ static void FixAlsKwangLayers()
 				}
 
 				UClass* PinClass = Cast<UClass>(Pin->DefaultObject);
-				if (!PinClass || !PinClass->GetName().StartsWith(TEXT("AB_Als_")) || PinClass->GetName().Contains(TEXT("Kwang")))
+				if (!PinClass || !PinClass->GetName().StartsWith(TEXT("AB_Als_")) || PinClass->GetName().Contains(Suffix))
 				{
 					continue;
 				}
 
-				const FString BaseName = PinClass->GetName().LeftChop(2); // 去掉末尾的 _C
-				const FString NewAssetName = BaseName + RetargetSuffix;
+				const FString BaseName = StripKnownSuffixes(PinClass->GetName().LeftChop(2)); // 去掉末尾 _C + 任何角色后缀
+				const FString NewAssetName = BaseName + Suffix;
 				UObject* NewClass = LoadObject<UObject>(nullptr,
-					*FString::Printf(TEXT("%s/%s.%s_C"), *DestFolder, *NewAssetName, *NewAssetName));
+					*FString::Printf(TEXT("%s/%s.%s_C"), *Ctx.DestFolder, *NewAssetName, *NewAssetName));
 				if (NewClass)
 				{
 					Pin->DefaultObject = NewClass;
@@ -1600,7 +1688,7 @@ static void FixAlsKwangLayers()
 				}
 				else
 				{
-					MissingAnimations.Add(NewAssetName);
+					Missing.Add(NewAssetName);
 				}
 			}
 		}
@@ -1617,20 +1705,25 @@ static void FixAlsKwangLayers()
 		}
 	}
 
-	if (MissingAnimations.Num() > 0)
+	if (Missing.Num() > 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Layers] 以下 %d 个子蓝图在 %s 里找不到：%s"),
-			MissingAnimations.Num(), *DestFolder, *FString::Join(MissingAnimations.Array(), TEXT(", ")));
+			Missing.Num(), *Ctx.DestFolder, *FString::Join(Missing.Array(), TEXT(", ")));
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[Layers] 扫描 %d 个 AB_Als_* 蓝图，%d 个有改动，累计替换 %d 处。"),
-		ScannedBlueprintCount, FixedBlueprintCount, ReplacedTotal);
+	UE_LOG(LogTemp, Warning, TEXT("[Layers] %s 扫描 %d 个 AB_Als_* 蓝图，%d 个有改动，累计替换 %d 处。"),
+		*Ctx.RetargetSuffix, ScannedBlueprintCount, FixedBlueprintCount, ReplacedTotal);
 }
 
 static FAutoConsoleCommand FixAlsKwangLayersCommand(
 	TEXT("PP.FixAlsKwangLayers"),
 	TEXT("把 AlsKwang 目录里全部 AB_Als_* 蓝图联动节点的实例类从 AB_Als_* 改成 AB_Als_*Kwang"),
-	FConsoleCommandDelegate::CreateStatic(&FixAlsKwangLayers)
+	FConsoleCommandDelegate::CreateStatic(&CmdFixLayersKwang)
+);
+static FAutoConsoleCommand FixAlsShinbiLayersCommand(
+	TEXT("PP.FixAlsShinbiLayers"),
+	TEXT("把 AlsShinbi 目录里全部 AB_Als_* 蓝图联动节点的实例类从 AB_Als_* 改成 AB_Als_*Shinbi"),
+	FConsoleCommandDelegate::CreateStatic(&CmdFixLayersShinbi)
 );
 
 // 运行时定位：当前姿势的躯干长度到底对应哪个动画资产。
@@ -2425,12 +2518,12 @@ static FAutoConsoleCommand DumpNodeOrderCommand(
 // 而姿势数据本身已经是 Kwang 比例，引擎再按曼尼昆参考姿势做一次平移重定向，
 // 就会给每根骨骼加上「曼尼昆长度 − Kwang长度」（实测 spine_01 正好多 4.18）。
 // 用法：编辑器控制台执行  PP.ClearRetargetSource ，然后 File > Save All，重启 PIE
-static void ClearRetargetSource()
+static void ClearRetargetSource(const FRetargetContext& Ctx)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
 	FARFilter Filter;
-	Filter.PackagePaths.Add(FName(*DestFolder));
+	Filter.PackagePaths.Add(FName(*Ctx.DestFolder));
 	Filter.bRecursivePaths = true;
 
 	TArray<FAssetData> AssetDataList;
@@ -2446,21 +2539,6 @@ static void ClearRetargetSource()
 			continue;
 		}
 
-		// 只在处理前打印一次有问题的资产，确认「重定向源参考姿势」确实是曼尼昆量级
-		if (ClearedCount < 8)
-		{
-			const int32 SpineIndex = Sequence->GetSkeleton()
-				? Sequence->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(FName("spine_01")) : INDEX_NONE;
-			const TArray<FTransform>& RetargetTransforms = Sequence->GetRetargetTransforms();
-			const float RetargetSpine01 = (SpineIndex != INDEX_NONE && RetargetTransforms.IsValidIndex(SpineIndex))
-				? static_cast<float>(RetargetTransforms[SpineIndex].GetTranslation().Size()) : -1.0f;
-
-			UE_LOG(LogTemp, Warning, TEXT("[RetargetSource] %s 源名=%s 参考姿势=%d 根 spine_01=%.2f 自身 spine_01=%.2f"),
-				*Sequence->GetName(), *Sequence->GetRetargetTransformsSourceName().ToString(),
-				RetargetTransforms.Num(), RetargetSpine01,
-				static_cast<float>(GetSequenceFrame0Translation(Sequence, FName("spine_01")).Size()));
-		}
-
 		Sequence->Modify();
 		Sequence->RetargetSource = NAME_None;
 		Sequence->RetargetSourceAssetReferencePose.Empty();
@@ -2473,13 +2551,19 @@ static void ClearRetargetSource()
 		++ClearedCount;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[RetargetSource] 已清掉 %d 个序列的重定向源并重建压缩数据。请 File > Save All 后重启 PIE 复测。"), ClearedCount);
+	UE_LOG(LogTemp, Warning, TEXT("[RetargetSource] %s 已清掉 %d 个序列的重定向源并重建压缩数据。请 File > Save All 后重启 PIE 复测。"),
+		*Ctx.RetargetSuffix, ClearedCount);
 }
 
 static FAutoConsoleCommand ClearRetargetSourceCommand(
 	TEXT("PP.ClearRetargetSource"),
 	TEXT("清除 AlsKwang 序列继承自曼尼昆的重定向源参考姿势，避免运行期再追加一次平移重定向"),
-	FConsoleCommandDelegate::CreateStatic(&ClearRetargetSource)
+	FConsoleCommandDelegate::CreateStatic(&CmdClearRetargetSrcKwang)
+);
+static FAutoConsoleCommand ClearRetargetSource_ShinbiCommand(
+	TEXT("PP.ClearRetargetSource_Shinbi"),
+	TEXT("清除 AlsShinbi 序列继承自曼尼昆的重定向源参考姿势"),
+	FConsoleCommandDelegate::CreateStatic(&CmdClearRetargetSrcShinbi)
 );
 
 // 运行期诊断：直接遍历「绑定在该网格上的每个动画实例」的动画节点结构（FAnimNode_*），
