@@ -13,6 +13,9 @@ namespace PPTags
 	{
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Projectile);
 
+		/** 通用耐力消耗 GE 的数值传参（翻滚等一次性消耗） */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StaminaCost);
+
 		namespace Player
 		{
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Secondary);
@@ -66,5 +69,11 @@ namespace PPTags
 	namespace Status
 	{
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Dead);
+
+		/** 奔跑中：由玩家角色 Tick 轮询 ALS Gait 打上的 loose tag，驱动 GE_StaminaSprintDrain */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Sprinting);
+
+		/** 耐力回复延迟窗口：由 GE_StaminaRegenDelay 授予，期间抑制 GE_StaminaRegen */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StaminaRegenBlocked);
 	}
 }

@@ -24,6 +24,7 @@ public:
 	virtual UAttributeSet* GetAttributeSet() const override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
+	virtual void Tick(float DeltaTime) override;
 
 	// 玩家死亡后由服务端计时器复活（基类 HandleDeath 启动）
 	virtual bool ShouldRespawn() const override { return true; }
@@ -123,4 +124,58 @@ protected:
 private:
 	/** 从 PlayerState/PlayerController/GameInstance 恢复角色选择并应用外观 */
 	void RestoreCharacterSelection();
+
+	// ===== 耐力系统 =====
+
+	/** 耐力下降时施加回复延迟 GE（覆盖奔跑/翻滚/技能所有消耗来源） */
+	void OnStaminaChanged(const FOnAttributeChangeData& AttributeChangeData);
+
+	/** 服务端每帧轮询 ALS Gait/LocomotionAction，维护 PP.Status.Sprinting loose tag */
+	void UpdateStaminaStateTags();
+
+	/** 施加常驻的耐力回复/奔跑消耗 GE（Infinite 周期型，由 OngoingTagRequirements 开关） */
+	void ApplyStaminaPassiveEffects();
+
+	/** 服务端检测 ALS 进入翻滚瞬间，扣除翻滚体力 */
+	void UpdateRollStaminaCost();
+
+	/** 通过 StaminaCostEffect 扣除指定体力（SetByCaller 传 -Amount） */
+	void ApplyStaminaCost(float Amount);
+
+	/**
+	 * 耐力回复 GE（Infinite + Period 0.1s，Modifier = StaminaRegenRate × 0.1）。
+	 * OngoingTagRequirements 禁止 PPTags.Status.Sprinting / PPTags.Status.StaminaRegenBlocked，
+	 * 实现"奔跑中不回体、消耗后 0.8s 内不回体"，无需 C++ 手写计时器。
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	TSubclassOf<UGameplayEffect> StaminaRegenEffect;
+
+	/**
+	 * 奔跑消耗 GE（Infinite + Period 0.1s，Modifier = -0.8）。
+	 * OngoingTagRequirements 要求 PPTags.Status.Sprinting，只有真的在冲刺时才跳。
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	TSubclassOf<UGameplayEffect> StaminaSprintDrainEffect;
+
+	/**
+	 * 耐力回复延迟 GE（Duration 型，固定 0.8s，GrantedTag = PPTags.Status.StaminaRegenBlocked）。
+	 * 任何一次耐力下降都会刷新它，从而抑制常驻的 GE_StaminaRegen。
+	 * 留空则耐力回复没有延迟窗口（仅用于分批调试）。
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	TSubclassOf<UGameplayEffect> StaminaRegenDelayEffect;
+
+	/** 翻滚体力消耗值（体力不足时不触发翻滚） */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina", Meta = (ClampMin = 0))
+	float RollStaminaCost{20.f};
+
+	/**
+	 * 翻滚的体力扣除 GE（Instant，SetByCaller = PPTags.SetByCaller.StaminaCost）。
+	 * 和技能共用同一个资产（GE_Cost_Stamina）。
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	TSubclassOf<UGameplayEffect> StaminaCostEffect;
+
+	/** 上一帧是否处于翻滚状态（用于检测翻滚起始瞬间） */
+	bool bWasRolling = false;
 };

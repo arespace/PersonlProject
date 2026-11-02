@@ -83,3 +83,19 @@ TArray<FName> UPP_DataManager::GetCharacterRowNames()
 	}
 	return RowNames;
 }
+
+FName UPP_DataManager::GetDefaultCharacterId()
+{
+	UDataTable* Table = GetTable(CharacterDataTable, LoadedCharacterTable, TEXT("CharacterDataTable"));
+	if (!Table) return NAME_None;
+
+	TArray<FName> RowNames = Table->GetRowNames();
+	return RowNames.IsEmpty() ? NAME_None : RowNames[0];
+}
+
+const FCharacterDataRow* UPP_DataManager::GetDefaultCharacterRow()
+{
+	FName DefaultId = GetDefaultCharacterId();
+	if (DefaultId.IsNone()) return nullptr;
+	return GetCharacterData(DefaultId);
+}

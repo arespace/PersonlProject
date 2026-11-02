@@ -46,6 +46,14 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UPP_AttributeBarWidget> ManaBar;
 
+	/**
+	 * 耐力值条：可选绑定。
+	 * 用 BindWidgetOptional 而非 BindWidget，保证尚未在 WBP_HUDWidget 里加控件时
+	 * HUD 仍能正常创建（Content 不受 git 保护，不能先破坏现有 HUD 资产）。
+	 */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UPP_AttributeBarWidget> StaminaBar;
+
 	/** 能力槽位容器 - 存放能力槽位Widget */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UPanelWidget> AbilitySlotContainer;
@@ -91,4 +99,8 @@ private:
 	/** ViewModel Mana变更回调 */
 	UFUNCTION()
 	void OnManaChanged(float NewValue, float MaxValue, float OldValue, float Delta);
+
+	/** ViewModel Stamina变更回调 */
+	UFUNCTION()
+	void OnStaminaChanged(float NewValue, float MaxValue, float OldValue, float Delta);
 };

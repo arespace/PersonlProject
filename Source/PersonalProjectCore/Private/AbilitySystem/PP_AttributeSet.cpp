@@ -19,6 +19,9 @@ void UPP_AttributeSet::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass,MaxMana,COND_None,REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass,Attack,COND_None,REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass,Defense,COND_None,REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass,Stamina,COND_None,REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass,MaxStamina,COND_None,REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass,StaminaRegenRate,COND_None,REPNOTIFY_Always);
 
 	DOREPLIFETIME(ThisClass,bAttributesInitialized);
 }
@@ -54,6 +57,12 @@ void UPP_AttributeSet::PostGameplayEffectExecute(const struct FGameplayEffectMod
 	if (Data.EvaluatedData.Attribute == GetManaAttribute())
 	{
 		SetMana(FMath::Clamp(GetMana(), 0.f, GetMaxMana()));
+	}
+
+	if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
+	{
+		// 耐力只做上下限钳制：不写日志（奔跑消耗每 0.1s 触发一次，写日志会刷屏）
+		SetStamina(FMath::Clamp(GetStamina(), 0.f, GetMaxStamina()));
 	}
 	
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute() && GetHealth() <= 0.f)
@@ -107,4 +116,19 @@ void UPP_AttributeSet::OnRep_Attack(const FGameplayAttributeData& OldValue)
 void UPP_AttributeSet::OnRep_Defense(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass,Defense,OldValue);
+}
+
+void UPP_AttributeSet::OnRep_Stamina(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass,Stamina,OldValue);
+}
+
+void UPP_AttributeSet::OnRep_MaxStamina(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass,MaxStamina,OldValue);
+}
+
+void UPP_AttributeSet::OnRep_StaminaRegenRate(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass,StaminaRegenRate,OldValue);
 }

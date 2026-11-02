@@ -54,6 +54,11 @@ void UPP_HUDWidget::UpdateAttributeBars() const
 	{
 		ManaBar->UpdateValue(ViewModel->GetMana(), ViewModel->GetMaxMana());
 	}
+
+	if (StaminaBar)
+	{
+		StaminaBar->UpdateValue(ViewModel->GetStamina(), ViewModel->GetMaxStamina());
+	}
 }
 
 void UPP_HUDWidget::CreateAbilitySlots()
@@ -87,6 +92,7 @@ void UPP_HUDWidget::BindViewModelDelegates()
 
 	ViewModel->OnHealthChanged.AddDynamic(this, &UPP_HUDWidget::OnHealthChanged);
 	ViewModel->OnManaChanged.AddDynamic(this, &UPP_HUDWidget::OnManaChanged);
+	ViewModel->OnStaminaChanged.AddDynamic(this, &UPP_HUDWidget::OnStaminaChanged);
 }
 
 void UPP_HUDWidget::OnHealthChanged(float NewValue, float MaxValue, float OldValue, float Delta)
@@ -102,6 +108,14 @@ void UPP_HUDWidget::OnManaChanged(float NewValue, float MaxValue, float OldValue
 	if (ManaBar)
 	{
 		ManaBar->UpdateValue(NewValue, MaxValue);
+	}
+}
+
+void UPP_HUDWidget::OnStaminaChanged(float NewValue, float MaxValue, float OldValue, float Delta)
+{
+	if (StaminaBar)
+	{
+		StaminaBar->UpdateValue(NewValue, MaxValue);
 	}
 }
 

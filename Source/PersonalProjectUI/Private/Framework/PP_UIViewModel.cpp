@@ -55,11 +55,14 @@ void UPP_UIViewModel::Deinitialize()
 		ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxHealthAttribute()).RemoveAll(this);
 		ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetManaAttribute()).RemoveAll(this);
 		ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxManaAttribute()).RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetStaminaAttribute()).RemoveAll(this);
+		ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxStaminaAttribute()).RemoveAll(this);
 	}
 
 	// 清除UI委托
 	OnHealthChanged.Clear();
 	OnManaChanged.Clear();
+	OnStaminaChanged.Clear();
 	OnDamageReceived.Clear();
 	OnPlayerDeath.Clear();
 	OnPlayerRespawn.Clear();
@@ -105,6 +108,24 @@ float UPP_UIViewModel::GetMaxMana() const
 	return CachedMaxMana;
 }
 
+float UPP_UIViewModel::GetStamina() const
+{
+	if (AttributeSet.IsValid())
+	{
+		return AttributeSet->GetStamina();
+	}
+	return CachedStamina;
+}
+
+float UPP_UIViewModel::GetMaxStamina() const
+{
+	if (AttributeSet.IsValid())
+	{
+		return AttributeSet->GetMaxStamina();
+	}
+	return CachedMaxStamina;
+}
+
 bool UPP_UIViewModel::IsAlive() const
 {
 	return GetHealth() > 0.f;
@@ -122,6 +143,8 @@ void UPP_UIViewModel::BindToASC()
 	CachedMaxHealth = AttributeSet->GetMaxHealth();
 	CachedMana = AttributeSet->GetMana();
 	CachedMaxMana = AttributeSet->GetMaxMana();
+	CachedStamina = AttributeSet->GetStamina();
+	CachedMaxStamina = AttributeSet->GetMaxStamina();
 
 	// 绑定Health属性变更
 	ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetHealthAttribute())
@@ -138,6 +161,14 @@ void UPP_UIViewModel::BindToASC()
 	// 绑定MaxMana属性变更
 	ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxManaAttribute())
 		.AddUObject(this, &UPP_UIViewModel::OnMaxManaAttributeChanged);
+
+	// 绑定Stamina属性变更
+	ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetStaminaAttribute())
+		.AddUObject(this, &UPP_UIViewModel::OnStaminaAttributeChanged);
+
+	// 绑定MaxStamina属性变更
+	ASC->GetGameplayAttributeValueChangeDelegate(AttributeSet->GetMaxStaminaAttribute())
+		.AddUObject(this, &UPP_UIViewModel::OnMaxStaminaAttributeChanged);
 }
 
 void UPP_UIViewModel::OnHealthAttributeChanged(const FOnAttributeChangeData& Data)
@@ -204,4 +235,21 @@ void UPP_UIViewModel::OnMaxManaAttributeChanged(const FOnAttributeChangeData& Da
 
 	// MaxMana变更时也重新广播Mana
 	OnManaChanged.Broadcast(CachedMana, CachedMaxMana, CachedMana, 0.f);
+}
+
+void UPP_UIViewModel::OnStaminaAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	const float OldValue = CachedStamina;
+	CachedStamina = Data.NewValue;
+	const float Delta = Data.NewValue - OldValue;
+
+	OnStaminaChanged.Broadcast(Data.NewValue, CachedMaxStamina, OldValue, Delta);
+}
+
+void UPP_UIViewModel::OnMaxStaminaAttributeChanged(const FOnAttributeChangeData& Data)
+{
+	CachedMaxStamina = Data.NewValue;
+
+	// MaxStamina变更时也重新广播Stamina，因为比例可能变化
+	OnStaminaChanged.Broadcast(CachedStamina, CachedMaxStamina, CachedStamina, 0.f);
 }

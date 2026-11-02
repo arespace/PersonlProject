@@ -3,6 +3,7 @@
 #include "Lobby/PP_CharacterSelectWidget.h"
 #include "Lobby/PP_LobbyHUD.h"
 #include "Framework/PP_DataManager.h"
+#include "Framework/PP_SessionManager.h"
 #include "Framework/PP_LobbyActions.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -28,8 +29,20 @@ void UPP_CharacterSelectWidget::NativeOnInitialized()
 		AvailableCharacters.Add(FName("Archer"));
 	}
 
-	// 默认选中 Warrior（第一个角色）
-	CurrentIndex = 0;
+	// 初始选中：优先恢复 SessionManager 上次选择（玩家退出后记住上次的角色），
+	// 否则回退到列表第一项（= DataManager 角色表第一行；改数据表行顺序即可换默认角色）
+	int32 StartIndex = 0;
+	if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
+	{
+		FName LastSel = SM->GetLastCharacterSelection();
+		if (!LastSel.IsNone())
+		{
+			StartIndex = AvailableCharacters.IndexOfByKey(LastSel);
+			if (StartIndex == INDEX_NONE) StartIndex = 0;
+		}
+	}
+
+	CurrentIndex = StartIndex;
 	if (AvailableCharacters.Num() > 0)
 	{
 		SetSelectedCharacter(AvailableCharacters[CurrentIndex]);

@@ -1,6 +1,29 @@
-// 编辑器工具：把 ALS 的混合空间和分层动画蓝图批量复制到 Kwang 骨架，
-// 并按名字把内部的动画资产引用换成重定向后的资产。
-// 用法：在编辑器控制台执行  PP.RetargetAlsAnimBP
+// =============================================================================
+// PP_AlsRetargetTool.cpp — ALS 动画体系多角色重定向工具（编辑器内使用）
+// =============================================================================
+//
+// 功能：把 ALS 插件的 9 个混合空间 + 22 个动画蓝图（壳 + 21 分层）批量复制到
+//       任意 Paragon / 自定义角色骨架，自动切骨架 + 重映射全部内部动画引用。
+//
+// 设计：FRetargetContext { DestFolder, RetargetSuffix, TargetSkeletonPath }
+//       所有函数接收 ctx，函数体里没有角色硬编码。新增角色只需：
+//         1. 加 MakeXxxCtx() 构造函数
+//         2. 注册 6 条 PP.<功能>_<角色> 控制台命令
+//       （具体见 ALS_新角色接入流程.md 最后一节「新增角色命令的方式」）
+//
+// 6 条流水线命令（按顺序执行，全部跑完 File > Save All）：
+//   PP.RetargetAlsAnimBP_<角色>     ← 复制 + 切骨架 + 重映射动画引用
+//   PP.FixBlendSpaces_<角色>        ← 混合空间采样动画 → *<角色>
+//   PP.FixAlsRefs_<角色>            ← 扫残留曼尼昆引用 → *<角色>
+//   PP.FixLayers_<角色>             ← LinkedAnimGraph 节点 InstanceClass
+//   PP.FixTurnRefs_<角色>           ← 转身数据资产 AIS 复制 + 8 处序列替换
+//   PP.ClearRetargetSource_<角色>   ← 清 RetargetSource + 重建压缩数据
+//
+// 前置条件：ALS 插件启用；编辑器内 Ctrl+Alt+F11 热编译本文件。
+// 配套手动步骤（在编辑器 GUI 里做）：Bulk Export 动画序列/蒙太奇 + 创建 RTG/IK Rig。
+// 详细流程见项目根目录 ALS_新角色接入流程.md。
+//
+// =============================================================================
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
@@ -98,7 +121,7 @@ static const TArray<FString> SourceAnimBlueprints =
 // 调用方（Kwang / Shinbi / 未来更多角色）各自构造 ctx 后直接跑，不用改函数体。
 struct FRetargetContext
 {
-	FString DestFolder;         // /Game/PersonalProject/Animations/AlsKwang
+	FString DestFolder;         // /Game/PersonalProject/Animations/AlsKwang  (角色根目录，所有资产递归其子目录)
 	FString RetargetSuffix;     // Kwang
 	FString TargetSkeletonPath; // /Game/ParagonKwang/.../Kwang_Skeleton.Kwang_Skeleton
 };
@@ -829,9 +852,9 @@ static void CheckTorsoTranslations()
 {
 	const TArray<FString> AssetPaths =
 	{
-		TEXT("/Game/PersonalProject/Animations/AlsKwang/A_Als_Stand_PoseKwang"),
-		TEXT("/Game/PersonalProject/Animations/AlsKwang/A_Als_IdleKwang"),
-		TEXT("/Game/PersonalProject/Animations/AlsKwang/A_Als_Run_ForwardKwang"),
+		TEXT("/Game/PersonalProject/Animations/AlsKwang/Animations/Base/A_Als_Stand_PoseKwang"),
+		TEXT("/Game/PersonalProject/Animations/AlsKwang/Animations/Base/A_Als_IdleKwang"),
+		TEXT("/Game/PersonalProject/Animations/AlsKwang/Animations/Grounded/WalkRun/A_Als_Run_ForwardKwang"),
 		TEXT("/ALS/ALS/Animations/Base/A_Als_Stand_Pose"),
 		TEXT("/ALS/ALS/Animations/Base/A_Als_Idle")
 	};
@@ -2308,7 +2331,7 @@ static void PlaySingleNodeAsset(UAnimationAsset* Asset)
 static void TestPlayStandPose()
 {
 	PlaySingleNodeAsset(LoadObject<UAnimationAsset>(nullptr,
-		TEXT("/Game/PersonalProject/Animations/AlsKwang/A_Als_Stand_PoseKwang.A_Als_Stand_PoseKwang")));
+		TEXT("/Game/PersonalProject/Animations/AlsKwang/Animations/Base/A_Als_Stand_PoseKwang.A_Als_Stand_PoseKwang")));
 }
 
 static void TestPlayAsset(const TArray<FString>& Args)
@@ -3579,7 +3602,7 @@ static void DumpKwangPose()
 	UE_LOG(LogTemp, Warning, TEXT("[Dump] 动画实例共 %d 个"), LinkedInstanceCount);
 
 	UAnimSequence* KwangSequence = LoadObject<UAnimSequence>(nullptr,
-		TEXT("/Game/PersonalProject/Animations/AlsKwang/A_Als_Stand_PoseKwang.A_Als_Stand_PoseKwang"));
+		TEXT("/Game/PersonalProject/Animations/AlsKwang/Animations/Base/A_Als_Stand_PoseKwang.A_Als_Stand_PoseKwang"));
 	UAnimSequence* SourceSequence = LoadObject<UAnimSequence>(nullptr,
 		TEXT("/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose"));
 
@@ -3666,7 +3689,7 @@ static void RebuildKwangCompression()
 	AssetRegistry.GetAssets(Filter, AssetDataList);
 
 	UAnimSequence* StandPose = LoadObject<UAnimSequence>(nullptr,
-		TEXT("/Game/PersonalProject/Animations/AlsKwang/A_Als_Stand_PoseKwang.A_Als_Stand_PoseKwang"));
+		TEXT("/Game/PersonalProject/Animations/AlsKwang/Animations/Base/A_Als_Stand_PoseKwang.A_Als_Stand_PoseKwang"));
 
 	int32 SequenceCount = 0;
 
