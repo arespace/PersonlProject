@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -27,15 +27,18 @@ class PERSONALPROJECT_API UPP_SearchForTarget : public UPP_GameplayAbility
 public:
 	UPP_SearchForTarget();
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	
 	TWeakObjectPtr<APP_EnemyCharacter> OwningEnemy;
 	TWeakObjectPtr<AAIController> OwningAIController;
-	TWeakObjectPtr<APP_BaseCharacter> TargetBaseCharacter; 
 
 private:
 	
 	UPROPERTY()
-	TObjectPtr<UPP_WaitGameplayEvent> WaitGameplayEventTask;
+	TObjectPtr<UPP_WaitGameplayEvent> WaitEndAttackTask;
+
+	UPROPERTY()
+	TObjectPtr<UPP_WaitGameplayEvent> WaitHitReactTask;
 	
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_WaitDelay> SearchDelayTask;
@@ -46,10 +49,16 @@ private:
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_WaitDelay> AttackDelayTask;
 	
+	UPROPERTY()
+	TObjectPtr<UAbilityTask_WaitDelay> PostAttackCooldownTask;
+	
 	void StartSearch();
 	
 	UFUNCTION()
 	void EndAttackEventReceived(FGameplayEventData Payload);
+	
+	UFUNCTION()
+	void HitReactEventReceived(FGameplayEventData Payload);
 	
 	UFUNCTION()
 	void Search();
@@ -62,5 +71,7 @@ private:
 
 	UFUNCTION()
 	void Attack();
-	
+
+	UFUNCTION()
+	void OnPostAttackCooldown();
 };

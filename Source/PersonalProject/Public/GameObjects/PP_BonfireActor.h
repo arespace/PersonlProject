@@ -62,4 +62,8 @@ protected:
 	/** 允许交互的最大距离（cm） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Bonfire", meta = (ClampMin = "0.0"))
 	float InteractDistance{300.f};
+
+	/** 休息时重置的敌人半径（cm）：范围内的敌人全部 ResetToSpawn */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Bonfire", meta = (ClampMin = "0.0"))
+	float ResetRadius{2000.f};
 };
