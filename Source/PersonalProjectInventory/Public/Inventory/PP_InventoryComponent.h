@@ -138,6 +138,29 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
 	FPP_EquippedItem GetEquippedItemInSlot(EPP_EquipSlot Slot) const;
 
+	// ===== 武器系统装备槽（EPP_EquipmentSlotType 四槽） =====
+
+	/**
+	 * 客户端请求装备武器到指定槽位
+	 * 服务器执行：替换旧装备 → 写 EquipmentSlots → 广播 PPTags.Events.Inventory.EquipmentChanged
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|Weapon")
+	void Server_EquipWeapon(FName ItemID, EPP_EquipmentSlotType SlotType);
+
+	/**
+	 * 客户端请求从指定槽位卸下武器
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|Weapon")
+	void Server_UnequipWeapon(EPP_EquipmentSlotType SlotType);
+
+	/** 获取指定武器槽位当前装备的物品ID */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Weapon")
+	FName GetWeaponInSlot(EPP_EquipmentSlotType SlotType) const;
+
+	/** 获取武器装备槽数组（共 4 槽，默认初始化） */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Weapon")
+	const TArray<FPP_EquipmentSlot>& GetEquipmentSlots() const { return EquipmentSlots; }
+
 	// ===== 货币接口 =====
 
 	/** 获取当前金币数量 */
@@ -174,6 +197,9 @@ protected:
 	void OnRep_Equipped(const TArray<FPP_EquippedItem>& OldEquipped);
 
 	UFUNCTION()
+	void OnRep_WeaponSlots(const TArray<FPP_EquipmentSlot>& OldSlots);
+
+	UFUNCTION()
 	void OnRep_Gold(int32 OldGold);
 
 	// ===== 复制属性 =====
@@ -185,6 +211,10 @@ protected:
 	/** 已装备物品列表（服务器权威） */
 	UPROPERTY(ReplicatedUsing = OnRep_Equipped, BlueprintReadOnly, Category = "Inventory")
 	TArray<FPP_EquippedItem> EquippedItems;
+
+	/** 武器系统装备槽（4 槽：PrimaryWeapon / SecondaryWeapon / Helmet / Accessory） */
+	UPROPERTY(ReplicatedUsing = OnRep_WeaponSlots, BlueprintReadOnly, Category = "Inventory|Weapon")
+	TArray<FPP_EquipmentSlot> EquipmentSlots;
 
 	/** 金币数量（服务器权威） */
 	UPROPERTY(ReplicatedUsing = OnRep_Gold, BlueprintReadOnly, Category = "Inventory")
@@ -210,6 +240,9 @@ private:
 
 	/** 获取拥有者的 ASC（用于施加/移除 GE） */
 	UAbilitySystemComponent* GetOwningAbilitySystemComponent() const;
+
+	/** 查找实现了 IPP_EquipmentUser 的 Actor：优先 Owner 本身，其次 Owner->GetPawn() */
+	AActor* GetEquipmentUserActor() const;
 
 	/** 广播库存变更事件到 EventBus（UI 等订阅方据此刷新） */
 	void BroadcastInventoryUpdatedEvent();

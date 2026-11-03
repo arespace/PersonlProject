@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "Characters/PP_BaseCharacter.h"
 #include "Characters/PP_CharacterData.h"
+#include "Data/PP_ItemTypes.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
+#include "Interaction/PP_InteractableInterface.h"
 #include "PP_PlayerCharacter.generated.h"
 
 struct FInputActionValue;
@@ -14,9 +16,10 @@ class UAlsCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class APP_SoulPickupActor;
+class UDataTable;
 
 UCLASS()
-class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter
+class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter, public IPP_EquipmentUser
 {
 	GENERATED_BODY()
 
@@ -258,4 +261,17 @@ private:
 
 	/** 解除锁定并恢复锁定前的旋转模式 */
 	void ReleaseLockOn();
+
+	// ===== 武器装备接口（IPP_EquipmentUser 实现） =====
+
+	/** 武器装备槽变更回调 — 从 DT_WeaponData 查 AbilityTags → ASC 切换 GA */
+	virtual void OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID) override;
+
+	/** 武器数据表（DT_WeaponData，行结构 FPP_WeaponData） */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Weapon")
+	TObjectPtr<UDataTable> WeaponDataTable;
+
+private:
+	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除） */
+	TMap<EPP_EquipmentSlotType, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
 };
