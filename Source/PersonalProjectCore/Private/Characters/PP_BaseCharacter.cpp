@@ -42,6 +42,20 @@ namespace
 	}
 }
 
+bool APP_BaseCharacter::CanBeDamaged() const
+{
+	if (const UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		if (ASC->HasMatchingGameplayTag(PPTags::Status::Invulnerable)
+			|| ASC->HasMatchingGameplayTag(PPTags::Status::Dead)
+			|| ASC->HasMatchingGameplayTag(PPTags::Status::BossPhaseTransition))
+		{
+			return false;
+		}
+	}
+	return Super::CanBeDamaged();
+}
+
 APP_BaseCharacter::APP_BaseCharacter()
 {
 	// ALS 需要 Tick 驱动视图/移动刷新，不得禁用 PrimaryActorTick
