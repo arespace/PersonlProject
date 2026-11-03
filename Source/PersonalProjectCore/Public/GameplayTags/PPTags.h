@@ -75,5 +75,11 @@ namespace PPTags
 
 		/** 耐力回复延迟窗口：由 GE_StaminaRegenDelay 授予，期间抑制 GE_StaminaRegen */
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(StaminaRegenBlocked);
+
+		/** Boss 标记：用于 HUD 血条过滤和奖励倍率 */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Boss);
+
+		/** Boss 阶段切换期间的短暂无敌：由 Boss 基类在阶段切换时 AddTag */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BossPhaseTransition);
 	}
 }
