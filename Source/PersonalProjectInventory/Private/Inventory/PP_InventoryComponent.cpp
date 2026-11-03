@@ -9,16 +9,25 @@
 #include "Framework/PP_DataManager.h"
 #include "Framework/PP_EventBus.h"
 #include "Framework/PP_EventTypes.h"
+#include "Framework/PP_Log.h"
+#include "GameplayTags/PPTags.h"
+#include "Interaction/PP_InteractableInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
+#include "GameFramework/Pawn.h"
 #include "Engine/GameInstance.h"
-#include "Framework/PP_Log.h"
 
 UPP_InventoryComponent::UPP_InventoryComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 	Gold = 1000;
+
+	// 武器系统 4 个固定装备槽
+	EquipmentSlots.Emplace(EPP_EquipmentSlotType::PrimaryWeapon);
+	EquipmentSlots.Emplace(EPP_EquipmentSlotType::SecondaryWeapon);
+	EquipmentSlots.Emplace(EPP_EquipmentSlotType::Helmet);
+	EquipmentSlots.Emplace(EPP_EquipmentSlotType::Accessory);
 }
 
 void UPP_InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -26,6 +35,7 @@ void UPP_InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UPP_InventoryComponent, Items);
 	DOREPLIFETIME(UPP_InventoryComponent, EquippedItems);
+	DOREPLIFETIME(UPP_InventoryComponent, EquipmentSlots);
 	DOREPLIFETIME(UPP_InventoryComponent, Gold);
 }
 
@@ -292,6 +302,27 @@ UAbilitySystemComponent* UPP_InventoryComponent::GetOwningAbilitySystemComponent
 	return nullptr;
 }
 
+AActor* UPP_InventoryComponent::GetEquipmentUserActor() const
+{
+	if (AActor* Owner = GetOwner())
+	{
+		// Owner 本身就是 PlayerCharacter 或实现了接口 → 直接返回
+		if (Owner->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
+		{
+			return Owner;
+		}
+		// Owner 是 PlayerState → 尝试取对应的 Pawn（PlayerCharacter 挂在 Pawn 上）
+		if (APlayerState* PS = Cast<APlayerState>(Owner))
+		{
+			if (APawn* Pawn = PS->GetPawn())
+			{
+				return Pawn;
+			}
+		}
+	}
+	return nullptr;
+}
+
 // ===== 货币接口 =====
 
 bool UPP_InventoryComponent::SpendGold(int32 Amount)
@@ -475,4 +506,107 @@ void UPP_InventoryComponent::BroadcastGoldUpdatedEvent(int32 NewGold)
 	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
 	Event.NewGold = NewGold;
 	UPP_EventBus::BroadcastEvent(this, Event);
+}
+
+// ===== 武器系统装备槽实现（EPP_EquipmentSlotType） =====
+
+void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP_EquipmentSlotType SlotType)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	if (ItemID.IsNone())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: ItemID 无效"));
+		return;
+	}
+
+	// 找到对应槽位（构造函数已初始化 4 槽）
+	const int32 Idx = EquipmentSlots.IndexOfByPredicate([SlotType](const FPP_EquipmentSlot& S)
+	{
+		return S.SlotType == SlotType;
+	});
+	if (Idx == INDEX_NONE)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 槽位 %d 不存在"), static_cast<int32>(SlotType));
+		return;
+	}
+
+	// 记录旧值用于回调
+	const FName OldItemID = EquipmentSlots[Idx].ItemID;
+	if (OldItemID == ItemID)
+	{
+		return; // 相同物品无需重复装备
+	}
+
+	// 更新槽位
+	EquipmentSlots[Idx].ItemID = ItemID;
+
+	// 通知拥有者 Pawn（PlayerCharacter 实现 IPP_EquipmentUser）
+	if (AActor* NotifyTarget = GetEquipmentUserActor())
+	{
+		if (IPP_EquipmentUser* EquipmentUser = Cast<IPP_EquipmentUser>(NotifyTarget))
+		{
+			EquipmentUser->OnEquipmentChanged(SlotType, ItemID);
+		}
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[WeaponEquip] 装备槽 %d: %s → %s"),
+		static_cast<int32>(SlotType), *OldItemID.ToString(), *ItemID.ToString());
+}
+
+void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSlotType SlotType)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	const int32 Idx = EquipmentSlots.IndexOfByPredicate([SlotType](const FPP_EquipmentSlot& S)
+	{
+		return S.SlotType == SlotType;
+	});
+	if (Idx == INDEX_NONE)
+	{
+		return;
+	}
+
+	const FName OldItemID = EquipmentSlots[Idx].ItemID;
+	if (OldItemID.IsNone())
+	{
+		return; // 已经是空槽
+	}
+
+	EquipmentSlots[Idx].ItemID = NAME_None;
+
+	// 通知装备用户
+	if (AActor* NotifyTarget = GetEquipmentUserActor())
+	{
+		if (IPP_EquipmentUser* EquipmentUser = Cast<IPP_EquipmentUser>(NotifyTarget))
+		{
+			EquipmentUser->OnEquipmentChanged(SlotType, NAME_None);
+		}
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[WeaponEquip] 卸下槽 %d: 原=%s"),
+		static_cast<int32>(SlotType), *OldItemID.ToString());
+}
+
+FName UPP_InventoryComponent::GetWeaponInSlot(EPP_EquipmentSlotType SlotType) const
+{
+	for (const FPP_EquipmentSlot& S : EquipmentSlots)
+	{
+		if (S.SlotType == SlotType)
+		{
+			return S.ItemID;
+		}
+	}
+	return NAME_None;
+}
+
+void UPP_InventoryComponent::OnRep_WeaponSlots(const TArray<FPP_EquipmentSlot>& OldSlots)
+{
+	// 客户端收到武器槽复制：这里暂不额外广播，UI 直接读 EquipmentSlots 数组
+	// 如果后续需要客户端独立响应可在此扩展
 }

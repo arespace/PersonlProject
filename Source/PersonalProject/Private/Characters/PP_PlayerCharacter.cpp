@@ -11,6 +11,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Characters/PP_EnemyCharacter.h"
 #include "Components/CapsuleComponent.h"
+#include "Data/PP_ItemTypes.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -1058,6 +1059,72 @@ void APP_PlayerCharacter::ReleaseLockOn()
 	if (bWasLocked)
 	{
 		UE_LOG(LogPP, Log, TEXT("[LockOn] 解除锁定"));
+	}
+}
+
+// ===== IPP_EquipmentUser 实现（武器装备 → GA 切换） =====
+
+void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID)
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!IsValid(ASC))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] OnEquipmentChanged: ASC 无效，无法切换武器 GA"));
+		return;
+	}
+
+	// 第一步：移除该槽位上一次激活的 GA
+	if (const FGameplayAbilitySpecHandle* OldHandle = WeaponAbilityHandles.Find(SlotType))
+	{
+		if (OldHandle->IsValid())
+		{
+			ASC->ClearAbility(*OldHandle);
+			WeaponAbilityHandles.Remove(SlotType);
+			UE_LOG(LogPP, Log, TEXT("[WeaponGA] 移除槽 %d 的旧 GA（ClearAbility 成功）"), static_cast<int32>(SlotType));
+		}
+	}
+
+	// 第二步：如果 NewItemID 有效 → 查 WeaponData → Give 新 GA
+	if (NewItemID.IsNone())
+	{
+		// 卸下，到此结束
+		UE_LOG(LogPP, Log, TEXT("[WeaponGA] 槽 %d 已卸下"), static_cast<int32>(SlotType));
+		return;
+	}
+
+	if (!IsValid(WeaponDataTable))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] WeaponDataTable 未配置，无法给 %s 装备 GA"), *NewItemID.ToString());
+		return;
+	}
+
+	const FPP_WeaponData* WeaponRow = WeaponDataTable->FindRow<FPP_WeaponData>(NewItemID, TEXT("OnEquipmentChanged"));
+	if (!WeaponRow)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] DT_WeaponData 中未找到 ItemID=%s"), *NewItemID.ToString());
+		return;
+	}
+
+	if (!WeaponRow->WeaponAbilityClass)
+	{
+		// 该武器未配置 GA 类，跳过（纯属性武器）
+		UE_LOG(LogPP, Log, TEXT("[WeaponGA] 武器 %s 未配置 WeaponAbilityClass，跳过 GiveAbility"), *NewItemID.ToString());
+		return;
+	}
+
+	// GiveAbility（Level 1，无 InputBinding）
+	FGameplayAbilitySpec Spec(WeaponRow->WeaponAbilityClass, 1, INDEX_NONE, this);
+	const FGameplayAbilitySpecHandle NewHandle = ASC->GiveAbility(Spec);
+	if (NewHandle.IsValid())
+	{
+		WeaponAbilityHandles.Add(SlotType, NewHandle);
+		UE_LOG(LogPP, Log, TEXT("[WeaponGA] 槽 %d 装备 %s → GiveAbility %s 成功"),
+			static_cast<int32>(SlotType), *NewItemID.ToString(), *WeaponRow->WeaponAbilityClass->GetName());
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] 槽 %d 装备 %s → GiveAbility 失败"),
+			static_cast<int32>(SlotType), *NewItemID.ToString());
 	}
 }
 
