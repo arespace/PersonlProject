@@ -21,6 +21,12 @@
 #include "Inventory/PP_InventoryWidget.h"
 #include "Framework/PP_UIManager.h"
 #include "Framework/PP_UIUserWidget.h"
+#include "Characters/PP_BossCharacter.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/Engine.h"
+#include "Engine/Canvas.h"
+#include "AbilitySystemComponent.h"
+#include "GameplayTags/PPTags.h"
 #include "Inventory/PP_InventoryQuery.h"
 #include "Engine/GameInstance.h"
 #include "Framework/PP_EventBus.h"
@@ -129,6 +135,57 @@ void APP_HUD::DrawHUD()
 	{
 		return;
 	}
+
+	// ===== Boss 血条（独立于锁定标记，始终在顶部显示）=====
+	{
+		TArray<AActor*> FoundBosses;
+		UGameplayStatics::GetAllActorsOfClass(this, APP_BossCharacter::StaticClass(), FoundBosses);
+		APP_BossCharacter* Boss = nullptr;
+		for (AActor* Actor : FoundBosses)
+		{
+			if (APP_BossCharacter* B = Cast<APP_BossCharacter>(Actor))
+			{
+				Boss = B;
+				break; // 只取第一个 Boss（同时只支持一个 Boss）
+			}
+		}
+
+		if (Boss && Boss->GetBossHealthPercent() > 0.f)
+		{
+			const float ViewportW = Canvas->SizeX;
+			constexpr float BarWidth = 600.f;
+			constexpr float BarHeight = 24.f;
+			const float BarX = (ViewportW - BarWidth) * 0.5f;
+			constexpr float BarY = 40.f;
+
+			// 背景
+			DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.65f),
+				BarX - 4.f, BarY - 4.f, BarWidth + 8.f, BarHeight + 8.f);
+			// 外框
+			DrawRect(FLinearColor(0.1f, 0.1f, 0.1f, 0.9f),
+				BarX, BarY, BarWidth, BarHeight);
+			// 血量
+			const float HPWidth = FMath::Max(0.f, BarWidth * Boss->GetBossHealthPercent());
+			const FLinearColor HPColor = Boss->GetCurrentBossPhase() >= 3
+				? FLinearColor(0.85f, 0.1f, 0.15f, 1.f)
+				: FLinearColor(0.95f, 0.35f, 0.25f, 1.f);
+			DrawRect(HPColor, BarX, BarY, HPWidth, BarHeight);
+			// 阶段切换时闪金边
+			if (Boss->GetAbilitySystemComponent() && Boss->GetAbilitySystemComponent()->HasMatchingGameplayTag(PPTags::Status::BossPhaseTransition))
+			{
+				DrawRect(FLinearColor(1.f, 0.95f, 0.4f, 0.8f), BarX, BarY, BarWidth, 4.f);
+			}
+
+			// Boss 名字 + 阶段
+			const FString NameText = FString::Printf(TEXT("%s  ·  阶段 %d"),
+				*Boss->GetBossName().ToString(), Boss->GetCurrentBossPhase());
+			UFont* Font = GEngine ? GEngine->GetMediumFont() : nullptr;
+			DrawText(NameText, FLinearColor(1.f, 1.f, 1.f, 1.f),
+				BarX, BarY - 24.f, Font, 1.f, false);
+		}
+	}
+
+	// ===== 锁定标记 =====
 
 	APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(PlayerOwner->GetPawn());
 	if (!PlayerCharacter || !PlayerCharacter->IsLockedOn())

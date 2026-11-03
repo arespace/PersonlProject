@@ -66,5 +66,7 @@ namespace PPTags
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Dead,"PPTags.Status.Dead","Tag granted by GE_Death while dead")
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Sprinting,"PPTags.Status.Sprinting","Loose tag while the player is actually sprinting")
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(StaminaRegenBlocked,"PPTags.Status.StaminaRegenBlocked","Tag granted by GE_StaminaRegenDelay to suppress stamina regeneration")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Boss,"PPTags.Status.Boss","Boss marker: drives HUD bar and reward multiplier")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(BossPhaseTransition,"PPTags.Status.BossPhaseTransition","Brief invulnerability during boss phase transition")
 	}
 }
