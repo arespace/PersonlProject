@@ -32,6 +32,13 @@ public:
 	virtual UAttributeSet* GetAttributeSet() const {return nullptr;};
 	bool IsAlive() const {return bAlive;}
 	void SetAlive(bool bAliveStatus) { bAlive = bAliveStatus; }
+
+	/**
+	 * 是否可以被伤害：检查 Invulnerable（翻滚 i-frames）、Dead（已死亡）、
+	 * BossPhaseTransition（Boss 阶段切换无敌）三个标签，任一存在则返回 false。
+	 * 不受 AActor::bCanBeDamaged 成员影响——那些标签是 GAS 运行时状态。
+	 */
+	virtual bool CanBeDamaged() const;
 	
 	UPROPERTY(BlueprintAssignable)
 	FASCInitialized OnASCInitialized;
