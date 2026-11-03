@@ -1,4 +1,4 @@
-﻿#include "GameplayTags/PPTags.h"
+﻿﻿#include "GameplayTags/PPTags.h"
 
 namespace PPTags
 {
@@ -35,7 +35,12 @@ namespace PPTags
 	namespace Events
 	{
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(KillScored,"PPTags.Events.KillScored","Tag for the KillScored Event")
-		
+
+		namespace Inventory
+		{
+			UE_DEFINE_GAMEPLAY_TAG_COMMENT(EquipmentChanged,"PPTags.Events.Inventory.EquipmentChanged","武器装备槽变更事件：装备/卸下时广播")
+		}
+
 		namespace Player
 		{
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(HitReact,"PPTags.Events.Player.HitReact","Tag for the Player HitReact Event")
@@ -51,6 +56,7 @@ namespace PPTags
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(HitReact,"PPTags.Events.Enemy.HitReact","Tag for the HitReact Event")
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(EndAttack,"PPTags.Events.Enemy.EndAttack","Tag for the Ending an Attack ")
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(MeleeTraceHit,"PPTags.Events.Enemy.MeleeTraceHit","Tag for the Enemy Melee Trace Hit ")
+			UE_DEFINE_GAMEPLAY_TAG_COMMENT(Reset,"PPTags.Events.Enemy.Reset","篝火休息后重置区域敌人事件")
 		}
 
 		namespace UI
@@ -58,6 +64,16 @@ namespace PPTags
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(ShowScoreboard,"PPTags.Events.UI.ShowScoreboard","Tag for the Show Scoreboard UI Event")
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(TogglePause,"PPTags.Events.UI.TogglePause","Tag for the Toggle Pause UI Event")
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageNumber,"PPTags.Events.UI.DamageNumber","Tag for the Damage Number UI Event")
+		}
+
+		namespace Boss
+		{
+			UE_DEFINE_GAMEPLAY_TAG_COMMENT(Dead,"PPTags.Events.Boss.Dead","Boss 死亡事件")
+		}
+
+		namespace Settlement
+		{
+			UE_DEFINE_GAMEPLAY_TAG_COMMENT(Show,"PPTags.Events.Settlement.Show","Boss 死亡后显示结算界面")
 		}
 	}
 
@@ -68,5 +84,7 @@ namespace PPTags
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(StaminaRegenBlocked,"PPTags.Status.StaminaRegenBlocked","Tag granted by GE_StaminaRegenDelay to suppress stamina regeneration")
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Boss,"PPTags.Status.Boss","Boss marker: drives HUD bar and reward multiplier")
 		UE_DEFINE_GAMEPLAY_TAG_COMMENT(BossPhaseTransition,"PPTags.Status.BossPhaseTransition","Brief invulnerability during boss phase transition")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(Invulnerable,"PPTags.Status.Invulnerable","Roll i-frames: blocks all damage while active")
+		UE_DEFINE_GAMEPLAY_TAG_COMMENT(BossArenaArmed,"PPTags.Status.BossArenaArmed","BossArenaTrigger Overlap 后激活，Boss 据此授予 SearchForTarget GA")
 	}
 }

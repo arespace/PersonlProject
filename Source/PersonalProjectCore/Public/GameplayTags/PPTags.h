@@ -44,6 +44,12 @@ namespace PPTags
 	{
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(KillScored);
 
+		namespace Inventory
+		{
+			/** 武器装备槽变更广播：InventoryComponent 装备/卸下时触发 */
+			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(EquipmentChanged);
+		}
+
 		namespace Player
 		{
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HitReact);
@@ -56,6 +62,8 @@ namespace PPTags
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(HitReact);
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(EndAttack);
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(MeleeTraceHit);
+			/** 敌人重置事件：篝火休息后由 BonfireActor Broadcast，UPP_EnemyRespawnManager 监听并重置区域内敌人 */
+			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Reset);
 		}
 
 		namespace UI
@@ -63,6 +71,18 @@ namespace PPTags
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShowScoreboard);
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TogglePause);
 			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(DamageNumber);
+		}
+
+		namespace Boss
+		{
+			/** Boss 死亡事件（配合 EventBus 广播，同时注册为 GameplayTag） */
+			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Dead);
+		}
+
+		namespace Settlement
+		{
+			/** Boss 死亡后显示结算界面 */
+			PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Show);
 		}
 	}
 
@@ -81,5 +101,11 @@ namespace PPTags
 
 		/** Boss 阶段切换期间的短暂无敌：由 Boss 基类在阶段切换时 AddTag */
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BossPhaseTransition);
+
+		/** 翻滚 i-frames 无敌窗口：由 GA_PP_Roll 的 RollStart/RollEnd Notify 控制 */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Invulnerable);
+
+		/** Boss 场地已激活：BossArenaTrigger OverlapBegin 时给 Boss AddTag，Boss 据此激活 SearchForTarget GA */
+		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BossArenaArmed);
 	}
 }

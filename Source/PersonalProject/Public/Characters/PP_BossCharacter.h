@@ -7,6 +7,7 @@
 #include "PP_BossCharacter.generated.h"
 
 class UPP_AttributeSet;
+class UGameplayAbility;
 struct FOnAttributeChangeData;
 
 /**
@@ -15,6 +16,9 @@ struct FOnAttributeChangeData;
  *   - 阶段切换：按血量百分比阈值自动切换阶段，切换期间短暂加 BossPhaseTransition 无敌
  *   - 血量广播：BossHealthPercent / BossName / CurrentPhase 作为 replicated 属性，HUD 直接读
  *   - 奖励：死亡时击杀金币按 BossGoldMultiplier 倍率发放
+ *   - 场地激活：BossArenaTrigger OverlapBegin 给 Boss 加 BossArenaArmed Tag，Boss 监听此 Tag
+ *     来授予 SearchForTarget GA（延迟激活 AI，避免 Boss 在场地没关门之前就打人）
+ *   - 结算：死亡时 Broadcast EventBus BossDead / SettlementShow
  * 蓝图侧只需要配模型、GA、阶段阈值和奖励倍率。
  */
 UCLASS()
@@ -77,6 +81,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Boss", meta = (ClampMin = "1.0"))
 	float BossGoldMultiplier{10.f};
 
+	/** SearchForTarget GA 类引用（蓝图配置）。BossArenaArmed Tag 添加时才授予 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Boss")
+	TSubclassOf<UGameplayAbility> SearchForTargetAbilityClass;
+
+	/** Boss 场地激活计时：Boss 在竞技场出现的时间（给结算界面显示击杀用时） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Boss")
+	float ArenaEnterTime{0.f};
+
 private:
 	UFUNCTION()
 	void OnPhaseTransitionInvulnerableEnd();
@@ -86,4 +98,8 @@ private:
 
 	/** 缓存 MaxHealth，避免每次算 Percent 都取 AttributeSet */
 	float CachedMaxHealth{1.f};
+
+	/** 监听 BossArenaArmed Tag 添加 → 授予 SearchForTarget GA + 记录场地入场时间 */
+	UFUNCTION()
+	void OnBossArenaArmedTagEvent(const FGameplayTag Tag, int32 NewCount);
 };
