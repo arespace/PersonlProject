@@ -3,8 +3,11 @@
 #include "Characters/PP_BossCharacter.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/Enemy/PP_SearchForTarget.h"
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "Components/CapsuleComponent.h"
+#include "Framework/PP_EventBus.h"
+#include "Framework/PP_EventTypes.h"
 #include "Framework/PP_Log.h"
 #include "GameFramework/Character.h"
 #include "GameplayTags/PPTags.h"
@@ -19,6 +22,9 @@ APP_BossCharacter::APP_BossCharacter()
 	bShouldRespawn = false; // Boss 不复活
 	GoldDropAmount = 500;   // 敌人基类里是 10，Boss 默认多给，实际再乘 BossGoldMultiplier
 	BossPhaseThresholds = {0.75f, 0.50f, 0.25f};
+
+	// 默认 SearchForTarget GA，蓝图子类可覆盖
+	SearchForTargetAbilityClass = UPP_SearchForTarget::StaticClass();
 }
 
 void APP_BossCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -38,6 +44,11 @@ void APP_BossCharacter::BeginPlay()
 	if (HasAuthority() && GetAbilitySystemComponent())
 	{
 		GetAbilitySystemComponent()->AddLooseGameplayTag(PPTags::Status::Boss);
+
+		// 监听 BossArenaArmed Tag → 场地激活后才授予 SearchForTarget GA
+		GetAbilitySystemComponent()->RegisterGameplayTagEvent(
+			PPTags::Status::BossArenaArmed, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &ThisClass::OnBossArenaArmedTagEvent);
 	}
 
 	if (!HasAuthority())
@@ -53,6 +64,37 @@ void APP_BossCharacter::BeginPlay()
 		BossHealthPercent = CachedMaxHealth > 0.f ? 1.f : 0.f;
 		CurrentPhase = 1;
 		GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_Attr->GetHealthAttribute()).AddUObject(this, &ThisClass::OnBossHealthChanged);
+	}
+}
+
+void APP_BossCharacter::OnBossArenaArmedTagEvent(const FGameplayTag Tag, int32 NewCount)
+{
+	if (NewCount <= 0 || !HasAuthority())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC || !SearchForTargetAbilityClass)
+	{
+		return;
+	}
+
+	// 去重
+	if (ASC->FindAbilitySpecFromClass(SearchForTargetAbilityClass))
+	{
+		UE_LOG(LogPP, Log, TEXT("[Boss] %s SearchForTarget 已存在，跳过重复授予"), *GetName());
+	}
+	else
+	{
+		ASC->GiveAbility(FGameplayAbilitySpec(SearchForTargetAbilityClass));
+		UE_LOG(LogPP, Log, TEXT("[Boss] %s BossArenaArmed Tag 激活 → 授予 SearchForTarget GA"), *GetName());
+	}
+
+	// 记录场地入场时间（给结算界面显示击杀用时）
+	if (UWorld* World = GetWorld())
+	{
+		ArenaEnterTime = World->GetTimeSeconds();
 	}
 }
 
@@ -147,6 +189,24 @@ void APP_BossCharacter::HandleDeath()
 
 	Super::HandleDeath();
 
-	UE_LOG(LogPP, Warning, TEXT("[Boss] %s 死亡，击杀金币=%d 倍率=%.1f"),
-		*GetName(), GoldDropAmount, BossGoldMultiplier);
+	// 广播 BossDead 事件（Gate 等监听者）
+	if (HasAuthority() && GetWorld())
+	{
+		const float TimeToKill = ArenaEnterTime > 0.f ? (GetWorld()->GetTimeSeconds() - ArenaEnterTime) : 0.f;
+
+		FPP_BossDeadEvent DeadEvent;
+		DeadEvent.BossName = BossName;
+		DeadEvent.TimeToKill = TimeToKill;
+		DeadEvent.GoldReward = GoldDropAmount;
+		UPP_EventBus::BroadcastEvent(this, DeadEvent);
+
+		FPP_SettlementShowEvent SettlementEvent;
+		SettlementEvent.BossName = BossName;
+		SettlementEvent.TimeToKill = TimeToKill;
+		SettlementEvent.GoldReward = GoldDropAmount;
+		UPP_EventBus::BroadcastEvent(this, SettlementEvent);
+
+		UE_LOG(LogPP, Warning, TEXT("[Boss] %s 死亡，击杀金币=%d 倍率=%.1f 用时=%.1fs"),
+			*GetName(), GoldDropAmount, BossGoldMultiplier, TimeToKill);
+	}
 }

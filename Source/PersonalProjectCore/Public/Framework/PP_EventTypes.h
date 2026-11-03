@@ -130,4 +130,42 @@ struct FPP_GatherEvent
 	int32 Count = 0;
 };
 
+/** Boss 死亡事件：BossCharacter -> BossArenaGate / 其他监听者 */
+USTRUCT(BlueprintType)
+struct FPP_BossDeadEvent
+{
+	GENERATED_BODY()
+
+	/** Boss 的显示名 */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	FName BossName;
+
+	/** Boss 击杀用时（秒） */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	float TimeToKill = 0.f;
+
+	/** 击杀奖励金币（已乘倍率） */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	int32 GoldReward = 0;
+};
+
+/** 结算界面显示事件：BossCharacter -> SettlementWidget */
+USTRUCT(BlueprintType)
+struct FPP_SettlementShowEvent
+{
+	GENERATED_BODY()
+
+	/** Boss 的显示名 */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	FName BossName;
+
+	/** Boss 击杀用时（秒） */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	float TimeToKill = 0.f;
+
+	/** 击杀奖励金币（已乘倍率） */
+	UPROPERTY(BlueprintReadOnly, Category = "Event")
+	int32 GoldReward = 0;
+};
+
 
