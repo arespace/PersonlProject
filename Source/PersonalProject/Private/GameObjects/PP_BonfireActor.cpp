@@ -10,6 +10,8 @@
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "Framework/PP_Log.h"
+#include "Game/PP_CrashGameMode.h"
+#include "Game/PP_EnemyRespawnManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"
@@ -145,4 +147,22 @@ void APP_BonfireActor::Rest(APlayerController* Interactor)
 		*GetNameSafe(PlayerState), *GetName(),
 		CheckpointTransform.GetLocation().X, CheckpointTransform.GetLocation().Y, CheckpointTransform.GetLocation().Z,
 		CheckpointTransform.Rotator().Yaw);
+
+	// === 休息成功 → 重置半径内的敌人 ===
+	if (UWorld* World = GetWorld())
+	{
+		if (AGameModeBase* GM = World->GetAuthGameMode())
+		{
+			if (UPP_EnemyRespawnManager* Manager = GM->FindComponentByClass<UPP_EnemyRespawnManager>())
+			{
+				const int32 ResetCount = Manager->ResetEnemiesInRadius(GetActorLocation(), ResetRadius);
+				UE_LOG(LogPP, Log, TEXT("[PP_Bonfire] 休息触发敌人重置：Radius=%.0f 重置 %d 个敌人"),
+					ResetRadius, ResetCount);
+			}
+			else
+			{
+				UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 休息触发敌人重置：未找到 UPP_EnemyRespawnManager（需要在 GameMode 蓝图子类里 Add Component）"));
+			}
+		}
+	}
 }
