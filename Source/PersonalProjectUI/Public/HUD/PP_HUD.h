@@ -51,6 +51,9 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** 绘制锁定目标的屏幕标记（无需额外 Widget 资产） */
+	virtual void DrawHUD() override;
+
 	// ===== 菜单控制 =====
 
 	/** 显示暂停菜单 */

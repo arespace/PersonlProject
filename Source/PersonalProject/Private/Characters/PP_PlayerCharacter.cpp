@@ -8,22 +8,30 @@
 #include "AlsCameraComponent.h"
 #include "AlsCameraSettings.h"
 #include "Animation/AnimInstance.h"
+#include "Camera/PlayerCameraManager.h"
+#include "Characters/PP_EnemyCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
 #include "Framework/PP_SessionManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayTags/PPTags.h"
+#include "GameObjects/PP_SoulPickupActor.h"
 #include "InputAction.h"
 #include "InputMappingContext.h"
+#include "Inventory/PP_InventoryComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Player/PP_PlayerController.h"
 #include "Player/PP_PlayerState.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Utility/AlsConstants.h"
 #include "Utility/AlsGameplayTags.h"
 #include "Utility/AlsVector.h"
 
@@ -34,6 +42,11 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 	// 玩家依赖 ALS 相机与视角刷新，必须保证 AnimationInstance 是 UAlsAnimationInstance，
 	// 否则 AAlsCharacter::Tick 会因守卫提前 return，相机不再刷新。
 	bForceAlsAnimationBlueprint = true;
+
+	LockOnKey = EKeys::Q;
+
+	// 默认掉落魂用 C++ 占位类，蓝图里可替换成自定义 BP
+	SoulPickupClass = APP_SoulPickupActor::StaticClass();
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 
@@ -171,7 +184,12 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 	UPP_AttributeSet* PP_AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
 	if (!IsValid(PP_AttributeSet)) return;
 
+	// 先 RemoveAll 再 Add：监听服务器上 PossessedBy 与 OnRep_PlayerState 都会执行，
+	// 直接 AddUObject 会重复绑定，导致一次掉血触发两次 OnHealthChanged → HandleDeath 执行两次
+	// （日志里出现 "bAlive=1" 和 "bAlive=0" 两条服务端死亡记录）。
+	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).RemoveAll(this);
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).RemoveAll(this);
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
 
 	ApplyStaminaPassiveEffects();
@@ -192,12 +210,39 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 	UPP_AttributeSet* PP_AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
 	if (!IsValid(PP_AttributeSet)) return;
 
+	// 同上：避免 PossessedBy / OnRep_PlayerState 重复绑定
+	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).RemoveAll(this);
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).RemoveAll(this);
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
 }
 
 void APP_PlayerCharacter::Tick(float DeltaTime)
 {
+	// 排错：记录本机玩家的长帧（>50ms），用于区分"掉帧"与"输入/状态异常"。
+	// 每秒最多打一条，避免刷屏。
+	if (IsLocallyControlled() && DeltaTime > 0.05f)
+	{
+		static double LastHitchLogTime{0.0};
+		const double NowTime{GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0};
+		if (NowTime - LastHitchLogTime > 1.0)
+		{
+			LastHitchLogTime = NowTime;
+			const APlayerController* PC{Cast<APlayerController>(GetController())};
+			UE_LOG(LogPP, Warning,
+				TEXT("[PP_Hitch] 长帧 %.1fms @%.2fs %s 存活=%d 移动模式=%d 速度=%.0f 输入忽略(移动=%d 视角=%d) LocomotionAction=%s"),
+				DeltaTime * 1000.f, NowTime, *GetNameSafe(this), IsAlive() ? 1 : 0,
+				GetCharacterMovement() ? static_cast<int32>(GetCharacterMovement()->MovementMode) : -1,
+				GetVelocity().Size(),
+				PC && PC->IsMoveInputIgnored() ? 1 : 0,
+				PC && PC->IsLookInputIgnored() ? 1 : 0,
+				*GetLocomotionAction().ToString());
+		}
+	}
+
+	// 在 ALS Tick 之前更新相机朝向，保证同一帧的视角/角色旋转直接使用锁定方向
+	UpdateLockOn(DeltaTime);
+
 	Super::Tick(DeltaTime);
 
 	UpdateStaminaStateTags();
@@ -323,6 +368,14 @@ void APP_PlayerCharacter::ServerRespawn()
 {
 	if (IsAlive()) return;
 
+	// 排错：记录计时器复活入口被调用时的输入状态
+	const APlayerController* PC{Cast<APlayerController>(GetController())};
+	UE_LOG(LogPP, Warning,
+		TEXT("[PP_RespawnFlow] ServerRespawn 前: %s 本机=%d 控制者=%s 输入忽略(移动=%d 视角=%d)"),
+		*GetNameSafe(this), IsLocallyControlled() ? 1 : 0, *GetNameSafe(PC),
+		PC && PC->IsMoveInputIgnored() ? 1 : 0,
+		PC && PC->IsLookInputIgnored() ? 1 : 0);
+
 	// 移除授予 Status.Dead 标签的 GE（原由死亡 GA 的 Respawn 流程移除，
 	// 但服务端 GA 的蒙太奇回调会被 Ragdoll 卡死，改由这里兜底）
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
@@ -331,6 +384,89 @@ void APP_PlayerCharacter::ServerRespawn()
 	}
 
 	Super::ServerRespawn();
+}
+
+bool APP_PlayerCharacter::GetRespawnTransform(FTransform& OutTransform)
+{
+	// 优先使用玩家在篝火记录的重生点
+	if (const APP_PlayerState* PS = GetPlayerState<APP_PlayerState>())
+	{
+		if (PS->HasCheckpoint())
+		{
+			OutTransform = PS->GetCheckpointTransform();
+			return true;
+		}
+	}
+
+	// 没有篝火记录时回退到 PlayerStart
+	return Super::GetRespawnTransform(OutTransform);
+}
+
+void APP_PlayerCharacter::HandleDeath()
+{
+	// 基类负责：置死亡标记、Ragdoll、停移动、禁输入、启动复活计时
+	Super::HandleDeath();
+
+	if (!HasAuthority() || !GetWorld())
+	{
+		return;
+	}
+
+	// 上一次死亡留下且未拾回的魂：再次死亡时直接消散（魂类规则：二次死亡丢失）
+	if (ActiveSoul.IsValid())
+	{
+		ActiveSoul->Destroy();
+		ActiveSoul.Reset();
+	}
+
+	APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
+	UPP_InventoryComponent* Inventory = PS ? PS->GetInventoryComponent() : nullptr;
+	if (!IsValid(Inventory))
+	{
+		return;
+	}
+
+	const int32 CarriedGold = Inventory->GetGold();
+	const int32 DropAmount = FMath::FloorToInt(
+		static_cast<float>(CarriedGold) * FMath::Clamp(DeathSoulDropRatio, 0.f, 1.f));
+	if (DropAmount <= 0)
+	{
+		return;
+	}
+
+	// 掉在角色脚下，避免魂的碰撞球与地面/胶囊重叠
+	FVector DropLocation = GetActorLocation();
+	if (const UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		DropLocation.Z -= FMath::Max(0.f, Capsule->GetScaledCapsuleHalfHeight() - 30.f);
+	}
+
+	UClass* SoulClass = SoulPickupClass ? SoulPickupClass.Get() : APP_SoulPickupActor::StaticClass();
+	APP_SoulPickupActor* Soul = GetWorld()->SpawnActor<APP_SoulPickupActor>(
+		SoulClass, DropLocation, FRotator::ZeroRotator);
+	if (!IsValid(Soul))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_SoulFlow] 死亡掉魂失败：SpawnActor 返回空 玩家=%s"), *GetNameSafe(PS));
+		return;
+	}
+
+	// 先确认扣款成功，避免生成一个没有真正扣除金币的魂
+	if (!Inventory->SpendGold(DropAmount))
+	{
+		Soul->Destroy();
+		return;
+	}
+
+	Soul->InitializeSoul(PS, DropAmount);
+	ActiveSoul = Soul;
+
+	UE_LOG(LogPP, Warning, TEXT("[PP_SoulFlow] 死亡掉魂: 玩家=%s 金币 %d/%d 位置=(%.0f, %.0f, %.0f)"),
+		*GetNameSafe(PS), DropAmount, CarriedGold, DropLocation.X, DropLocation.Y, DropLocation.Z);
+
+	if (APP_PlayerController* PC = Cast<APP_PlayerController>(GetController()))
+	{
+		PC->Client_NotifyMessage(FString::Printf(TEXT("你丢失了 %d 金币，回到死亡地点可拾回"), DropAmount));
+	}
 }
 
 void APP_PlayerCharacter::RestoreCharacterSelection()
@@ -560,6 +696,12 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(RotationModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnRotationMode);
 		EnhancedInput->BindAction(ViewModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnViewMode);
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
+
+		// 锁定键走 legacy BindKey：无需额外 IA/IMC 资产，按键可在玩家蓝图里改
+		if (LockOnKey.IsValid())
+		{
+			Input->BindKey(LockOnKey, IE_Pressed, this, &ThisClass::Input_OnLockOn);
+		}
 	}
 	else
 	{
@@ -569,6 +711,12 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 
 void APP_PlayerCharacter::Input_OnLookMouse(const FInputActionValue& ActionValue)
 {
+	// 锁定期间相机由目标驱动，忽略鼠标视角
+	if (IsLockedOn())
+	{
+		return;
+	}
+
 	const FVector2f Value{ActionValue.Get<FVector2D>()};
 
 	AddControllerPitchInput(Value.Y * LookUpMouseSensitivity);
@@ -577,6 +725,12 @@ void APP_PlayerCharacter::Input_OnLookMouse(const FInputActionValue& ActionValue
 
 void APP_PlayerCharacter::Input_OnLook(const FInputActionValue& ActionValue)
 {
+	// 锁定期间相机由目标驱动，忽略视角输入
+	if (IsLockedOn())
+	{
+		return;
+	}
+
 	const FVector2f Value{ActionValue.Get<FVector2D>()};
 
 	AddControllerPitchInput(Value.Y * LookUpRate);
@@ -665,6 +819,16 @@ void APP_PlayerCharacter::Input_OnAim(const FInputActionValue& ActionValue)
 
 void APP_PlayerCharacter::Input_OnRagdoll()
 {
+	// 手动布娃娃同样走 ALS 的 IsRagdollingAllowedToStart()，物理资产缺少
+	// pelvis / spine_03 时会在 Development 构建里触发 ensure 断点，这里直接忽略。
+	if (GetMesh()->GetBodyInstance(UAlsConstants::PelvisBoneName()) == nullptr ||
+	    GetMesh()->GetBodyInstance(UAlsConstants::Spine03BoneName()) == nullptr)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Ragdoll] 忽略手动布娃娃：物理资产=%s 缺少 pelvis/spine_03"),
+			*GetNameSafe(GetMesh()->GetPhysicsAsset()));
+		return;
+	}
+
 	if (!StopRagdolling())
 	{
 		StartRagdolling();
@@ -689,6 +853,12 @@ void APP_PlayerCharacter::Input_OnRoll()
 
 void APP_PlayerCharacter::Input_OnRotationMode()
 {
+	// 锁定期间强制 Aiming 旋转模式，切换按键暂不生效
+	if (IsLockedOn())
+	{
+		return;
+	}
+
 	SetDesiredRotationMode(GetDesiredRotationMode() == AlsRotationModeTags::VelocityDirection
 			                       ? AlsRotationModeTags::ViewDirection
 			                       : AlsRotationModeTags::VelocityDirection);
@@ -704,3 +874,190 @@ void APP_PlayerCharacter::Input_OnSwitchShoulder()
 {
 	Camera->SetRightShoulder(!Camera->IsRightShoulder());
 }
+
+// ===== 锁定系统 =====
+
+void APP_PlayerCharacter::Input_OnLockOn()
+{
+	ToggleLockOn();
+}
+
+void APP_PlayerCharacter::ToggleLockOn()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	if (!IsAlive())
+	{
+		ReleaseLockOn();
+		return;
+	}
+
+	// 已有锁定则解锁
+	if (LockOnTarget.IsValid())
+	{
+		ReleaseLockOn();
+		return;
+	}
+
+	if (AActor* Found = FindLockOnTarget())
+	{
+		LockOnTarget = Found;
+		PreLockOnRotationMode = GetDesiredRotationMode();
+
+		// Aiming 旋转模式让角色在静止时也朝向视角（即目标），
+		// 移动时则保持下半身朝目标、可横向绕圈。
+		SetDesiredRotationMode(AlsRotationModeTags::Aiming);
+
+		UE_LOG(LogPP, Log, TEXT("[LockOn] 锁定目标: %s"), *Found->GetName());
+	}
+}
+
+FVector APP_PlayerCharacter::GetLockOnFocusLocation() const
+{
+	const AActor* Target = LockOnTarget.Get();
+	return IsValid(Target)
+		       ? Target->GetActorLocation() + FVector(0.f, 0.f, LockOnFocusHeight)
+		       : FVector::ZeroVector;
+}
+
+bool APP_PlayerCharacter::IsLockOnTargetValid(const AActor* Target) const
+{
+	if (!IsValid(Target))
+	{
+		return false;
+	}
+
+	const APP_BaseCharacter* TargetCharacter = Cast<APP_BaseCharacter>(Target);
+	if (!TargetCharacter || !TargetCharacter->IsAlive())
+	{
+		return false;
+	}
+
+	return FVector::DistSquared(GetActorLocation(), Target->GetActorLocation())
+		<= FMath::Square(LockOnBreakDistance);
+}
+
+AActor* APP_PlayerCharacter::FindLockOnTarget()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!IsValid(PC) || !IsValid(PC->PlayerCameraManager))
+	{
+		return nullptr;
+	}
+
+	const FVector CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
+	const FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
+	const float MinDot = FMath::Cos(FMath::DegreesToRadians(LockOnMaxScreenAngle));
+
+	AActor* BestTarget = nullptr;
+	float BestScore = TNumericLimits<float>::Max();
+
+	for (TActorIterator<APP_EnemyCharacter> It(GetWorld()); It; ++It)
+	{
+		APP_EnemyCharacter* Enemy = *It;
+		if (!IsValid(Enemy) || !Enemy->IsAlive() || Enemy->IsHidden())
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist(GetActorLocation(), Enemy->GetActorLocation());
+		if (Distance > LockOnSearchRadius)
+		{
+			continue;
+		}
+
+		const FVector FocusLocation = Enemy->GetActorLocation() + FVector(0.f, 0.f, LockOnFocusHeight);
+		const FVector ToTarget = FocusLocation - CameraLocation;
+		const float Dot = FVector::DotProduct(CameraForward, ToTarget.GetSafeNormal());
+		if (Dot < MinDot)
+		{
+			continue;
+		}
+
+		// 视线校验：忽略自身与目标本身，任何遮挡都视为不可见
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(PP_LockOnTrace), false, this);
+		Params.AddIgnoredActor(this);
+		Params.AddIgnoredActor(Enemy);
+
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, CameraLocation, FocusLocation, ECC_Visibility, Params))
+		{
+			continue;
+		}
+
+		// 综合距离与屏幕角度：越近、越靠近画面中心分越高
+		const float AnglePenalty = FMath::Acos(FMath::Clamp(Dot, -1.f, 1.f)) / PI;
+		const float Score = Distance / LockOnSearchRadius + AnglePenalty;
+		if (Score < BestScore)
+		{
+			BestScore = Score;
+			BestTarget = Enemy;
+		}
+	}
+
+	return BestTarget;
+}
+
+void APP_PlayerCharacter::UpdateLockOn(float DeltaTime)
+{
+	if (!IsLockedOn())
+	{
+		return;
+	}
+
+	if (!IsAlive() || !IsLockOnTargetValid(LockOnTarget.Get()))
+	{
+		ReleaseLockOn();
+		return;
+	}
+
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!IsValid(PC) || !IsValid(PC->PlayerCameraManager))
+	{
+		return;
+	}
+
+	// 相机与角色朝向都由 ControlRotation 驱动：ALS 会把本地视角同步到服务端，
+	// 服务端因此能据此计算角色朝向，攻击命中判定方向与画面一致。
+	const FVector FocusLocation = GetLockOnFocusLocation();
+	const FRotator DesiredRotation = (FocusLocation - PC->PlayerCameraManager->GetCameraLocation()).Rotation();
+	const FRotator CurrentRotation = PC->GetControlRotation();
+
+	PC->SetControlRotation(FMath::RInterpTo(CurrentRotation, DesiredRotation, DeltaTime, LockOnCameraInterpolationSpeed));
+}
+
+void APP_PlayerCharacter::ReleaseLockOn()
+{
+	if (!LockOnTarget.IsValid() && !PreLockOnRotationMode.IsValid())
+	{
+		return;
+	}
+
+	const bool bWasLocked = LockOnTarget.IsValid();
+	LockOnTarget.Reset();
+
+	if (PreLockOnRotationMode.IsValid())
+	{
+		if (IsLocallyControlled())
+		{
+			UE_LOG(LogPP, Log, TEXT("[LockOn] 恢复旋转模式: %s → %s"),
+				*GetDesiredRotationMode().ToString(), *PreLockOnRotationMode.ToString());
+			SetDesiredRotationMode(PreLockOnRotationMode);
+		}
+		PreLockOnRotationMode = FGameplayTag();
+	}
+
+	if (bWasLocked)
+	{
+		UE_LOG(LogPP, Log, TEXT("[LockOn] 解除锁定"));
+	}
+}
+

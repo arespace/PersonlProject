@@ -128,27 +128,16 @@ void UPP_Death::Respawn()
 	// 2. 发送 EndAttack 事件（对应 SendGameplayEventToActor）
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(Avatar, PPTags::Events::Enemy::EndAttack, FGameplayEventData());
 
-	// 3. 仅服务端：重置属性 + 传送到 PlayerStart（对应 K2_HasAuthority 分支）
+	// 3. 复活统一交给 ServerRespawn（仅服务端）：
+	//    它会移除 Dead 标签、优先使用篝火记录的 PlayerState 重生点、用 TeleportPhysics 传送，
+	//    并调用 HandleRespawn + 把落点同步给客户端。
+	//    这里不再单独传送 PlayerStart / 直接调 HandleRespawn：
+	//    - GA 的蒙太奇回调在客户端也会执行，客户端调用 HandleRespawn 会把已复活并开始移动的角色
+	//      再次 StopMovement（日志里速度=375 被清零），表现就是复活后移动卡顿；
+	//    - GA 路径传送到 PlayerStart 会绕过篝火重生点。
 	if (Character && CachedActorInfo && CachedActorInfo->IsNetAuthority())
 	{
-		Character->ResetAttributes();
-
-		if (UWorld* World = GetWorld())
-		{
-			if (AGameModeBase* GameMode = World->GetAuthGameMode())
-			{
-				if (AActor* PlayerStart = GameMode->FindPlayerStart(Character->GetController()))
-				{
-					Character->SetActorLocation(PlayerStart->GetActorLocation(), false);
-				}
-			}
-		}
-	}
-
-	// 4. 复活角色（对应 HandleRespawn）
-	if (Character)
-	{
-		Character->HandleRespawn();
+		Character->RespawnCharacter();
 	}
 
 	// 5. 结束能力（对应 K2_EndAbility）

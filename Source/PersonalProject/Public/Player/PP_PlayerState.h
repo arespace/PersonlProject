@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -38,6 +38,19 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Quest")
 	UPP_QuestComponent* GetQuestComponent() const { return QuestComponent; }
 
+	// ===== 篝火重生点 =====
+
+	/** 设置重生点（服务器在篝火休息时调用） */
+	void SetCheckpoint(const FTransform& InTransform);
+
+	/** 是否已经记录过重生点 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Checkpoint")
+	bool HasCheckpoint() const { return bHasCheckpoint; }
+
+	/** 获取重生点（未记录时返回 Identity） */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Checkpoint")
+	FTransform GetCheckpointTransform() const { return CheckpointTransform; }
+
 protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
@@ -63,4 +76,12 @@ private:
 	/** 从大厅携带到战斗地图的角色选择ID */
 	UPROPERTY(Replicated)
 	FName SelectedCharacterId;
+
+	/** 是否已经记录过篝火重生点 */
+	UPROPERTY(Replicated)
+	bool bHasCheckpoint{false};
+
+	/** 篝火重生点（玩家死亡复活时传送到的位置） */
+	UPROPERTY(Replicated)
+	FTransform CheckpointTransform{FTransform::Identity};
 };

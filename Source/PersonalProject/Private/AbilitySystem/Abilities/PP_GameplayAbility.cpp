@@ -5,6 +5,7 @@
 
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "AbilitySystemComponent.h"
+#include "Framework/PP_Log.h"
 #include "GameplayTags/PPTags.h"
 
 void UPP_GameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -22,6 +23,20 @@ void UPP_GameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	// 放在 ActivateAbility 才能保证所有配置了 StaminaCost 的技能都生效。
 	if (StaminaCost > 0.f)
 	{
+		// 排错：记录每份能力的实例/本地角色/扣除前后的体力。
+		// 同一技能被重复授予时一次按键会出现多条该日志，体力也会被扣多次。
+		const UAbilitySystemComponent* AbilitySystemComponent = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+		const UPP_AttributeSet* AttributeSet = AbilitySystemComponent ? AbilitySystemComponent->GetSet<UPP_AttributeSet>() : nullptr;
+
+		UE_LOG(LogPP, Warning,
+			TEXT("[PP_Skill] 扣除体力: %s 实例=%s 本机=%d LocalRole=%d 消耗=%.1f 体力前=%.1f/%.1f"),
+			*GetName(), *GetNameSafe(GetCurrentAbilitySpec() ? GetCurrentAbilitySpec()->GetPrimaryInstance() : nullptr),
+			ActorInfo && ActorInfo->IsLocallyControlled() ? 1 : 0,
+			AbilitySystemComponent ? static_cast<int32>(AbilitySystemComponent->GetOwnerRole()) : -1,
+			StaminaCost,
+			AttributeSet ? AttributeSet->GetStamina() : -1.f,
+			AttributeSet ? AttributeSet->GetMaxStamina() : -1.f);
+
 		ApplyStaminaCost(ActorInfo);
 	}
 }
