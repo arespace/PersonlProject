@@ -148,23 +148,6 @@ struct FPP_BossDeadEvent
 	int32 GoldReward = 0;
 };
 
-/** 结算界面显示事件：BossCharacter -> SettlementWidget */
-USTRUCT(BlueprintType)
-struct FPP_SettlementShowEvent
-{
-	GENERATED_BODY()
-
-	/** Boss 的显示名 */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	FName BossName;
-
-	/** Boss 击杀用时（秒） */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	float TimeToKill = 0.f;
-
-	/** 击杀奖励金币（已乘倍率） */
-	UPROPERTY(BlueprintReadOnly, Category = "Event")
-	int32 GoldReward = 0;
-};
+/** 结算界面复用 FPP_BossDeadEvent：两者字段完全一致，Boss 死亡时只广播一次 */
 
 

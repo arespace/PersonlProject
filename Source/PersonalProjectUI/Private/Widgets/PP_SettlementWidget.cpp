@@ -44,7 +44,7 @@ FReply UPP_SettlementWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-void UPP_SettlementWidget::ShowSettlement(const FPP_SettlementShowEvent& Event)
+void UPP_SettlementWidget::ShowSettlement(const FPP_BossDeadEvent& Event)
 {
 	// 填入数据
 	if (BossNameText)

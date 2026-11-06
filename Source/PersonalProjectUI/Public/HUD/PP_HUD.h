@@ -242,7 +242,7 @@ private:
 	FDelegateHandle QuestCompletedEventHandle;
 
 	/** Boss 结算事件回调（EventBus 订阅 → 创建结算 Widget） */
-	void OnSettlementShowEvent(const struct FPP_SettlementShowEvent& Event);
+	void OnSettlementShowEvent(const struct FPP_BossDeadEvent& Event);
 
 	/** Boss 结算事件订阅句柄（EndPlay 时退订） */
 	FDelegateHandle SettlementShowEventHandle;
