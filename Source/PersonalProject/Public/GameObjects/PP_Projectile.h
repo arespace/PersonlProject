@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -19,16 +18,16 @@ public:
 	APP_Projectile();
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor);
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category="Crash|Damage",meta=(ExposeOnSpawn,ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category="PP|Damage",meta=(ExposeOnSpawn,ClampMin = "0.0"))
 	float Damage{-25.f};
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Crash|Projectile")
+	UFUNCTION(BlueprintImplementableEvent, Category = "PP|Projectile")
 	void SpawnImpactEffects();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Crash|Damage", meta=(ExposeOnSpawn))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PP|Damage", meta=(ExposeOnSpawn))
 	TSubclassOf<UGameplayEffect> DamageEffect;
 
 private:
-	UPROPERTY(VisibleAnywhere,Category= "Crash|Projectile")
+	UPROPERTY(VisibleAnywhere,Category= "PP|Projectile")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
 };

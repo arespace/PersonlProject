@@ -14,7 +14,7 @@
 #include "Shop/PP_ShopWidget.h"
 #include "Dialogue/PP_DialogueSource.h"
 #include "Data/PP_DialogueData.h"
-#include "Inventory/PP_InventoryQuery.h"
+#include "Query/PP_InventoryQuery.h"
 #include "Components/ActorComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"

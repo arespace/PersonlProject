@@ -1,4 +1,3 @@
-﻿// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -21,7 +20,7 @@ public:
 	/** 体力不足以支付 StaminaCost 时阻止激活（普攻等不消耗体力的技能保持 0） */
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Crash|Debug")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PP|Debug")
 	bool bDrawDebugs = false;
 
 	/** 激活时消耗的体力值（0 = 不消耗体力） */

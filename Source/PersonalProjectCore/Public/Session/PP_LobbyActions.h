@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Framework/PP_LobbyTypes.h"
+#include "Session/PP_LobbyTypes.h"
 #include "PP_LobbyActions.generated.h"
 
 UINTERFACE(BlueprintType)

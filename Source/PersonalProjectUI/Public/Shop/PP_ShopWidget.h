@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/PP_UIUserWidget.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventTypes.h"
 #include "PP_ShopWidget.generated.h"
 
 class UPP_ShopItemWidget;

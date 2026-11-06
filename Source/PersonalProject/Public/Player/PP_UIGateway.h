@@ -6,9 +6,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Framework/PP_ScoreboardTypes.h"
-#include "Framework/PP_LobbyTypes.h"
-#include "Framework/PP_SessionManager.h"
+#include "Session/PP_ScoreboardTypes.h"
+#include "Session/PP_LobbyTypes.h"
+#include "Session/PP_SessionManager.h"
 #include "PP_UIGateway.generated.h"
 
 class UUserWidget;

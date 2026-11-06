@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/PP_QuestData.h"
-#include "Quest/PP_QuestQuery.h"
+#include "Query/PP_QuestQuery.h"
 #include "PP_QuestComponent.generated.h"
 
 class UPP_InventoryComponent;

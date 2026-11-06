@@ -5,7 +5,7 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "Inventory/PP_InventoryActions.h"
+#include "Query/PP_InventoryActions.h"
 #include "Inventory/PP_ItemTooltipWidget.h"
 #include "Framework/PP_DataManager.h"
 

@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #include "AI/UPP_AIPerceptionComponent.h"
 
@@ -158,7 +157,7 @@ void UPP_AIPerceptionComponent::Search()
 		APP_BaseCharacter* Candidate = *It;
 		if (!IsValid(Candidate) || !Candidate->IsAlive()) continue;
 
-		if (!Candidate->ActorHasTag(PersonalTags::Player)) continue;
+		if (!Candidate->ActorHasTag(PPActorTags::Player)) continue;
 
 		const FVector CandidateLoc = Candidate->GetActorLocation();
 		const float Dist = FVector::Dist(PerceiverLocation, CandidateLoc);

@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/PP_UIUserWidget.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventTypes.h"
 #include "Data/PP_ItemTypes.h"
 #include "PP_InventoryWidget.generated.h"
 

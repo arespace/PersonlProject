@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #include "Characters/PP_PlayerCharacter.h"
 
@@ -25,7 +24,7 @@
 #include "EngineUtils.h"
 #include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
-#include "Framework/PP_SessionManager.h"
+#include "Session/PP_SessionManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameplayTags/PPTags.h"
@@ -57,7 +56,7 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 
-	Tags.Add(PersonalTags::Player);
+	Tags.Add(PPActorTags::Player);
 
 	// ===== 装备武器网格容器（挂在骨骼/socket 上，默认无网格） =====
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));

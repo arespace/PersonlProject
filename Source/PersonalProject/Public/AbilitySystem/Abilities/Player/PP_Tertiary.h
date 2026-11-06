@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -25,10 +24,10 @@ protected:
 	virtual void OnAbilityEventReceived(FGameplayEventData Payload) override;
 
 	// 火球投射物类（继承 APP_FireballProjectile 的蓝图）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TSubclassOf<APP_FireballProjectile> ProjectileClass;
 
 	// 投射物生成点：Avatar 前方偏移距离
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float ProjectileSpawnForwardOffset = 100.0f;
 };

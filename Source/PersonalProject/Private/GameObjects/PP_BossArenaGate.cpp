@@ -1,11 +1,10 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #include "GameObjects/PP_BossArenaGate.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Framework/PP_EventBus.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
 
 APP_BossArenaGate::APP_BossArenaGate()
 {

@@ -1,11 +1,10 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #include "Widgets/PP_SettlementWidget.h"
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Framework/PP_EventBus.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
 #include "TimerManager.h"
 
 UPP_SettlementWidget::UPP_SettlementWidget()

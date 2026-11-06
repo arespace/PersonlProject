@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #include "Game/PP_EnemyRespawnManager.h"
 

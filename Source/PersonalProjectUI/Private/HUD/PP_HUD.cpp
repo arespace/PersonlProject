@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #include "HUD/PP_HUD.h"
 
@@ -13,7 +12,7 @@
 #include "Widgets/PP_SettlementWidget.h"
 #include "Quest/PP_QuestListWidget.h"
 #include "Quest/PP_QuestTrackerWidget.h"
-#include "Quest/PP_QuestQuery.h"
+#include "Query/PP_QuestQuery.h"
 #include "GameFramework/PlayerState.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/ActorComponent.h"
@@ -28,10 +27,10 @@
 #include "Engine/Canvas.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayTags/PPTags.h"
-#include "Inventory/PP_InventoryQuery.h"
+#include "Query/PP_InventoryQuery.h"
 #include "Engine/GameInstance.h"
-#include "Framework/PP_EventBus.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
 #include "Characters/PP_PlayerCharacter.h"
 #include "Utils/PP_BlueprintLibrary.h"
 

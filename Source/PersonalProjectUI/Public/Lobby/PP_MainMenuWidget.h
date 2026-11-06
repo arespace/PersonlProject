@@ -1,4 +1,3 @@
-﻿// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -7,7 +6,7 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/ComboBoxString.h"
-#include "Framework/PP_SessionManager.h"
+#include "Session/PP_SessionManager.h"
 #include "PP_MainMenuWidget.generated.h"
 
 class APP_LobbyHUD;

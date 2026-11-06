@@ -4,10 +4,10 @@
 
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
-#include "Inventory/PP_InventoryQuery.h"
+#include "Query/PP_InventoryQuery.h"
 #include "Inventory/PP_ItemSlotWidget.h"
 #include "Inventory/PP_EquipSlotWidget.h"
-#include "Framework/PP_EventBus.h"
+#include "Events/PP_EventBus.h"
 #include "Framework/PP_DataManager.h"
 #include "Engine/GameInstance.h"
 

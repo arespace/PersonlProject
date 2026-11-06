@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -31,19 +30,19 @@ public:
 
 protected:
 	// 施法期间阻止受击反应（对应 GE_BlockHitReact）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TSubclassOf<UGameplayEffect> BlockHitReactEffectClass;
 
 	// BlockHitReact GE 施加等级（Primary 用 0，Secondary/Tertiary 用 1）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float BlockHitReactLevel = 1.0f;
 
 	// 施法蒙太奇（对应 CreatePlayMontageAndWaitProxy 的 MontageToPlay）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TObjectPtr<UAnimMontage> AbilityMontage;
 
 	// 能力结束时是否停止蒙太奇（Primary 为 true，Secondary/Tertiary 为 false）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	bool bStopMontageWhenAbilityEnds = false;
 
 	// 缓存激活参数，供蒙太奇结束回调里调用 EndAbility / 子类 CommitAbility

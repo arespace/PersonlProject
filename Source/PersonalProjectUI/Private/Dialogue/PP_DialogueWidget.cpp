@@ -9,7 +9,7 @@
 #include "Dialogue/PP_DialogueSource.h"
 #include "Dialogue/PP_DialogueRequester.h"
 #include "GameFramework/PlayerController.h"
-#include "Shop/PP_ShopQuery.h"
+#include "Query/PP_ShopQuery.h"
 #include "Dialogue/PP_DialogueChoiceWidget.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/PP_Log.h"

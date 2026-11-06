@@ -4,10 +4,10 @@
 
 #include "Components/PanelWidget.h"
 #include "Components/Button.h"
-#include "Quest/PP_QuestQuery.h"
+#include "Query/PP_QuestQuery.h"
 #include "Quest/PP_QuestEntryWidget.h"
-#include "Framework/PP_EventBus.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameInstance.h"
 

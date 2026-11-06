@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -21,7 +20,7 @@ class PERSONALPROJECT_API UPP_Primary : public UPP_MontageEventAbility
 public:
 	UPP_Primary();
 
-	UFUNCTION(BlueprintCallable, Category= "Crash|Abilities")
+	UFUNCTION(BlueprintCallable, Category= "PP|Abilities")
 	void SendHitReactEventToActors(const TArray<AActor*> ActorsHit);
 
 protected:
@@ -29,22 +28,22 @@ protected:
 	virtual FGameplayTag GetEventTagToWait() const override;
 	virtual void OnAbilityEventReceived(FGameplayEventData Payload) override;
 
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "PP|Abilities")
 	float HitBoxRadius = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "PP|Abilities")
 	float HitBoxForwardOffset = 200.0f;
 
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "PP|Abilities")
 	float HitBoxElevationOffset = 20.0f;
 
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "PP|Abilities")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "PP|Abilities")
 	TObjectPtr<UAnimMontage> LeftPunchMontage;
 
-	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly,BlueprintReadOnly, Category = "PP|Abilities")
 	TObjectPtr<UAnimMontage> RightPunchMontage;
 
 private:

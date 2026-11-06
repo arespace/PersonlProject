@@ -1,11 +1,11 @@
-﻿// 采集系统 — 可交互采集物Actor
+// 采集系统 — 可交互采集物Actor
 // 世界中可被玩家长按采集的物品节点，支持多次采集、耗尽重生、多人互斥
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Interaction/PP_InteractableInterface.h"
+#include "Interfaces/PP_InteractableInterface.h"
 #include "PP_GatherableActor.generated.h"
 
 class USphereComponent;

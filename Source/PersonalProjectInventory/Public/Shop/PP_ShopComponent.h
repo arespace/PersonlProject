@@ -6,8 +6,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/PP_ShopData.h"
-#include "Shop/PP_ShopQuery.h"
-#include "Shop/PP_ShopActions.h"
+#include "Query/PP_ShopQuery.h"
+#include "Query/PP_ShopActions.h"
 #include "PP_ShopComponent.generated.h"
 
 class UPP_InventoryComponent;

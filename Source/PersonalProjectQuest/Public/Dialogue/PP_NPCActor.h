@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Characters/PP_CharacterData.h"
-#include "Interaction/PP_InteractableInterface.h"
+#include "Interfaces/PP_InteractableInterface.h"
 #include "Dialogue/PP_DialogueSource.h"
 #include "PP_NPCActor.generated.h"
 

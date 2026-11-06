@@ -6,7 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "GameplayEffect.h"
-#include "Inventory/PP_InventoryQuery.h"
+#include "Query/PP_InventoryQuery.h"
 #include "Framework/PP_DataManager.h"
 #include "Engine/DataTable.h"
 

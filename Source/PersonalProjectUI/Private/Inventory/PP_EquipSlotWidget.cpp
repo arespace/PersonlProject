@@ -5,8 +5,8 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "Inventory/PP_InventoryActions.h"
-#include "Inventory/PP_InventoryQuery.h"
+#include "Query/PP_InventoryActions.h"
+#include "Query/PP_InventoryQuery.h"
 #include "Inventory/PP_ItemTooltipWidget.h"
 
 void UPP_EquipSlotWidget::NativeConstruct()

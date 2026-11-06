@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -25,10 +24,10 @@ public:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TSubclassOf<UGameplayEffect> DeathEffectClass;
 
 private:
