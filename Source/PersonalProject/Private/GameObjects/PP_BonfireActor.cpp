@@ -134,7 +134,7 @@ void APP_BonfireActor::Rest(APlayerController* Interactor)
 
 	PlayerState->SetCheckpoint(CheckpointTransform);
 
-	// 回满生命/法力/耐力（ResetAttributesEffect 在角色蓝图里配置）
+	// 回满生命/法力/耐力：ResetAttributes() 直接赋值，不走 GE（GE 只用于清理死亡相关状态）
 	Character->ResetAttributes();
 
 	if (APP_PlayerController* PC = Cast<APP_PlayerController>(Interactor))
@@ -160,7 +160,7 @@ void APP_BonfireActor::Rest(APlayerController* Interactor)
 			}
 			else
 			{
-				UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 休息触发敌人重置：未找到 UPP_EnemyRespawnManager（需要在 GameMode 蓝图子类里 Add Component）"));
+				UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 休息触发敌人重置：未找到 UPP_EnemyRespawnManager（APP_CrashGameMode 构造函数会自动创建；自定义 GameMode 需自行 Add Component）"));
 			}
 		}
 	}

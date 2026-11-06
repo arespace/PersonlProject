@@ -10,7 +10,7 @@ class APP_BaseCharacter;
 
 /**
  * 敌人 AI 感知组件：全向搜敌（不限朝向，仅要求视线未被遮挡）、脱战 leash、仇恨粘性。
- * 挂到 AIController 上（不是 EnemyCharacter），由 AIController 的 BeginPlay 触发。
+ * 挂在 EnemyCharacter 上：PP_EnemyCharacter::BeginPlay 会自动补建（蓝图未挂时）并 StartSearching()。
  * 对外暴露 CurrentTarget 供 SearchForTarget GA 直接读取。
  */
 UCLASS(ClassGroup = (PP), meta = (BlueprintSpawnableComponent))
