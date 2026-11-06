@@ -62,10 +62,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
 	int32 ResetEnemiesInRadius(const FVector& Origin, float Radius);
 
-	/** 清空注册表 */
-	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
-	void ClearAll();
-
 	/** 已记录敌人数（含死亡待重建） */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|EnemyRespawn")
 	int32 GetEnemyCount() const { return EnemySpawnRecords.Num(); }

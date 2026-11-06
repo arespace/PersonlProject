@@ -171,8 +171,3 @@ int32 UPP_EnemyRespawnManager::ResetEnemiesInRadius(const FVector& Origin, float
 
 	return ResetCount;
 }
-
-void UPP_EnemyRespawnManager::ClearAll()
-{
-	EnemySpawnRecords.Empty();
-}
