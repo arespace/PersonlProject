@@ -42,15 +42,6 @@ public:
 	/** 绑定商店系统：遍历 NPC 绑定 ShopComponent->OnPurchaseCompleted */
 	void BindToShopSystem();
 
-	/** 绑定聊天系统：通过外部调用 NotifyChatSent 触发 */
-	void BindToChatSystem();
-
-	/** 绑定战斗系统：通过外部调用 NotifyEnemyKilled 触发 */
-	void BindToCombatSystem();
-
-	/** 绑定对话系统：通过外部调用 NotifyDialogueCompleted 触发 */
-	void BindToDialogueSystem();
-
 	// ===== 外部通知入口（由各子系统在事件发生时调用） =====
 
 	/** 聊天消息发送通知 */
