@@ -8,8 +8,8 @@
 #include "GameplayTagContainer.h"
 #include "Data/PP_ItemData.h"
 #include "Data/PP_ItemTypes.h"
-#include "Inventory/PP_InventoryQuery.h"
-#include "Inventory/PP_InventoryActions.h"
+#include "Query/PP_InventoryQuery.h"
+#include "Query/PP_InventoryActions.h"
 #include "PP_InventoryComponent.generated.h"
 
 class UAbilitySystemComponent;

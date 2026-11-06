@@ -1,4 +1,3 @@
-﻿// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -18,10 +17,10 @@ class PERSONALPROJECTUI_API UPP_AttributeWidget : public UUserWidget
 	
 public:
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Crash|Attributes")
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "PP|Attributes")
 	FGameplayAttribute Attribute;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Crash|Attributes")
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "PP|Attributes")
 	FGameplayAttribute MaxAttribute;
 	
 	void OnAttributeChange(const TTuple<FGameplayAttribute, FGameplayAttribute>& Pair, UPP_AttributeSet* AttributeSet,float OldValue);
@@ -30,7 +29,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent,meta = (DisplayName = "On Attribute Change"))
 	void BP_OnAttributeChage(float NewValue,float NewMaxValue,float OldValue);
 	
-	UPROPERTY(BlueprintReadOnly,Category = "Crash|Attributes")
+	UPROPERTY(BlueprintReadOnly,Category = "PP|Attributes")
 	TWeakObjectPtr<AActor> AvatarActor;
 	
 };

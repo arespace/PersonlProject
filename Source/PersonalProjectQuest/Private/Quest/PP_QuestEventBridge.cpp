@@ -4,8 +4,8 @@
 #include "Quest/PP_QuestEventBridge.h"
 
 #include "Quest/PP_QuestComponent.h"
-#include "Framework/PP_EventBus.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
 #include "GameFramework/PlayerState.h"
 #include "Shop/PP_ShopComponent.h"
 #include "Dialogue/PP_NPCActor.h"

@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -64,16 +63,16 @@ public:
 	 * @param CoefficientTag SetByCaller 标签，需与 ExecCalc 的 CoefficientTag 一致
 	 * @param Coefficient  伤害系数（正值，最终伤害 = 攻击力 × 系数 − 防御）
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Crash|Abilities")
+	UFUNCTION(BlueprintCallable, Category = "PP|Abilities")
 	static void ApplyDamageEffectFromCauser(AActor* Causer, AActor* Target, const TSubclassOf<UGameplayEffect>& DamageEffect,
 		const FGameplayTag& CoefficientTag, float Coefficient);
 
-	UFUNCTION(BlueprintCallable, Category= "Crash|Abilities")
+	UFUNCTION(BlueprintCallable, Category= "PP|Abilities")
 	static TArray<AActor*> HitBoxOverlapTest(AActor* AvatarActor , float HitBoxRadius,float HitBoxForwardOffset = 0,float HitBoxElevationOffset = 0,bool bDrawDebugs = false);
 	
 	static void DrawHitBoxOverlapDebugs(const UObject* WorldContextObject, const TArray<FOverlapResult>& OverlapResults,const FVector& HitBoxLocation,float HitBoxRadius);
 	
-	UFUNCTION(BlueprintCallable, Category = "Crash|Abilities")
+	UFUNCTION(BlueprintCallable, Category = "PP|Abilities")
 	static TArray<AActor*> ApplyKnockback(AActor* AvatarActor, const TArray<AActor*>& HitActors, float InnerRadius, float OuterRadius, float LaunchForceMagnitude, float RotationAngle = 45.f, bool bDrawDebugs = false);
 
 	/**

@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -8,7 +7,7 @@
 #include "Data/PP_ItemTypes.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
-#include "Interaction/PP_InteractableInterface.h"
+#include "Interfaces/PP_InteractableInterface.h"
 #include "PP_PlayerCharacter.generated.h"
 
 struct FInputActionValue;

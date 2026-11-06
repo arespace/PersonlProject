@@ -1,13 +1,12 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
-#include "Framework/PP_ScoreboardTypes.h"
-#include "Framework/PP_SessionManager.h"
-#include "Framework/PP_LobbyActions.h"
+#include "Session/PP_ScoreboardTypes.h"
+#include "Session/PP_SessionManager.h"
+#include "Session/PP_LobbyActions.h"
 #include "Data/PP_DialogueData.h"
 #include "Dialogue/PP_DialogueRequester.h"
 #include "Player/PP_UIGateway.h"
@@ -189,60 +188,60 @@ public:
 
 private:
 	
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input")
 	TArray<TObjectPtr<UInputMappingContext>> InputMappingContexts;
 
 	/** 大厅选择的角色ID，跨 ServerTravel 携带到战斗地图 */
 	FName PendingCharacterId;
 	
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Movement")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Movement")
 	TObjectPtr<UInputAction> JumpAction;
 	
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Movement")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Movement")
 	TObjectPtr<UInputAction> MoveAction;
 	
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Movement")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Movement")
 	TObjectPtr<UInputAction> LookAction;
 
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Abilities")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Abilities")
 	TObjectPtr<UInputAction> PrimaryAction;
 	
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Abilities")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Abilities")
 	TObjectPtr<UInputAction> SecondaryAction;
 	
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Abilities")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Abilities")
 	TObjectPtr<UInputAction> TertiaryAction;
 
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Abilities")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Abilities")
 	TObjectPtr<UInputAction> FourthAction;
 	
-	UPROPERTY(EditDefaultsOnly,Category = "Crash|Input|Abilities")
+	UPROPERTY(EditDefaultsOnly,Category = "PP|Input|Abilities")
 	TObjectPtr<UInputAction> FifthAction;
 	
 	// ===== UI输入动作 =====
 
 	/** 暂停/恢复菜单输入动作 */
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input|UI")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> PauseAction;
 
 	/** 计分板显示输入动作 */
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input|UI")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> ScoreboardAction;
 
 	/** 主界面开关输入动作 */
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input|UI")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> HUDToggleAction;
 
 	/** 对话/交互输入动作（E键触发NPC对话） */
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input|UI")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> DialogueAction;
 
 	/** 任务日志开关输入动作（J/Tab键打开任务面板） */
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input|UI")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> QuestAction;
 
 	/** 背包开关输入动作 */
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Input|UI")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> InventoryAction;
 
 	// ===== 原有功能 =====

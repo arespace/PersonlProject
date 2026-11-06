@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -28,20 +27,20 @@ public:
 	virtual void ResetToSpawn_Implementation() override;
 	//~ End IPP_Resettable
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|AI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|AI")
 	float AcceptanceRadius{500.f};
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|AI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|AI")
 	float MinAttackDelay{.1f};
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|AI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|AI")
 	float MaxAttackDelay{.5f};
 
 	/** 攻击前的额外随机冷却窗口（秒）：MoveTo 完成后等 MinAttackDelay + 随机(AttackCooldownMin, AttackCooldownMax) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|AI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|AI")
 	float AttackCooldownMin{1.5f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|AI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|AI")
 	float AttackCooldownMax{2.5f};
 
 	UFUNCTION(BlueprintImplementableEvent)
@@ -55,7 +54,7 @@ public:
 	int32 GoldDropAmount = 10;
 
 	/** 死亡后是否复活（对应 GA_PP_Death 蓝图里的 ShouldRespawn 变量） */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crash|Death")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Death")
 	bool bShouldRespawn = false;
 
 	/** 敌人唯一标识符（任务系统用于 KillEnemy 目标匹配） */
@@ -63,17 +62,17 @@ public:
 	FName EnemyID;
 
 	/** 访问 AIController 上挂的感知组件（可能 nullptr 若蓝图没挂） */
-	UFUNCTION(BlueprintCallable, Category = "Crash|AI")
+	UFUNCTION(BlueprintCallable, Category = "PP|AI")
 	UPP_AIPerceptionComponent* GetAIPerceptionComponent() const;
 	
 	void StopMovementUntilLanded();
 
 	/** 敌人初始生成位置（BeginPlay 缓存，供 ResetToSpawn 用） */
-	UFUNCTION(BlueprintCallable, Category = "Crash|AI")
+	UFUNCTION(BlueprintCallable, Category = "PP|AI")
 	FVector GetSpawnLocation() const { return SpawnLocation; }
 
 	/** 敌人初始生成朝向（BeginPlay 缓存） */
-	UFUNCTION(BlueprintCallable, Category = "Crash|AI")
+	UFUNCTION(BlueprintCallable, Category = "PP|AI")
 	FRotator GetSpawnRotation() const { return SpawnRotation; }
 
 protected:

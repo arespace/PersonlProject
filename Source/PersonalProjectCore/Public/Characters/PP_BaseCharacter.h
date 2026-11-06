@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -9,7 +8,7 @@
 
 #include "PP_BaseCharacter.generated.h"
 
-namespace PersonalTags
+namespace PPActorTags
 {
 	extern PERSONALPROJECTCORE_API const FName Player;
 }
@@ -43,26 +42,26 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FASCInitialized OnASCInitialized;
 	
-	UFUNCTION(BlueprintCallable, Category = "Crash|Death")
+	UFUNCTION(BlueprintCallable, Category = "PP|Death")
 	virtual void HandleRespawn();
 
 	/** 死亡 GA 在服务端调用：统一走 ServerRespawn 复活流程（不再由 GA 直接传送/重置） */
 	void RespawnCharacter();
 	
-	UFUNCTION(BlueprintCallable, Category = "Crash|Attributes")
+	UFUNCTION(BlueprintCallable, Category = "PP|Attributes")
 	void ResetAttributes();
 	
 	UFUNCTION(BlueprintImplementableEvent)
 	void RotateToTarget(AActor* RotateTarget);
 	
-	UPROPERTY(EditAnywhere, Category = "Crash|AI")
+	UPROPERTY(EditAnywhere, Category = "PP|AI")
 	float SearchRange{1000.f};
 
 	// 是否强制套用 ALS 动画蓝图 AB_Als。
 	// ALS Tick 有一条守卫：没有 UAlsAnimationInstance 就整体提前 return（含 RefreshView/相机刷新），
 	// 因此需要 ALS 相机与视角的角色（玩家）必须为 true；
 	// 使用自带动画蓝图且不需要 ALS 相机的角色（敌人）保持 false，避免骨架不匹配导致动作别扭。
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Als")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Als")
 	bool bForceAlsAnimationBlueprint{false};
 protected:
 	virtual void PostInitializeComponents() override;
@@ -102,7 +101,7 @@ protected:
 	float PendingRespawnYaw{0.f};
 	bool bHasPendingRespawnLocation{false};
 
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Death")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Death")
 	float RespawnDelay{3.f};
 
 	FTimerHandle RespawnTimerHandle;
@@ -121,13 +120,13 @@ protected:
 	
 private:
 	
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Effects")
 	TSubclassOf<UGameplayEffect> InitializeAttributesEffect;
 	
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Effects")
 	TSubclassOf<UGameplayEffect> ResetAttributesEffect;
 	
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Replicated)

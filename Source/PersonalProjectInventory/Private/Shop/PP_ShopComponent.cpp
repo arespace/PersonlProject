@@ -4,8 +4,8 @@
 #include "Shop/PP_ShopComponent.h"
 
 #include "Framework/PP_DataManager.h"
-#include "Framework/PP_EventBus.h"
-#include "Framework/PP_EventTypes.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Inventory/PP_InventoryComponent.h"

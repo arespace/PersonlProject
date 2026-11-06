@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -57,7 +56,7 @@ protected:
 
 private:
 	
-	UPROPERTY(VisibleAnywhere, Category = "Crash|Abilities")
+	UPROPERTY(VisibleAnywhere, Category = "PP|Abilities")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 	
 	UPROPERTY()

@@ -1,4 +1,3 @@
-﻿// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -16,16 +15,16 @@ public:
 
 private:
 	
-	UPROPERTY(EditAnywhere, Category = "Crash|Debugs")
+	UPROPERTY(EditAnywhere, Category = "PP|Debugs")
 	bool bDrawDebugs = true;
 
-	UPROPERTY(EditAnywhere, Category = "Crash|Socket")
+	UPROPERTY(EditAnywhere, Category = "PP|Socket")
 	FName SocketName{"FX_Trail_01_R"};
 
-	UPROPERTY(EditAnywhere, Category = "Crash|Socket")
+	UPROPERTY(EditAnywhere, Category = "PP|Socket")
 	float SocketExtensionOffset{40.f};
 
-	UPROPERTY(EditAnywhere, Category = "Crash|Socket")
+	UPROPERTY(EditAnywhere, Category = "PP|Socket")
 	float SphereTraceRadius{60.f};
 
 	TArray<FHitResult> PerformSphereTrace(USkeletalMeshComponent* MeshComp) const;

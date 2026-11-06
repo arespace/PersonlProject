@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -26,31 +25,31 @@ protected:
 	virtual void OnAbilityEventReceived(FGameplayEventData Payload) override;
 
 	// 命中检测（对应蓝图变量 "Hit Box Radius"，同时用作击退 OuterRadius）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float HitBoxRadius = 1000.0f;
 
 	// 击退参数（对应蓝图变量 "Inner Radius" / "Launch Force Magnitude"）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float InnerRadius = 100.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float LaunchForceMagnitude = 1000.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float RotationAngle = 65.0f;
 
 	// 伤害数值（对应 SendDamageEventToPlayers 节点的 Damage 字面量）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	float Damage = 10.0f;
 
 	// 伤害 GE（对应 DamageGE）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 
 	// 表现资源（对应 P_ImpactBlast / BP_DeathCameraShake）
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TObjectPtr<UParticleSystem> ImpactParticle;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Abilities")
 	TSubclassOf<UCameraShakeBase> CameraShakeClass;
 };

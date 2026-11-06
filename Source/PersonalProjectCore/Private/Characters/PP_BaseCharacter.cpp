@@ -1,4 +1,3 @@
-// Chen Tianbao uses GAS to create online battle games
 
 
 #include "Characters/PP_BaseCharacter.h"
@@ -22,7 +21,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Utility/AlsConstants.h"
 
-namespace PersonalTags
+namespace PPActorTags
 {
 	const FName Player = FName("Player");
 }

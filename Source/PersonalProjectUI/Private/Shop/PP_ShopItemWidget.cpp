@@ -9,7 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Shop/PP_BuyCountWidget.h"
 #include "Framework/PP_UIManager.h"
-#include "Inventory/PP_InventoryQuery.h"
+#include "Query/PP_InventoryQuery.h"
 
 void UPP_ShopItemWidget::NativeConstruct()
 {

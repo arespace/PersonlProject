@@ -1,4 +1,3 @@
-﻿// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
@@ -16,12 +15,12 @@ class PERSONALPROJECT_API UPP_HitReact : public UPP_GameplayAbility
 	
 public:
 	
-	UFUNCTION(BlueprintCallable,Category="Crash|Abilities")
+	UFUNCTION(BlueprintCallable,Category="PP|Abilities")
 	void CacheHitDirectionVectors(AActor* Instigator);
 	
-	UPROPERTY(BlueprintReadOnly,Category="Crash|Abilities")
+	UPROPERTY(BlueprintReadOnly,Category="PP|Abilities")
 	FVector AvatarForward;
 	
-	UPROPERTY(BlueprintReadOnly,Category="Crash|Abilities")
+	UPROPERTY(BlueprintReadOnly,Category="PP|Abilities")
 	FVector ToInstigator;
 };

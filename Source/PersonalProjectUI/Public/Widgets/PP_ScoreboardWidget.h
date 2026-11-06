@@ -1,11 +1,10 @@
-﻿// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Framework/PP_UIUserWidget.h"
 #include "Components/PanelWidget.h"
-#include "Framework/PP_ScoreboardTypes.h"
+#include "Session/PP_ScoreboardTypes.h"
 #include "PP_ScoreboardWidget.generated.h"
 
 /**

@@ -1,10 +1,9 @@
-// Chen Tianbao uses GAS to create online battle games
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Interaction/PP_InteractableInterface.h"
+#include "Interfaces/PP_InteractableInterface.h"
 #include "PP_BonfireActor.generated.h"
 
 class UStaticMeshComponent;

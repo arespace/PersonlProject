@@ -39,10 +39,10 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FASCInitialized OnASCInitialized;
 
-	UFUNCTION(BlueprintCallable, Category = "Crash|Death")
+	UFUNCTION(BlueprintCallable, Category = "PP|Death")
 	virtual void HandleRespawn();
 
-	UFUNCTION(BlueprintCallable, Category = "Crash|Attributes")
+	UFUNCTION(BlueprintCallable, Category = "PP|Attributes")
 	void ResetAttributes();
 
 protected:
@@ -57,16 +57,16 @@ protected:
 	virtual void HandleDeath();
 
 private:
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Abilities")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Abilities")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Effects")
 	TSubclassOf<UGameplayEffect> InitializeAttributesEffect;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Crash|Effects")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Effects")
 	TSubclassOf<UGameplayEffect> ResetAttributesEffect;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crash|Abilities", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPP_AbilitySystemComponent> AbilitySystemComponent;
 
 	UPROPERTY()

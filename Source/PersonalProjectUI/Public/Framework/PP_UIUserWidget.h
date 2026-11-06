@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Framework/PP_UIManager.h"
-#include "Framework/PP_EventBus.h"
+#include "Events/PP_EventBus.h"
 #include "PP_UIUserWidget.generated.h"
 
 /**
