@@ -97,6 +97,9 @@ public:
 	/** 添加系统消息到大厅聊天区域（加入/创建房间等提示） */
 	void AddSystemMessage(const FString& Message);
 
+	/** 建房失败：回到主菜单并在状态栏显示红色错误提示 */
+	void NotifyHostCreationFailed(const FString& Reason);
+
 	/** 设置待使用的玩家名（主菜单阶段保存，进入Lobby后发送给服务器） */
 	void SetPendingPlayerName(const FString& Name) { PendingPlayerName = Name; }
 	FString GetPendingPlayerName() const { return PendingPlayerName; }

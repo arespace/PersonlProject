@@ -203,6 +203,16 @@ void APP_LobbyHUD::AddSystemMessage(const FString& Message)
 	if (LobbyWidget) { LobbyWidget->AddSystemMessage(Message); }
 }
 
+void APP_LobbyHUD::NotifyHostCreationFailed(const FString& Reason)
+{
+	// 建房失败时玩家还停在创建房间页，聊天区不可见，回到主菜单用状态栏提示
+	ShowMainMenu();
+	if (MainMenuWidget)
+	{
+		MainMenuWidget->SetStatusMessage(Reason, true);
+	}
+}
+
 void APP_LobbyHUD::SetUIInputMode()
 {
 	if (PlayerOwner)
