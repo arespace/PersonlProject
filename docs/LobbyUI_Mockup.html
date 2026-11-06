@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>大厅 UI 布局 V1.1（已修正）</title>
+<style>
+  :root{
+    --bg:#070a10;
+    --panel:rgba(19,25,36,.9);
+    --line:rgba(255,255,255,.09);
+    --gold:#e8c47a; --gold-line:rgba(232,196,122,.38);
+    --accent:#5aa9ff;
+    --ready:#46d38a; --danger:#ff6b6b; --warn:#ffb454;
+    --text:#e7eaf1; --muted:#8a94a8; --dim:#5b6478;
+    /* 字号收敛：11 辅助 / 13 正文 / 16 小标题 / 20 强调 */
+    --fs-s:11px; --fs-m:13px; --fs-l:16px; --fs-xl:20px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:22px;color:var(--text);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+       background:radial-gradient(1100px 620px at 72% -12%, #1a2942 0%, transparent 60%),
+                  radial-gradient(900px 600px at 8% 112%, #261d33 0%, transparent 55%),var(--bg);}
+
+  .tabs{display:flex;gap:8px;margin:0 auto 10px;width:1280px;flex-wrap:wrap}
+  .tab{padding:8px 18px;border-radius:999px;cursor:pointer;font-size:var(--fs-m);
+       background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--muted);transition:.16s}
+  .tab:hover{color:var(--text);border-color:var(--gold-line)}
+  .tab.active{background:linear-gradient(135deg,#e8c47a,#b98f3f);color:#191205;font-weight:700;border-color:transparent}
+
+  /* 顶部控制条：视角 / 状态 / 标注 */
+  .ctrls{width:1280px;margin:0 auto 12px;display:flex;align-items:center;gap:10px;font-size:var(--fs-s);color:var(--muted)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .seg span{padding:5px 13px;cursor:pointer;border-right:1px solid var(--line)}
+  .seg span:last-child{border-right:0}
+  .seg span.on{background:rgba(232,196,122,.16);color:var(--gold)}
+  .ctrls .lb{color:var(--dim)}
+
+  .screen{display:none} .screen.active{display:block}
+  .frame{width:1280px;height:720px;margin:0 auto;border-radius:18px;overflow:hidden;position:relative;
+         border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.6);
+         background:linear-gradient(180deg,rgba(9,13,20,.94),rgba(9,13,20,.99))}
+  /* 面板：顶部 1px 高光 + 竖向渐变，建立层级 */
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(19,25,36,.9) 40%),var(--panel);
+         border:1px solid var(--line);border-radius:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+  .ttl{font-size:var(--fs-s);letter-spacing:2px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .ttl::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--gold)}
+  .btn{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);padding:9px 16px;border-radius:10px;
+       font-size:var(--fs-m);cursor:pointer;transition:.16s;white-space:nowrap;position:relative}
+  .btn:hover{background:rgba(255,255,255,.11);transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,#e8c47a,#c39a4d);color:#191205;font-weight:700;border-color:transparent;
+               box-shadow:0 8px 22px rgba(232,196,122,.22)}
+  .btn.ghost{background:transparent;color:var(--muted)}
+  .btn.danger{color:var(--danger);border-color:rgba(255,107,107,.3)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .chip{font-size:var(--fs-s);padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);
+        background:rgba(255,255,255,.03);white-space:nowrap}
+  .chip.gold{color:var(--gold);border-color:var(--gold-line);background:rgba(232,196,122,.08)}
+  .spacer{flex:1}
+  .tag{font-size:10px;color:var(--dim);border:1px dashed rgba(255,255,255,.16);border-radius:5px;padding:1px 5px;margin-left:5px}
+  body[data-ann="off"] .tag{display:none}
+  .note{width:1280px;margin:14px auto 0;font-size:var(--fs-s);color:var(--dim);line-height:1.9}
+  .inp{padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);
+       font-size:var(--fs-m);outline:none;flex:1}
+  .inp:focus{border-color:var(--gold)}
+  .desc{font-size:var(--fs-m);color:var(--muted);line-height:1.8}
+  details{width:1280px;margin:10px auto 0;font-size:var(--fs-s);color:var(--muted)}
+  summary{cursor:pointer;color:var(--gold);padding:6px 0}
+  details li{line-height:1.9}
+
+  /* ===== 主菜单 ===== */
+  #s1 .frame{display:flex}
+  #s1 .left{width:400px;padding:52px 40px;display:flex;flex-direction:column;justify-content:center;gap:9px;
+            border-right:1px solid var(--line)}
+  .logo{font-size:32px;font-weight:800;letter-spacing:5px;
+        background:linear-gradient(135deg,#fff,#e8c47a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .logo-sub{font-size:var(--fs-s);color:var(--dim);letter-spacing:4px;margin:-4px 0 24px}
+  .lbl{font-size:var(--fs-s);color:var(--muted);letter-spacing:1px;margin:12px 0 5px}
+  #s1 .right{flex:1;padding:32px 38px;display:flex;flex-direction:column;min-height:0;
+             background:radial-gradient(520px 420px at 70% 35%, rgba(90,169,255,.13), transparent 70%)}
+  .roomrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;margin-bottom:8px;
+           border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;transition:.16s}
+  .roomrow:hover{border-color:var(--gold-line);background:rgba(232,196,122,.06)}
+  .roomrow.sel{border-color:var(--gold);background:rgba(232,196,122,.09)}
+  .rn{font-size:14px;font-weight:600}
+  .rs{font-size:var(--fs-s);color:var(--muted);margin-top:3px}
+  .ping{font-size:var(--fs-s);color:var(--ready);margin-left:auto}
+  .ping.mid{color:var(--gold)} .ping.bad{color:var(--danger)}
+  .empty{border:1px dashed rgba(255,255,255,.14);border-radius:12px;padding:22px;text-align:center;color:var(--dim);font-size:var(--fs-s)}
+  .toast{font-size:var(--fs-s);color:var(--danger);background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.25);
+         border-radius:9px;padding:9px 12px}
+  .spinbox{display:flex;align-items:center;gap:8px;font-size:var(--fs-s);color:var(--muted)}
+
+  /* ===== 大厅 ===== */
+  .lobby{display:grid;grid-template-columns:320px 1fr 330px;grid-template-rows:60px 1fr 84px;height:100%}
+  .topbar{grid-column:1/4;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line);
+          background:rgba(0,0,0,.28)}
+  .rmeta{font-size:var(--fs-s);color:var(--muted);margin-top:2px}
+  .ibtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+        color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px}
+  .col{padding:13px;display:flex;flex-direction:column;gap:11px;overflow:hidden}
+  .col.l{border-right:1px solid var(--line)} .col.r{border-left:1px solid var(--line)}
+  .plist{overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:3px}
+  .plist::-webkit-scrollbar{width:4px} .plist::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:2px}
+  .p{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:11px;
+     background:rgba(255,255,255,.03);border:1px solid transparent;flex:none}
+  .p.host{border-color:var(--gold-line);background:rgba(232,196,122,.06)}
+  .p.me{box-shadow:inset 0 0 0 1px rgba(90,169,255,.3)}
+  .av{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+      font-size:var(--fs-s);font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.14);
+      background:linear-gradient(135deg,#3a4a6b,#7b5ea7)}
+  .nm{font-size:var(--fs-m);display:flex;align-items:center;gap:5px}
+  .crown{color:var(--gold);font-size:var(--fs-s)}
+  .sub{font-size:var(--fs-s);color:var(--muted);margin-top:2px}
+  .bd{font-size:var(--fs-s);padding:3px 8px;border-radius:6px;margin-left:auto;flex:none}
+  .bd.ok{background:rgba(70,211,138,.14);color:var(--ready)}
+  .bd.wait{background:rgba(255,255,255,.06);color:var(--muted)}
+  .slot{border:1px dashed rgba(255,255,255,.13);border-radius:11px;padding:11px;text-align:center;color:var(--dim);
+        font-size:var(--fs-s);flex:none}
+
+  /* 中部：光柱 + 地台 + 暗角 三段式背景 */
+  .center{display:flex;flex-direction:column;align-items:center;gap:11px;min-height:0}
+  .stage{flex:1;width:100%;border-radius:16px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
+         background:radial-gradient(420px 300px at 50% 30%, rgba(90,169,255,.16), transparent 70%),linear-gradient(180deg,#111825,#0a0e14)}
+  .stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+       background:radial-gradient(70% 70% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%)}
+  .beam{position:absolute;top:0;left:50%;transform:translateX(-50%);width:240px;height:70%;
+        background:linear-gradient(180deg,rgba(232,196,122,.18),transparent 75%);filter:blur(2px)}
+  .floor{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);width:300px;height:58px;border-radius:50%;
+         background:radial-gradient(closest-side, rgba(232,196,122,.26), transparent 75%)}
+  .fig{position:relative;width:168px;height:300px;border-radius:50% 50% 10px 10px;
+       background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.03));
+       box-shadow:0 0 70px rgba(90,169,255,.2) inset,0 18px 50px rgba(0,0,0,.5)}
+  .hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:var(--fs-s);color:var(--dim)}
+  .cn{font-size:var(--fs-xl);font-weight:700;letter-spacing:2px}
+  .cdesc{font-size:var(--fs-s);color:var(--muted);text-align:center;max-width:420px;line-height:1.7}
+  .minis{display:flex;gap:8px}
+  .mini{width:56px;height:56px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+        display:flex;align-items:center;justify-content:center;font-size:var(--fs-s);color:var(--muted);cursor:pointer}
+  .mini.sel{border-color:var(--gold);color:#fff;transform:translateY(-3px);box-shadow:0 0 0 2px rgba(232,196,122,.2)}
+
+  /* 聊天 */
+  .chat{flex:1;display:flex;flex-direction:column;padding:12px;min-height:0}
+  .msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px}
+  .msgs::-webkit-scrollbar{width:4px} .msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:2px}
+  .m{font-size:var(--fs-m);line-height:1.5} .m .w{color:var(--accent);margin-right:5px} .m.me .w{color:var(--gold)}
+  .m .tm{font-size:10px;color:var(--dim);margin-right:6px}
+  .sys{font-size:var(--fs-s);color:var(--gold);text-align:center;opacity:.85}
+
+  /* 底栏：主操作与危险操作分组隔离 */
+  .bottom{grid-column:1/4;display:flex;align-items:center;gap:10px;padding:0 18px;border-top:1px solid var(--line);
+          background:rgba(0,0,0,.3)}
+  .cd{font-size:var(--fs-s);color:var(--gold);border:1px solid var(--gold-line);padding:5px 12px;border-radius:999px;
+      background:rgba(232,196,122,.08)}
+  .rc{font-size:var(--fs-m);color:var(--muted)} .rc b{color:var(--ready);font-size:15px}
+  .divider{width:1px;height:30px;background:var(--line);margin:0 4px}
+  /* 房主专属：非房主时禁用但保留占位，避免布局跳动 */
+  .host-only{position:relative}
+  body[data-role="guest"] .host-only{opacity:.4;pointer-events:none;border-style:dashed}
+  .hinttip{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+           background:#0d1219;border:1px solid var(--line);color:var(--muted);font-size:var(--fs-s);
+           padding:5px 10px;border-radius:7px;white-space:nowrap;z-index:9}
+  .host-only:hover .hinttip{display:block}
+  body[data-role="guest"] .host-only .locktip{display:block}
+  .locktip{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+           background:#0d1219;border:1px solid var(--gold-line);color:var(--gold);font-size:10px;
+           padding:3px 8px;border-radius:6px;white-space:nowrap;z-index:9}
+
+  /* 状态层 */
+  .overlay{position:absolute;inset:0;background:rgba(4,7,12,.62);backdrop-filter:blur(2px);
+           display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:8}
+  .frame[data-state="countdown"] .overlay{display:flex}
+  .oring{width:120px;height:120px;border-radius:50%;background:conic-gradient(#e8c47a 0 68%, rgba(255,255,255,.1) 68% 100%);
+         display:flex;align-items:center;justify-content:center}
+  .oring span{width:96px;height:96px;border-radius:50%;background:#080c13;display:flex;align-items:center;justify-content:center;
+              font-size:38px;font-weight:800;color:var(--gold)}
+  .warnbar{position:absolute;left:50%;top:70px;transform:translateX(-50%);z-index:9;display:none;
+           background:rgba(255,180,84,.12);border:1px solid rgba(255,180,84,.35);color:var(--warn);
+           padding:7px 14px;border-radius:999px;font-size:var(--fs-m)}
+  .frame[data-state="migrate"] .warnbar{display:block}
+
+  /* ===== 角色选择 ===== */
+  #s3 .frame{padding:20px;display:flex;flex-direction:column;gap:13px}
+  .head{display:flex;align-items:center;gap:12px}
+  .head h3{margin:0;font-size:17px;letter-spacing:3px}
+  .body{flex:1;display:grid;grid-template-columns:1fr 340px;gap:13px;min-height:0}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;align-content:start}
+  .cc{border-radius:13px;padding:10px;border:1px solid var(--line);background:rgba(255,255,255,.035);cursor:pointer;
+      text-align:center;transition:.18s}
+  .cc:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.2)}
+  .cc.sel{border-color:var(--gold);background:rgba(232,196,122,.08);box-shadow:0 0 0 2px rgba(232,196,122,.22)}
+  .cc .f{height:112px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.02))}
+  .cc .n{font-size:var(--fs-m);font-weight:600} .cc .t{font-size:var(--fs-s);color:var(--muted);margin-top:2px}
+  .cc.dis{opacity:.32;cursor:not-allowed}
+  .detail{padding:16px;display:flex;flex-direction:column;gap:11px;overflow:auto}
+  .big{height:150px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.02))}
+  .foot{display:flex;gap:10px;justify-content:flex-end;align-items:center}
+
+  /* ===== 设置 ===== */
+  #s4 .frame{padding:24px;display:flex;gap:18px;align-items:flex-start}
+  .dlg{width:420px;padding:20px}
+  .dlg h4{margin:0 0 15px;font-size:15px;letter-spacing:2px}
+  .row{margin-bottom:14px}
+  .row .k{font-size:var(--fs-s);color:var(--muted);margin-bottom:6px}
+  select.inp{cursor:pointer;width:100%}
+  .slider{height:5px;border-radius:3px;background:rgba(255,255,255,.1);position:relative}
+  .slider i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#e8c47a,#5aa9ff)}
+  .slider b{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
+</style>
+</head>
+<body data-role="host" data-ann="on">
+
+<div class="tabs">
+  <div class="tab active" data-t="s1">① 主菜单 WBP_MainMenu</div>
+  <div class="tab" data-t="s2">② 房间大厅 WBP_Lobby</div>
+  <div class="tab" data-t="s3">③ 角色选择 WBP_CharacterSelect</div>
+  <div class="tab" data-t="s4">④ 设置（房间 / 游戏）</div>
+</div>
+
+<div class="ctrls">
+  <span class="lb">视角</span>
+  <div class="seg" id="roleSeg">
+    <span class="on" data-role="host">房主</span><span data-role="guest">非房主</span>
+  </div>
+  <span class="lb">大厅状态</span>
+  <div class="seg" id="stateSeg">
+    <span class="on" data-state="waiting">等待准备</span><span data-state="countdown">倒计时中</span><span data-state="migrate">房主迁移</span>
+  </div>
+  <span class="lb">字段标注</span>
+  <div class="seg" id="annSeg"><span class="on" data-ann="on">显示</span><span data-ann="off">隐藏</span></div>
+  <span class="lb">（切换看 UMG 里的可见性/状态差异）</span>
+</div>
+
+<!-- ========== 1 主菜单 ========== -->
+<div class="screen active" id="s1">
+  <div class="frame">
+    <div class="left">
+      <div class="logo">CRASH</div>
+      <div class="logo-sub">PERSONAL PROJECT · LAN</div>
+
+      <div class="lbl">玩家昵称<span class="tag">PlayerNameInput</span></div>
+      <input class="inp" value="陈天宝" />
+
+      <div class="lbl">开始</div>
+      <div class="btn primary" style="text-align:center">创建房间<span class="tag">HostButton</span></div>
+      <div class="btn" style="text-align:center">加入选中房间<span class="tag">JoinButton</span></div>
+
+      <div class="lbl">手动连接<span class="tag">IPAddressInput</span></div>
+      <input class="inp" placeholder="127.0.0.1:7777" style="opacity:.55" />
+
+      <div class="spacer"></div>
+      <div style="display:flex;gap:8px">
+        <div class="btn ghost" style="flex:1;text-align:center">设置<span class="tag">SettingsButton</span></div>
+        <div class="btn danger" style="flex:1;text-align:center">退出<span class="tag">QuitButton</span></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="ttl">局域网房间<span class="tag">RoomListDropdown</span>
+        <span class="spacer"></span>
+        <div class="btn ghost" style="padding:4px 12px;font-size:var(--fs-s)">刷新<span class="tag">RefreshButton</span></div>
+      </div>
+
+      <div class="spinbox" style="margin-bottom:8px"><span class="chip">⟳ 正在搜索局域网房间…</span>
+        <span class="tag">搜索中 loading 态</span></div>
+
+      <div class="roomrow sel">
+        <div>
+          <div class="rn">陈天宝<span class="tag">RoomName</span></div>
+          <div class="rs">PPMap · Crash · 3 / 4 人<span class="tag">FRoomInfo</span></div>
+        </div>
+        <div class="ping">24 ms<span class="tag">Ping</span></div>
+      </div>
+      <div class="roomrow">
+        <div><div class="rn">李四</div><div class="rs">PPMap · Crash · 1 / 4 人</div></div>
+        <div class="ping mid">38 ms</div>
+      </div>
+      <div class="roomrow">
+        <div><div class="rn">王五</div><div class="rs">PPMap · Crash · 2 / 4 人</div></div>
+        <div class="ping bad">112 ms</div>
+      </div>
+
+      <div class="empty" style="margin-top:6px">已搜索到 3 个房间，没有更多了<span class="tag">空态</span></div>
+      <div class="toast" style="margin-top:10px">加入房间失败：会话已关闭<span class="tag">OnJoinSessionComplete(false)</span></div>
+    </div>
+  </div>
+  <div class="note">
+    主菜单：房间列表用 <b>FRoomInfo（RoomName / CurrentPlayers / MaxPlayers / Ping）</b> 的<b>真实字段</b>，Ping 分三档配色；
+    IP 输入降级为次要入口；补齐「搜索中 / 空列表 / 加入失败」三态（当前项目缺这三态）。
+  </div>
+</div>
+
+<!-- ========== 2 大厅 ========== -->
+<div class="screen" id="s2">
+  <div class="frame" data-state="waiting">
+    <div class="warnbar">⚠ 房主已离开，正在迁移房主…<span class="tag">Server_RequestHostMigration</span></div>
+
+    <div class="lobby">
+      <div class="topbar">
+        <div>
+          <div style="font-size:var(--fs-l);font-weight:700">陈天宝的房间<span class="tag">RoomName</span></div>
+          <div class="rmeta">PPMap · Crash<span class="tag">FRoomSettings</span></div>
+        </div>
+        <div class="chip">👥 3 / 4<span class="tag">MaxPlayers</span></div>
+        <div class="chip">LAN · 已连接<span class="tag">Session 状态（替换假 Ping）</span></div>
+        <div class="spacer"></div>
+        <div class="ibtn">⚙<span class="tag" style="position:absolute">游戏设置</span></div>
+      </div>
+
+      <!-- 左：只留队伍，房间信息已上移到顶栏 -->
+      <div class="col l">
+        <div class="panel" style="padding:13px;flex:1;display:flex;flex-direction:column;min-height:0">
+          <div class="ttl">队伍 3 / 4<span class="tag">PlayerListContainer + ScrollBox</span></div>
+          <div class="plist">
+            <div class="p host me">
+              <div class="av">陈</div>
+              <div>
+                <div class="nm">陈天宝 <span class="crown">♛</span><span class="tag">bIsHost</span></div>
+                <div class="sub">Warrior<span class="tag">SelectedCharacterId</span></div>
+              </div>
+              <div class="bd ok">已准备<span class="tag">bIsReady</span></div>
+            </div>
+            <div class="p">
+              <div class="av" style="background:linear-gradient(135deg,#2f6f5f,#7ba05e)">李</div>
+              <div><div class="nm">李四</div><div class="sub">Archer</div></div>
+              <div class="bd ok">已准备</div>
+            </div>
+            <div class="p">
+              <div class="av" style="background:linear-gradient(135deg,#6b3a4f,#a75e7b)">王</div>
+              <div><div class="nm">王五</div><div class="sub">未选择<span class="tag">IsNone()</span></div></div>
+              <div class="bd wait">未准备</div>
+            </div>
+            <div class="slot">+ 空位<span class="tag">补齐到 MaxPlayers</span></div>
+            <div class="slot" style="opacity:.5">+ 空位<span class="tag">MaxPlayers=8 时滚动</span></div>
+            <div class="slot" style="opacity:.3">+ 空位</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 中：去掉 ‹ › 箭头（与底部 minis 重复），补 Description 与「更换角色」入口 -->
+      <div class="col center">
+        <div class="stage">
+          <div class="beam"></div>
+          <div class="floor"></div>
+          <div class="fig"></div>
+          <div class="hint">按住鼠标拖拽旋转预览<span class="tag">RotatePreviewCharacter</span></div>
+        </div>
+        <div class="cn">Warrior<span class="tag">DisplayName</span></div>
+        <div class="cdesc">来自 DT_Characters 的 Description：高爆发近战，血量越低伤害越高。<span class="tag">真实字段，用来填满中部</span></div>
+        <div class="minis">
+          <div class="mini sel">Warrior</div>
+          <div class="mini">Archer</div>
+        </div>
+        <div class="btn" style="padding:7px 18px">更换角色<span class="tag">CharacterSelectButton（从底栏移到这里）</span></div>
+      </div>
+
+      <!-- 右 -->
+      <div class="col r">
+        <div class="panel chat">
+          <div class="ttl">房间聊天<span class="tag">ChatDisplayArea</span></div>
+          <div class="msgs">
+            <div class="sys">— 陈天宝 创建了房间 —</div>
+            <div class="m"><span class="tm">20:41</span><span class="w">陈天宝：</span>8 点开黑，缺 1 个</div>
+            <div class="m"><span class="tm">20:41</span><span class="w">李四：</span>我玩 Archer</div>
+            <div class="sys">— 王五 加入了房间 —</div>
+            <div class="m me"><span class="tm">20:42</span><span class="w">我：</span>先选角色<span class="tag">Server_SendChatMessage</span></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <input class="inp" placeholder="Enter 发送" /><span class="tag">ChatInputBox</span>
+            <div class="btn primary" style="padding:8px 14px">发送<span class="tag">补充：显式发送按钮</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底栏：主操作组 | 分隔线 | 危险操作 -->
+      <div class="bottom">
+        <div class="rc">已准备 <b>2</b> / 3 · 等待 王五</div>
+        <div class="cd">⏱ 05.0s<span class="tag">OnGameStarting</span></div>
+        <div class="spacer"></div>
+        <div class="btn primary">准备 ✔<span class="tag">ReadyButton · 主操作</span></div>
+        <div class="btn host-only" disabled>开始游戏
+          <span class="tag">StartButton</span>
+          <span class="hinttip">还有 1 人未准备</span>
+          <span class="locktip">仅房主可用</span>
+        </div>
+        <div class="btn ghost host-only">房间设置
+          <span class="tag">RoomSettingsButton</span>
+          <span class="locktip">仅房主可用</span>
+        </div>
+        <div class="divider"></div>
+        <div class="btn danger">离开房间<span class="tag">LeaveButton · 与主操作隔离</span></div>
+      </div>
+    </div>
+
+    <!-- 倒计时覆盖层 -->
+    <div class="overlay">
+      <div class="oring"><span>5</span></div>
+      <div style="font-size:var(--fs-l);letter-spacing:3px">即将进入 PPMap</div>
+      <div class="desc">全员已准备 · Crash 模式</div>
+    </div>
+  </div>
+
+  <div class="note">
+    大厅 V1.1：房间信息上移到顶栏（消除三处重复），左栏只留队伍；中部用 <b>DisplayName + Description</b> 填实，并承接「更换角色」入口；
+    底栏按「主操作 | 分隔 | 危险操作」分组，房主专属按钮<b>禁用占位而非 Collapsed</b>（避免非房主时按钮位移），带 tooltip 说明原因。
+    顶部控制条可切换 <b>房主/非房主</b>、<b>等待准备/倒计时/房主迁移</b> 三种状态，直接对应 UMG 里的 Visibility 与状态分支。
+  </div>
+</div>
+
+<!-- ========== 3 角色选择 ========== -->
+<div class="screen" id="s3">
+  <div class="frame">
+    <div class="head">
+      <h3>选 择 角 色</h3>
+      <div class="chip">当前：Warrior<span class="tag">CurrentlySelected</span></div>
+      <div class="spacer"></div>
+      <div class="chip gold">← → 切换 · Enter 确认 · Esc 返回<span class="tag">键盘导航（补 SetFocus）</span></div>
+    </div>
+
+    <div class="body">
+      <div class="grid">
+        <div class="cc sel"><div class="f"></div><div class="n">Warrior</div><div class="t">近战</div></div>
+        <div class="cc"><div class="f"></div><div class="n">Archer</div><div class="t">远程</div></div>
+        <div class="cc dis"><div class="f" style="opacity:.5"></div><div class="n">— —</div><div class="t">DT_Characters 新增行</div></div>
+        <div class="cc dis"><div class="f" style="opacity:.5"></div><div class="n">— —</div><div class="t">DT_Characters 新增行</div></div>
+      </div>
+
+      <div class="panel detail">
+        <div class="ttl">角色详情<span class="tag">FCharacterDataRow</span></div>
+        <div class="big"></div>
+        <div style="font-size:17px;font-weight:700">Warrior</div>
+        <div class="desc">DisplayName：Warrior<br />Description：高爆发近战，血量越低伤害越高。<br />
+          CharacterIcon：表里指定的图标（TSoftObjectPtr）。<span class="tag">只暴露玩家可见字段</span></div>
+        <div class="spacer"></div>
+        <div class="foot" style="padding:0">
+          <div class="btn ghost">返回<span class="tag">BackButton</span></div>
+          <div class="btn primary">确认<span class="tag">ConfirmButton</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="chip">当前 DT_Characters 只有 2 行，新增行会自动补格</div>
+    </div>
+  </div>
+  <div class="note">
+    角色选择： GridPanel 保留两个真实角色 + 灰卡占位；<b>不再显示内部资产名（Greystone / mesh 路径）</b>，
+    只暴露 DisplayName / CharacterIcon / Description；补齐键盘导航与焦点说明。
+  </div>
+</div>
+
+<!-- ========== 4 设置 ========== -->
+<div class="screen" id="s4">
+  <div class="frame">
+    <div class="panel dlg">
+      <h4>房间设置<span class="tag">WBP_RoomSettings</span></h4>
+      <div class="row">
+        <div class="k">地图<span class="tag">MapSelector</span></div>
+        <select class="inp"><option>PPMap</option></select>
+      </div>
+      <div class="row">
+        <div class="k">最大人数<span class="tag">MaxPlayersSpinBox</span></div>
+        <select class="inp"><option>4</option><option>2</option><option>6</option><option>8</option></select>
+      </div>
+      <div class="row">
+        <div class="k">游戏模式<span class="tag">GameModeSelector</span></div>
+        <select class="inp"><option>Crash</option></select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <div class="btn primary" style="flex:1;text-align:center">应用<span class="tag">ApplyButton</span></div>
+        <div class="btn ghost">关闭<span class="tag">CloseButton</span></div>
+      </div>
+    </div>
+
+    <div class="panel dlg">
+      <h4>游戏设置<span class="tag">WBP_Settings</span></h4>
+      <div class="row">
+        <div class="k">主音量<span class="tag">MasterVolumeSlider</span></div>
+        <div class="slider"><i style="width:72%"></i><b style="left:72%"></b></div>
+      </div>
+      <div class="row">
+        <div class="k">音效<span class="tag">SFXVolumeSlider</span></div>
+        <div class="slider"><i style="width:55%"></i><b style="left:55%"></b></div>
+      </div>
+      <div class="row">
+        <div class="k">音乐<span class="tag">MusicVolumeSlider</span></div>
+        <div class="slider"><i style="width:40%"></i><b style="left:40%"></b></div>
+      </div>
+      <div class="row">
+        <div class="k">分辨率<span class="tag">ResolutionComboBox</span></div>
+        <select class="inp"><option>1920 × 1080</option></select>
+      </div>
+      <div class="row">
+        <div class="k">窗口模式<span class="tag">WindowModeComboBox</span></div>
+        <select class="inp"><option>全屏</option></select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <div class="btn primary" style="flex:1;text-align:center">应用<span class="tag">ApplyButton</span></div>
+        <div class="btn">重置<span class="tag">ResetButton</span></div>
+        <div class="btn ghost">关闭<span class="tag">CloseButton</span></div>
+      </div>
+    </div>
+
+    <div style="flex:1;padding:20px;align-self:stretch;display:flex;flex-direction:column;gap:12px">
+      <div class="ttl">样式令牌（收进 PP_UIStyle）</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="chip gold">主色 #E8C47A</div><div class="chip">底色 #070A10</div>
+        <div class="chip">辅助 #5AA9FF</div><div class="chip">成功 #46D38A</div>
+        <div class="chip">警告 #FFB454</div><div class="chip">危险 #FF6B6B</div>
+      </div>
+      <div class="ttl" style="margin-top:6px">字号四档</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="chip">11 辅助</div><div class="chip">13 正文</div>
+        <div class="chip">16 小标题</div><div class="chip">20 强调</div>
+      </div>
+      <div class="ttl" style="margin-top:6px">按钮四态</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="btn primary">主操作</div><div class="btn">次级</div>
+        <div class="btn ghost">幽灵</div><div class="btn danger">危险</div><div class="btn" disabled>禁用</div>
+      </div>
+      <div class="desc" style="margin-top:6px">
+        UMG 落地：<b>SizeBox</b> 固定左右栏宽度（左 320 / 右 330），中间自适应；外层套 <b>SafeZone</b>；
+        C++ 里散落的 <b>FLinearColor(1,0.84,0)</b> / <b>(0,1,0)</b> 全部换成令牌，改色不再动代码。
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    设置：沿用现有全部 BindWidget，只做视觉与排布升级，不新增字段；右侧给出 UMG 落地所需的令牌与自适应规则。
+  </div>
+</div>
+
+<details>
+  <summary>V1.1 相对 V1 改了什么（点击展开）</summary>
+  <ol>
+    <li><b>修布局抖动</b>：房主专属按钮（StartButton / RoomSettingsButton）由 Collapsed 改为「禁用 + 占位 + tooltip」，切换房主不再位移。</li>
+    <li><b>底栏减负</b>：由 8 个元素压到「已准备 + 倒计时 | 准备(主) / 开始 / 房间设置 ‖ 离开(危险)」，并用分隔线隔离危险操作。</li>
+    <li><b>危险操作隔离</b>：离开房间独立到分隔线右侧，避免与「开始游戏」相邻误点。</li>
+    <li><b>补齐三态</b>：搜索中 loading、倒计时中央覆盖层（大字 + 进度环）、房主迁移顶部提示条。</li>
+    <li><b>去重复信息</b>：房间名/地图/模式/人数统一放顶栏，左栏只保留队伍列表，「房主：陈天宝」不再三处重复。</li>
+    <li><b>中部填实</b>：删掉与底部 minis 重复的 ‹ › 箭头；加入光柱 + 地台 + 暗角三段式背景（RT 带 alpha 不会飘）；
+        用真实字段 Description 填充空白，并把「更换角色」入口移到这里。</li>
+    <li><b>删掉假数据</b>：大厅顶栏的 24ms 改为 Session 状态（Ping 不在 FLobbyPlayerInfo 里，且本地 Ping 不代表他人）。</li>
+    <li><b>隐藏内部名</b>：不再显示 Greystone / mesh 路径等资产名，只暴露 DisplayName / CharacterIcon / Description。</li>
+    <li><b>玩家列表可滚动</b>：补齐到 MaxPlayers 并套 ScrollBox，避免 MaxPlayers=8 时溢出。</li>
+    <li><b>视觉层次</b>：面板加顶部 1px 高光渐变；字号收敛到 11/13/16/20 四档。</li>
+    <li><b>聊天增强</b>：加时间戳 + 显式发送按钮；新消息需在 ScrollBox 处于底部时才自动滚动。</li>
+    <li><b>可交互预览</b>：顶部控制条可切换 房主/非房主、等待准备/倒计时/迁移、显示/隐藏字段标注。</li>
+  </ol>
+</details>
+
+<script>
+  function bindSeg(id, attr){
+    var seg = document.getElementById(id);
+    seg.addEventListener('click', function(e){
+      var it = e.target.closest('span');
+      if(!it) return;
+      Array.prototype.forEach.call(seg.children, function(x){ x.classList.remove('on'); });
+      it.classList.add('on');
+      if(attr === 'state'){
+        document.querySelector('#s2 .frame').dataset.state = it.dataset.state;
+      } else {
+        document.body.dataset[attr] = it.dataset[attr];
+      }
+    });
+  }
+  bindSeg('roleSeg','role');
+  bindSeg('stateSeg','state');
+  bindSeg('annSeg','ann');
+
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+      document.querySelectorAll('.screen').forEach(function(x){x.classList.remove('active')});
+      t.classList.add('active');
+      document.getElementById(t.dataset.t).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

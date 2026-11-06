@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>大厅 UI 扩展版 V2（增强内容）</title>
+<style>
+  :root{
+    --bg:#060911;
+    --panel:rgba(18,24,35,.9);
+    --line:rgba(255,255,255,.09);
+    --gold:#e8c47a; --gold-line:rgba(232,196,122,.38);
+    --accent:#5aa9ff; --violet:#a06bff;
+    --ready:#46d38a; --danger:#ff6b6b; --warn:#ffb454;
+    --text:#e9edf5; --muted:#8a94a8; --dim:#5b6478;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;color:var(--text);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+       background:
+        radial-gradient(1000px 600px at 78% -10%, #17263f 0%, transparent 62%),
+        radial-gradient(800px 560px at 6% 108%, #2a1a3c 0%, transparent 58%),
+        var(--bg);}
+  .tabs{display:flex;gap:8px;margin:0 auto 16px;width:1320px;flex-wrap:wrap}
+  .tab{padding:8px 18px;border-radius:999px;cursor:pointer;font-size:13px;background:rgba(255,255,255,.04);
+       border:1px solid var(--line);color:var(--muted);transition:.16s}
+  .tab:hover{color:#fff;border-color:var(--gold-line)}
+  .tab.active{background:linear-gradient(135deg,#a06bff,#5aa9ff);color:#0d1020;font-weight:700;border-color:transparent}
+  .screen{display:none} .screen.active{display:block}
+
+  .frame{width:1320px;height:760px;margin:0 auto;border-radius:18px;overflow:hidden;position:relative;
+         border:1px solid var(--line);box-shadow:0 22px 55px rgba(0,0,0,.62);
+         background:linear-gradient(180deg,rgba(8,12,19,.95),rgba(8,12,19,.99))}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+  .ttl{font-size:12px;letter-spacing:2px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .ttl::before{content:"";width:3px;height:12px;border-radius:2px;background:linear-gradient(180deg,#a06bff,#5aa9ff)}
+  .btn{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);padding:9px 16px;border-radius:10px;
+       font-size:13px;cursor:pointer;transition:.16s;white-space:nowrap}
+  .btn:hover{background:rgba(255,255,255,.11);transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,#e8c47a,#c39a4d);color:#191205;font-weight:700;border-color:transparent;
+               box-shadow:0 8px 22px rgba(232,196,122,.22)}
+  .btn.violet{background:linear-gradient(135deg,#a06bff,#5aa9ff);color:#0d1020;font-weight:700;border-color:transparent}
+  .btn.ghost{background:transparent;color:var(--muted)}
+  .btn.danger{color:var(--danger);border-color:rgba(255,107,107,.3)}
+  .btn:disabled{opacity:.36;cursor:not-allowed;transform:none}
+  .chip{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);
+        background:rgba(255,255,255,.03);white-space:nowrap}
+  .chip.gold{color:var(--gold);border-color:var(--gold-line);background:rgba(232,196,122,.08)}
+  .chip.violet{color:#c3a6ff;border-color:rgba(160,107,255,.35);background:rgba(160,107,255,.1)}
+  .chip.warn{color:var(--warn);border-color:rgba(255,180,84,.3);background:rgba(255,180,84,.08)}
+  .spacer{flex:1}
+  .tag{font-size:10px;color:var(--dim);border:1px dashed rgba(255,255,255,.16);border-radius:5px;padding:1px 5px;margin-left:5px}
+  .tag.new{color:#c3a6ff;border-color:rgba(160,107,255,.45);background:rgba(160,107,255,.1)}
+  .inp{padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);
+       font-size:13px;outline:none;flex:1}
+  .inp:focus{border-color:var(--accent)}
+  .note{width:1320px;margin:14px auto 0;font-size:12px;color:var(--dim);line-height:1.9}
+  .desc{font-size:12px;color:var(--muted);line-height:1.8}
+
+  /* ===== 屏1 主菜单 ===== */
+  #s1 .frame{display:flex;flex-direction:column}
+  .banner{height:132px;flex:none;background:linear-gradient(100deg,#2b1c4a,#123055 60%,#0f1a2a);
+          border-bottom:1px solid var(--line);padding:18px 26px;display:flex;align-items:center;gap:18px}
+  .banner h2{margin:0 0 6px;font-size:20px;letter-spacing:3px}
+  .sbar{width:300px;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:8px}
+  .sbar i{display:block;height:100%;background:linear-gradient(90deg,#a06bff,#e8c47a)}
+  .currency{display:flex;gap:8px}
+  .cur{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+       background:rgba(0,0,0,.3);font-size:12px}
+  .cur b{color:var(--gold)}
+  .mm{flex:1;display:grid;grid-template-columns:400px 1fr 320px;min-height:0}
+  .mm>div{padding:22px}
+  .mm .c1{border-right:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+  .mm .c3{border-left:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+  .logo{font-size:30px;font-weight:800;letter-spacing:5px;
+        background:linear-gradient(135deg,#fff,#e8c47a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .logo-sub{font-size:11px;color:var(--dim);letter-spacing:4px;margin:-6px 0 14px}
+  .lbl{font-size:11px;color:var(--muted);margin:10px 0 5px;letter-spacing:1px}
+  .newscard{padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer}
+  .newscard:hover{border-color:rgba(160,107,255,.4)}
+  .nt{font-size:13px;font-weight:600} .ns{font-size:11px;color:var(--muted);margin-top:3px}
+  .save{display:flex;align-items:center;gap:11px;padding:12px;border-radius:12px;border:1px solid var(--gold-line);
+        background:rgba(232,196,122,.07);margin-bottom:10px}
+  .si{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#3a4a6b,#7b5ea7);flex:none}
+  .quickentry{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .qe{padding:12px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.03);text-align:center;
+      font-size:12px;cursor:pointer;transition:.16s}
+  .qe:hover{transform:translateY(-2px);border-color:var(--gold-line);color:#fff}
+  .qe i{display:block;font-size:16px;margin-bottom:4px;font-style:normal}
+  .av{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+      font-size:12px;font-weight:700;color:#fff;border:2px solid rgba(232,196,122,.55);
+      background:linear-gradient(135deg,#3a4a6b,#7b5ea7);position:relative}
+  .av small{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);font-size:9px;background:#121a27;
+            border-radius:4px;padding:0 4px;color:var(--gold)}
+  .roomcard{padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .roomcard.sel{border-color:var(--gold-line)}
+
+  /* ===== 屏2 大厅 ===== */
+  .lobby{display:grid;grid-template-columns:340px 1fr 340px;grid-template-rows:60px 1fr 88px;height:100%}
+  .topbar{grid-column:1/4;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--line);
+          background:rgba(0,0,0,.3)}
+  .col{padding:13px;display:flex;flex-direction:column;gap:11px;overflow:hidden}
+  .col.l{border-right:1px solid var(--line)} .col.r{border-left:1px solid var(--line)}
+  .ibtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+        color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px}
+  .kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--muted)}
+  .kv b{color:var(--text);font-weight:600}
+  .teamtag{font-size:11px;letter-spacing:1px;color:var(--muted);display:flex;align-items:center;gap:6px;margin:6px 0 4px}
+  .teamtag i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .p{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:11px;background:rgba(255,255,255,.03);
+     border:1px solid transparent}
+  .p.host{border-color:var(--gold-line);background:rgba(232,196,122,.06)}
+  .p.me{box-shadow:inset 0 0 0 1px rgba(90,169,255,.3)}
+  .nm{font-size:13px;display:flex;align-items:center;gap:5px}
+  .crown{color:var(--gold);font-size:11px}
+  .sub{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px}
+  .sig{display:inline-flex;gap:2px;align-items:flex-end}
+  .sig i{width:3px;background:var(--ready);border-radius:1px}
+  .sig i:nth-child(1){height:5px} .sig i:nth-child(2){height:8px}
+  .sig i:nth-child(3){height:11px} .sig i:nth-child(4){height:14px}
+  .bd{font-size:11px;padding:3px 7px;border-radius:6px;margin-left:auto;flex:none}
+  .bd.ok{background:rgba(70,211,138,.14);color:var(--ready)}
+  .bd.wait{background:rgba(255,255,255,.06);color:var(--muted)}
+  .slot{border:1px dashed rgba(255,255,255,.13);border-radius:11px;padding:9px;text-align:center;color:var(--dim);font-size:11px;
+        display:flex;gap:6px;justify-content:center;align-items:center}
+  .mini-btn{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .mini-btn:hover{color:#fff;border-color:var(--gold-line)}
+  .center{display:flex;flex-direction:column;gap:10px;min-height:0}
+  .tabs2{display:flex;gap:6px;justify-content:center}
+  .t2{padding:6px 16px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .t2.on{background:rgba(160,107,255,.16);border-color:rgba(160,107,255,.45);color:#d8c8ff}
+  .stage{flex:1;border-radius:16px;position:relative;overflow:hidden;
+         background:radial-gradient(560px 360px at 50% 45%, rgba(160,107,255,.16), transparent 70%),linear-gradient(180deg,#111825,#0a0e14);
+         display:flex;align-items:center;justify-content:center}
+  .floor{position:absolute;bottom:46px;left:50%;transform:translateX(-50%);width:300px;height:58px;border-radius:50%;
+         background:radial-gradient(closest-side, rgba(232,196,122,.24), transparent 75%)}
+  .fig{position:relative;width:170px;height:300px;border-radius:50% 50% 10px 10px;
+       background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.03));
+       box-shadow:0 0 70px rgba(160,107,255,.25) inset,0 18px 50px rgba(0,0,0,.5)}
+  .arrow{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;
+         background:rgba(0,0,0,.35);border:1px solid var(--line);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .arrow.l{left:10px} .arrow.r{right:10px}
+  .hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:11px;color:var(--dim)}
+  .cn{font-size:20px;font-weight:700;letter-spacing:2px;text-align:center}
+  .ct{font-size:11px;color:var(--gold);letter-spacing:3px;text-align:center;margin-top:-6px}
+  .radar{display:flex;gap:14px;justify-content:center}
+  .rr{text-align:center;font-size:11px;color:var(--muted)}
+  .rr .bar{width:66px;height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:4px;overflow:hidden}
+  .rr .bar i{display:block;height:100%;background:linear-gradient(90deg,#a06bff,#5aa9ff)}
+  .skillbar{display:flex;gap:8px;justify-content:center}
+  .sk{width:46px;height:46px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:var(--muted)}
+  .sk b{color:#fff;font-size:12px}
+  .chat{flex:1;display:flex;flex-direction:column;padding:12px;min-height:0}
+  .chann{display:flex;gap:6px;margin-bottom:8px}
+  .ch{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .ch.on{background:rgba(90,169,255,.15);border-color:rgba(90,169,255,.4);color:#cfe4ff}
+  .msgs{flex:1;overflow:auto;display:flex;flex-direction:column;gap:7px}
+  .m{font-size:12px;line-height:1.5} .m .w{color:var(--accent);margin-right:5px} .m.me .w{color:var(--gold)}
+  .sys{font-size:11px;color:var(--gold);text-align:center;opacity:.85}
+  .friends{margin-top:8px}
+  .fr{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ready)} .dot.off{background:#3c4457}
+  .bottom{grid-column:1/4;display:flex;align-items:center;gap:10px;padding:0 18px;border-top:1px solid var(--line);
+          background:rgba(0,0,0,.32)}
+  .ring{width:44px;height:44px;border-radius:50%;background:conic-gradient(#e8c47a 0 65%, rgba(255,255,255,.1) 65% 100%);
+        display:flex;align-items:center;justify-content:center}
+  .ring span{width:34px;height:34px;border-radius:50%;background:#0b0f18;display:flex;align-items:center;justify-content:center;
+             font-size:11px;color:var(--gold)}
+  .rc{font-size:12px;color:var(--muted)} .rc b{color:var(--ready);font-size:15px}
+  .warnbar{position:absolute;left:50%;top:70px;transform:translateX(-50%);z-index:5;
+           background:rgba(255,180,84,.12);border:1px solid rgba(255,180,84,.35);color:var(--warn);
+           padding:7px 14px;border-radius:999px;font-size:12px}
+
+  /* ===== 屏3 角色/天赋/皮肤 ===== */
+  #s3 .frame{padding:20px;display:flex;flex-direction:column;gap:13px}
+  .head{display:flex;align-items:center;gap:12px}
+  .head h3{margin:0;font-size:17px;letter-spacing:3px}
+  .filters{display:flex;gap:6px}
+  .ft{font-size:11px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .ft.on{background:rgba(232,196,122,.14);border-color:var(--gold-line);color:var(--gold)}
+  .body{flex:1;display:grid;grid-template-columns:1fr 360px;gap:13px;min-height:0}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;align-content:start}
+  .cc{border-radius:13px;padding:10px;border:1px solid var(--line);background:rgba(255,255,255,.035);cursor:pointer;
+      text-align:center;transition:.18s;position:relative}
+  .cc:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.2)}
+  .cc.sel{border-color:var(--gold);background:rgba(232,196,122,.08);box-shadow:0 0 0 2px rgba(232,196,122,.22)}
+  .cc .f{height:112px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.02))}
+  .cc .n{font-size:13px;font-weight:600} .cc .t{font-size:11px;color:var(--muted);margin-top:2px}
+  .cc .lv{position:absolute;right:8px;top:8px;font-size:10px;color:var(--gold);background:rgba(0,0,0,.4);border-radius:5px;padding:1px 5px}
+  .cc.dis{opacity:.32;cursor:not-allowed}
+  .detail{padding:16px;display:flex;flex-direction:column;gap:11px;overflow:auto}
+  .big{height:150px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.02))}
+  .tabs3{display:flex;gap:6px}
+  .t3{flex:1;text-align:center;font-size:12px;padding:6px 0;border-radius:8px;border:1px solid var(--line);color:var(--muted);cursor:pointer}
+  .t3.on{background:rgba(160,107,255,.16);border-color:rgba(160,107,255,.45);color:#d8c8ff}
+  .talent{display:flex;gap:8px;flex-wrap:wrap}
+  .tal{width:52px;height:52px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+       display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)}
+  .tal.on{border-color:var(--gold);color:#fff;box-shadow:0 0 0 2px rgba(232,196,122,.2)}
+  .foot{display:flex;gap:10px;justify-content:flex-end;align-items:center}
+  .skinrow{display:flex;gap:8px}
+  .skin{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);
+        display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);cursor:pointer}
+  .skin.on{border-color:var(--gold);color:#fff}
+
+  /* ===== 屏4 房间设置 ===== */
+  #s4 .frame{padding:24px;display:flex;gap:18px;align-items:flex-start}
+  .dlg{width:470px;padding:20px;max-height:100%;overflow:auto}
+  .dlg h4{margin:0 0 15px;font-size:15px;letter-spacing:2px}
+  .row{margin-bottom:14px}
+  .row .k{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center}
+  select.inp{cursor:pointer;width:100%}
+  .sw{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03);margin-bottom:9px;font-size:13px}
+  .toggle{width:40px;height:22px;border-radius:999px;background:rgba(255,255,255,.12);position:relative;cursor:pointer;flex:none}
+  .toggle i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.18s}
+  .toggle.on{background:linear-gradient(90deg,#a06bff,#5aa9ff)} .toggle.on i{left:21px}
+  .slider{height:5px;border-radius:3px;background:rgba(255,255,255,.1);position:relative;margin-top:12px}
+  .slider i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#a06bff,#5aa9ff)}
+  .slider b{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <div class="tab active" data-t="s1">① 主菜单（扩展）</div>
+  <div class="tab" data-t="s2">② 房间大厅（扩展）</div>
+  <div class="tab" data-t="s3">③ 角色 / 天赋 / 皮肤</div>
+  <div class="tab" data-t="s4">④ 房间规则设置（扩展）</div>
+</div>
+
+<!-- ================= 1 主菜单扩展 ================= -->
+<div class="screen active" id="s1">
+  <div class="frame">
+    <div class="banner">
+      <div style="flex:1">
+        <h2>赛 季 3 · 崩 溃 竞 技 场<span class="tag new">新增：赛季</span></h2>
+        <div style="font-size:12px;color:#c7cedd">赛季剩余 18 天 · 完成每日任务解锁「暗金战士」皮肤</div>
+        <div class="sbar"><i style="width:62%"></i></div>
+      </div>
+      <div class="currency">
+        <div class="cur">🪙 <b>12,480</b><span class="tag new">货币</span></div>
+        <div class="cur">💎 <b>320</b></div>
+        <div class="cur">🏆 <b>白金 II</b><span class="tag new">段位</span></div>
+      </div>
+      <div class="panel" style="padding:10px 14px;display:flex;align-items:center;gap:10px">
+        <div class="av">陈<small>Lv.42</small></div>
+        <div>
+          <div style="font-size:13px;font-weight:600">陈天宝<span class="tag new">等级</span></div>
+          <div style="font-size:11px;color:var(--muted)">在线 · 胜率 58% (128/93)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mm">
+      <div class="c1">
+        <div class="logo">CRASH</div>
+        <div class="logo-sub">PERSONAL PROJECT</div>
+        <div class="lbl">玩家昵称</div>
+        <input class="inp" value="陈天宝" />
+        <div class="btn primary" style="text-align:center;margin-top:8px">创建房间</div>
+        <div class="btn violet" style="text-align:center">快速匹配<span class="tag new">新增</span></div>
+        <div class="btn" style="text-align:center">加入选中房间</div>
+        <div class="lbl">手动连接</div>
+        <input class="inp" placeholder="127.0.0.1:7777" style="opacity:.55" />
+        <div class="spacer"></div>
+        <div style="display:flex;gap:8px">
+          <div class="btn ghost" style="flex:1;text-align:center">设置</div>
+          <div class="btn danger" style="flex:1;text-align:center">退出</div>
+        </div>
+      </div>
+
+      <div style="padding:22px;display:flex;flex-direction:column;min-height:0;overflow:auto">
+        <div class="ttl">局域网房间
+          <span class="spacer"></span>
+          <div class="btn ghost" style="padding:4px 12px;font-size:12px">刷新</div>
+        </div>
+
+        <div class="panel roomcard sel">
+          <div>
+            <div style="font-size:14px;font-weight:600">陈天宝<span class="chip gold" style="margin-left:8px">🔒 私密</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">PPMap · Crash · 3/4 · 平均 Ping 42ms<span class="tag new">房间标签</span></div>
+          </div>
+          <div class="spacer"></div>
+          <div class="chip">🖧 24 ms</div>
+          <div class="btn primary" style="padding:6px 14px">加入</div>
+        </div>
+
+        <div class="panel roomcard">
+          <div>
+            <div style="font-size:14px;font-weight:600">李四<span class="chip" style="margin-left:8px">🌐 公开</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">PPMap · Crash · 1/4 · 平均 Ping 38ms</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="chip">🖧 38 ms</div>
+          <div class="btn" style="padding:6px 14px">加入</div>
+        </div>
+
+        <div class="panel roomcard" style="opacity:.62">
+          <div>
+            <div style="font-size:14px;font-weight:600">王五<span class="chip warn" style="margin-left:8px">⏳ 进行中</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">PPMap · Crash · 4/4 · 已开局 03:12</div>
+          </div>
+          <div class="spacer"></div>
+          <div class="chip">👁 观战<span class="tag new">观战</span></div>
+        </div>
+
+        <div class="ttl" style="margin-top:16px">公告 / 活动<span class="tag new">新增</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="newscard"><div class="nt">S3 赛季通行证上线</div><div class="ns">完成任务解锁限定外观</div></div>
+          <div class="newscard"><div class="nt">周末双倍经验</div><div class="ns">10.12 - 10.14 全模式生效</div></div>
+        </div>
+      </div>
+
+      <div class="c3">
+        <div class="ttl">继续游戏<span class="tag new">存档</span></div>
+        <div class="save">
+          <div class="si"></div>
+          <div>
+            <div style="font-size:13px;font-weight:600">崩溃模式 · 第 7 关</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">2 小时前 · Warrior</div>
+          </div>
+        </div>
+        <div class="ttl">快捷入口<span class="tag new">新增</span></div>
+        <div class="quickentry">
+          <div class="qe"><i>🛒</i>商城</div>
+          <div class="qe"><i>📜</i>任务</div>
+          <div class="qe"><i>🏅</i>排行</div>
+          <div class="qe"><i>🎒</i>背包</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="ttl">好友在线<span class="tag new">新增</span></div>
+        <div class="fr"><span class="dot"></span>李四 · 大厅中</div>
+        <div class="fr"><span class="dot"></span>王五 · 战斗中</div>
+        <div class="fr"><span class="dot off"></span>赵六 · 离线</div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    V2 · 主菜单扩展：新增 <b>赛季横幅、货币栏、等级段位、快速匹配、房间标签（公开/私密/进行中）、观战、公告活动、继续游戏存档、快捷入口（商城·任务·排行·背包）、好友在线</b>。
+    <span class="tag new">新增</span> 紫色标记表示当前项目还没有、需要新增数据与 UI 的内容；其余沿用现有 Host / Join / Refresh / Settings / Quit 逻辑。
+  </div>
+</div>
+
+<!-- ================= 2 大厅扩展 ================= -->
+<div class="screen" id="s2">
+  <div class="frame">
+    <div class="warnbar">⚠ 房主已离开，正在迁移房主…<span class="tag">HostMigration 提示条</span></div>
+    <div class="lobby">
+      <div class="topbar">
+        <div>
+          <div style="font-size:15px;font-weight:700">陈天宝的房间
+            <span class="chip gold" style="margin-left:8px">PP-4F2A 复制</span><span class="tag new">房间码</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">PPMap · Crash · 局域网</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="chip">👥 3 / 4</div>
+        <div class="chip">🖧 24 ms</div>
+        <div class="chip violet">👁 观战 2<span class="tag new">新增</span></div>
+        <div class="ibtn">🔗</div>
+        <div class="ibtn">⚙</div>
+        <div class="ibtn">✕</div>
+      </div>
+
+      <div class="col l">
+        <div class="panel" style="padding:12px">
+          <div class="ttl">房间信息</div>
+          <div class="kv"><span>地图</span><b>PPMap</b></div>
+          <div class="kv"><span>模式</span><b>Crash</b></div>
+          <div class="kv"><span>人数</span><b>4（+2 观战）</b></div>
+          <div class="kv"><span>房主</span><b>陈天宝</b></div>
+          <div class="kv"><span>密码</span><b style="color:var(--warn)">已启用</b><span class="tag new">新增</span></div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <div class="chip">🎲 随机地图<span class="tag new">新增</span></div>
+            <div class="chip">🗳 地图投票<span class="tag new">新增</span></div>
+          </div>
+        </div>
+
+        <div class="panel" style="padding:12px;flex:1;display:flex;flex-direction:column;min-height:0">
+          <div class="ttl">队伍</div>
+          <div class="teamtag"><i style="background:#5aa9ff"></i>蓝队 · 队长 陈天宝
+            <span class="spacer"></span><span class="chip">2 人</span></div>
+          <div class="p host me">
+            <div class="av">陈<small>42</small></div>
+            <div>
+              <div class="nm">陈天宝 <span class="crown">♛</span></div>
+              <div class="sub">Warrior · <span class="sig"><i></i><i></i><i></i><i style="opacity:.25"></i></span> 24ms</div>
+            </div>
+            <div class="bd ok">已准备</div>
+          </div>
+          <div class="p">
+            <div class="av" style="background:linear-gradient(135deg,#2f6f5f,#7ba05e)">李<small>28</small></div>
+            <div>
+              <div class="nm">李四</div>
+              <div class="sub">Archer · <span class="sig"><i></i><i></i><i></i><i style="opacity:.25"></i></span> 61ms</div>
+            </div>
+            <div class="bd ok">已准备</div>
+          </div>
+          <div class="teamtag"><i style="background:#ff6b6b"></i>红队 · 队长 王五
+            <span class="spacer"></span><span class="chip">1 人</span></div>
+          <div class="p">
+            <div class="av" style="background:linear-gradient(135deg,#6b3a4f,#a75e7b)">王<small>15</small></div>
+            <div>
+              <div class="nm">王五</div>
+              <div class="sub">未选择 · <span class="sig"><i></i><i></i><i style="opacity:.25"></i><i style="opacity:.25"></i></span> 112ms</div>
+            </div>
+            <div class="bd wait">未准备</div>
+          </div>
+          <div class="slot">
+            + 空位
+            <span class="mini-btn">邀请好友</span>
+            <span class="mini-btn">+ AI 机器人</span>
+            <span class="tag new">新增</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col center">
+        <div class="tabs2">
+          <div class="t2 on">角色</div>
+          <div class="t2">天赋<span class="tag new">新</span></div>
+          <div class="t2">皮肤<span class="tag new">新</span></div>
+          <div class="t2">战绩<span class="tag new">新</span></div>
+        </div>
+        <div class="stage">
+          <div class="floor"></div>
+          <div class="fig"></div>
+          <div class="arrow l">‹</div>
+          <div class="arrow r">›</div>
+          <div class="hint">拖拽旋转 · 滚轮缩放<span class="tag new">滚轮缩放新增</span></div>
+        </div>
+        <div>
+          <div class="cn">Warrior</div>
+          <div class="ct">GREYSTONE · 熟练度 7 级<span class="tag new">熟练度</span></div>
+        </div>
+        <div class="skillbar">
+          <div class="sk"><b>Q</b>冲锋</div>
+          <div class="sk"><b>E</b>旋风</div>
+          <div class="sk"><b>R</b>狂暴</div>
+          <div class="sk"><b>P</b>被动</div>
+        </div>
+        <div class="radar">
+          <div class="rr">攻击<div class="bar"><i style="width:85%"></i></div></div>
+          <div class="rr">防御<div class="bar"><i style="width:60%"></i></div></div>
+          <div class="rr">机动<div class="bar"><i style="width:42%"></i></div></div>
+          <div class="rr">控制<div class="bar"><i style="width:35%"></i></div></div>
+          <div class="rr">续航<div class="bar"><i style="width:55%"></i></div></div>
+        </div>
+      </div>
+
+      <div class="col r">
+        <div class="panel chat">
+          <div class="ttl">聊天</div>
+          <div class="chann">
+            <div class="ch on">房间</div>
+            <div class="ch">队伍</div>
+            <div class="ch">世界</div>
+            <div class="ch">🎤 语音<span class="tag new">新</span></div>
+          </div>
+          <div class="msgs">
+            <div class="sys">— 陈天宝 创建了房间 —</div>
+            <div class="m"><span class="w">陈天宝：</span>8 点开黑，缺 1 个</div>
+            <div class="m"><span class="w">李四：</span>我玩 Archer @陈天宝</div>
+            <div class="sys">— 王五 加入了房间 —</div>
+            <div class="m me"><span class="w">我：</span>👊</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:9px">
+            <input class="inp" placeholder="Enter 发送" />
+            <div class="btn primary" style="padding:8px 12px">发送</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;align-items:center">
+            <span class="chip">👊</span><span class="chip">👍</span><span class="chip">😂</span>
+            <span class="chip">快点!</span><span class="chip">我准备好了</span>
+            <span class="tag new">表情/快捷语</span>
+          </div>
+          <div class="friends">
+            <div class="ttl">邀请好友</div>
+            <div class="fr"><span class="dot"></span>李四 · 大厅中<span class="chip" style="margin-left:auto">邀请</span></div>
+            <div class="fr"><span class="dot"></span>王五 · 战斗中</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <div class="ring"><span>3.2s</span></div>
+        <div class="rc">已准备 <b>2</b> / 3 · 等待 王五</div>
+        <div class="chip warn">网络波动：王五 112ms</div>
+        <div class="spacer"></div>
+        <div class="btn ghost">选择角色</div>
+        <div class="btn ghost">房间设置</div>
+        <div class="btn primary">准备 ✔</div>
+        <div class="btn violet">开始游戏<span class="tag">房主</span></div>
+        <div class="btn danger">离开</div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    V2 · 大厅扩展：新增 <b>房间码复制、密码房、观战位、随机地图与地图投票、分队与队长、等级与信号格、邀请好友 / AI 填充空位、中部 Tab（天赋·皮肤·战绩）、熟练度、技能条、属性条、聊天频道与表情、倒计时环、房主迁移提示条、网络波动提示</b>。
+    其中 <b>分队、密码、观战、AI、皮肤、天赋</b> 需要在 <code>FRoomSettings</code> / <code>FLobbyPlayerInfo</code> 里加字段并同步，其余用现有数据即可渲染。
+  </div>
+</div>
+
+<!-- ================= 3 角色 / 天赋 / 皮肤 ================= -->
+<div class="screen" id="s3">
+  <div class="frame">
+    <div class="head">
+      <h3>选 择 角 色</h3>
+      <div class="filters">
+        <div class="ft on">全部</div><div class="ft">坦克</div><div class="ft">输出</div>
+        <div class="ft">远程</div><div class="ft">辅助</div>
+        <span class="tag new">定位筛选新增</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="chip">已选：Warrior</div>
+    </div>
+
+    <div class="body">
+      <div class="grid">
+        <div class="cc sel"><span class="lv">Lv.7</span><div class="f"></div><div class="n">Warrior</div><div class="t">Greystone · 近战</div></div>
+        <div class="cc"><span class="lv">Lv.3</span><div class="f"></div><div class="n">Archer</div><div class="t">Sparrow · 远程</div></div>
+        <div class="cc dis"><div class="f" style="opacity:.5"></div><div class="n">— —</div><div class="t">DT_Characters 新增行</div></div>
+        <div class="cc dis"><div class="f" style="opacity:.5"></div><div class="n">— —</div><div class="t">DT_Characters 新增行</div></div>
+        <div class="cc dis"><div class="f" style="opacity:.5"></div><div class="n">— —</div><div class="t">DT_Characters 新增行</div></div>
+        <div class="cc dis"><div class="f" style="opacity:.5"></div><div class="n">— —</div><div class="t">DT_Characters 新增行</div></div>
+      </div>
+
+      <div class="panel detail">
+        <div class="ttl">角色详情</div>
+        <div class="big"></div>
+        <div style="font-size:17px;font-weight:700">Warrior
+          <span style="font-size:11px;color:var(--gold);letter-spacing:2px">GREYSTONE</span></div>
+
+        <div class="tabs3">
+          <div class="t3 on">天赋</div><div class="t3">皮肤</div><div class="t3">装备预设</div>
+        </div>
+
+        <div class="talent">
+          <div class="tal on">力量</div><div class="tal on">护甲</div>
+          <div class="tal">迅捷</div><div class="tal">吸血</div><div class="tal">暴击</div>
+        </div>
+
+        <div class="skinrow">
+          <div class="skin on">默认</div><div class="skin">暗金</div>
+          <div class="skin">冰霜</div><div class="skin">🔒</div>
+        </div>
+
+        <div class="desc">
+          DisplayName：Warrior · Mesh：Greystone · Anim：Greystone_AnimBlueprint<br />
+          定位：近战爆发，血量越低伤害越高；被动每损失 10% 生命攻击 +6%。<br />
+          熟练度 7 级（128 场 · 胜率 58%）——<span class="tag new">统计数据新增</span>
+        </div>
+
+        <div class="chip">CharacterIcon：表里图标</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="chip">‹ › 切换 · Enter 确认 · Esc 返回<span class="tag new">键盘导航</span></div>
+      <div class="spacer"></div>
+      <div class="btn ghost">随机<span class="tag new">新</span></div>
+      <div class="btn ghost">返回</div>
+      <div class="btn primary">确认</div>
+    </div>
+  </div>
+  <div class="note">
+    V2 · 角色页扩展：在现有 CharacterGrid 基础上加 <b>定位筛选、熟练度等级、天赋页、皮肤页、装备预设、随机按钮、键盘导航</b>。
+    角色仍来自 <code>DT_Characters</code>（当前只有 Warrior / Archer 两行），新增行会自动补格；天赋 / 皮肤 / 熟练度需要新表与存档字段。
+  </div>
+</div>
+
+<!-- ================= 4 房间规则设置 ================= -->
+<div class="screen" id="s4">
+  <div class="frame">
+    <div class="panel dlg">
+      <h4>房间设置<span class="tag">WBP_RoomSettings</span></h4>
+      <div class="row">
+        <div class="k">地图<span class="tag">MapSelector</span></div>
+        <select class="inp"><option>PPMap</option></select>
+      </div>
+      <div class="row">
+        <div class="k">游戏模式<span class="tag">GameModeSelector</span></div>
+        <select class="inp"><option>Crash</option></select>
+      </div>
+      <div class="row">
+        <div class="k">最大人数<span class="tag">MaxPlayersSpinBox</span></div>
+        <select class="inp"><option>4</option><option>2</option><option>6</option><option>8</option></select>
+      </div>
+      <div class="row">
+        <div class="k">回合时长<span class="tag new">新增</span></div>
+        <div class="slider"><i style="width:60%"></i><b style="left:60%"></b></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <div class="btn primary" style="flex:1;text-align:center">应用</div>
+        <div class="btn ghost">关闭</div>
+      </div>
+    </div>
+
+    <div class="panel dlg">
+      <h4>房间规则<span class="tag new">新增</span></h4>
+      <div class="sw"><span>🔒 房间密码</span><span class="toggle on"><i></i></span></div>
+      <div class="sw"><span>👁 允许观战</span><span class="toggle on"><i></i></span></div>
+      <div class="sw"><span>🤖 用 AI 填充空位</span><span class="toggle"><i></i></span></div>
+      <div class="sw"><span>🗳 开局前地图投票</span><span class="toggle on"><i></i></span></div>
+      <div class="sw"><span>⚖ 队伍自动平衡</span><span class="toggle"><i></i></span></div>
+      <div class="sw"><span>🎤 房间语音</span><span class="toggle on"><i></i></span></div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="k">分队模式<span class="tag new">新增</span></div>
+        <select class="inp"><option>自由混战</option><option>2 v 2</option><option>3 v 1</option></select>
+      </div>
+      <div class="row">
+        <div class="k">AI 难度<span class="tag new">新增</span></div>
+        <select class="inp"><option>普通</option><option>简单</option><option>困难</option></select>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1;padding:20px;align-self:stretch;display:flex;flex-direction:column;gap:12px">
+      <div class="ttl">需要新增的字段（V2 → 代码侧）</div>
+      <div class="desc">
+        <b>FRoomSettings</b>：bHasPassword / Password、bAllowSpectate、SpectateSlots、
+        bFillWithAI、AIDifficulty、bMapVote、bAutoBalance、TeamMode、RoundTime。<br /><br />
+        <b>FLobbyPlayerInfo</b>：PlayerLevel、TeamId、bIsCaptain、Ping、bIsAI、Spectating、Mastery。<br /><br />
+        <b>新增表</b>：DT_Skins（皮肤）、DT_Talents（天赋）、DT_QuickChat（快捷语）。<br /><br />
+        <b>新增 UI</b>：WBP_RoomRuleItem（开关行）、WBP_TeamHeader、WBP_SpectatorEntry、
+        WBP_TalentSlot、WBP_SkinSlot、WBP_Toast（房主迁移 / 网络波动提示）。
+      </div>
+      <div class="ttl">样式令牌</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="chip gold">主色 #E8C47A</div>
+        <div class="chip violet">强调 #A06BFF</div>
+        <div class="chip">辅助 #5AA9FF</div>
+        <div class="chip">成功 #46D38A</div>
+        <div class="chip warn">警告 #FFB454</div>
+        <div class="chip">危险 #FF6B6B</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="btn primary">主按钮</div><div class="btn violet">强调</div>
+        <div class="btn">次级</div><div class="btn ghost">幽灵</div>
+        <div class="btn danger">危险</div><div class="btn" disabled>禁用</div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    V2 · 房间设置扩展：在现有 MapSelector / MaxPlayersSpinBox / GameModeSelector 之上，
+    新增 <b>开关式规则行（密码、观战、AI 填充、地图投票、自动平衡、语音）、分队模式、AI 难度、回合时长</b>，
+    并列出落地这些扩展需要在 <code>FRoomSettings</code> / <code>FLobbyPlayerInfo</code> 补的字段与新增 Widget。
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+      document.querySelectorAll('.screen').forEach(function(x){x.classList.remove('active')});
+      t.classList.add('active');
+      document.getElementById(t.dataset.t).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
