@@ -51,13 +51,9 @@ void APP_PlayerController::SetupInputComponent()
 	// → APP_PlayerCharacter::Input_OnMove / Input_OnJump。
 	// IMC_Movement 中的 WASD→IA_Move、Space→IA_Jump 映射已删除，避免 PC 侧抢占导致
 	// ALS 的步态/蹲伏/翻滚等逻辑收不到输入。
-	// EnhancedInputComponent->BindAction(JumpAction,ETriggerEvent::Started,this,&ThisClass::Jump);
-	// EnhancedInputComponent->BindAction(JumpAction,ETriggerEvent::Completed,this,&ThisClass::StopJumping);
-	// EnhancedInputComponent->BindAction(MoveAction,ETriggerEvent::Triggered,this,&ThisClass::Move);
 	// 鼠标视角统一交给 ALS：IMC_Als_Default(priority=0) → IA_Als_LookMouse
 	// → APP_PlayerCharacter::Input_OnLookMouse。
 	// IMC_Movement 中的 Mouse2D → IA_Look 映射已删除，避免它与 ALS 争抢鼠标 XY。
-	// EnhancedInputComponent->BindAction(LookAction,ETriggerEvent::Triggered,this,&ThisClass::Look);
 	
 	EnhancedInputComponent->BindAction(PrimaryAction,ETriggerEvent::Started,this,&ThisClass::Primary);
 	EnhancedInputComponent->BindAction(SecondaryAction,ETriggerEvent::Started,this,&ThisClass::Secondary);

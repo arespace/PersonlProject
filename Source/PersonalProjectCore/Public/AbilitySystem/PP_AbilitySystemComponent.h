@@ -21,16 +21,6 @@ public:
 	UFUNCTION(BlueprintCallable,Category = "PP|Abilities")
 	void AddToAbilityLevel(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 1);
 
-	// ===== UI冷却查询接口 =====
-
-	/** 获取指定能力Tag的冷却剩余时间 */
-	UFUNCTION(BlueprintPure, Category = "PP|Abilities|Cooldown")
-	float GetCooldownRemainingForTag(const FGameplayTag& CooldownTag) const;
-
-	/** 获取指定能力Tag的冷却总时间 */
-	UFUNCTION(BlueprintPure, Category = "PP|Abilities|Cooldown")
-	float GetCooldownDurationForTag(const FGameplayTag& CooldownTag) const;
-
 private:
 	void HandlAutoActivatedAbility(const FGameplayAbilitySpec& AbilitySpec);
 
