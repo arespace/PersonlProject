@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
-#include "GameplayEffect.h"
 #include "PP_ItemTypes.generated.h"
+
+class UGameplayAbility;
 
 /**
  * 物品类型枚举
