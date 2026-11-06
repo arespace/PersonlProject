@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Data/PP_ItemTypes.h"
+// 兼容既有引用：装备接口已拆到独立头文件
+#include "Interfaces/PP_EquipmentUserInterface.h"
 #include "PP_InteractableInterface.generated.h"
 
 class APlayerController;
@@ -65,28 +67,4 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Combat")
 	void PlayStaggered();
 	virtual void PlayStaggered_Implementation() {}
-};
-
-// ============================================================
-// IPP_EquipmentUser — 武器/装备系统的装备变更回调接口
-// ============================================================
-UINTERFACE(MinimalAPI, Blueprintable)
-class UPP_EquipmentUser : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class PERSONALPROJECTCORE_API IPP_EquipmentUser : public IInterface
-{
-	GENERATED_BODY()
-
-public:
-	/**
-	 * 装备槽位变更回调
-	 * @param SlotType  哪个槽位发生了变化
-	 * @param NewItemID 新装备的物品ID（NAME_None 表示卸下）
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Equipment")
-	void OnEquipmentChanged(EPP_EquipmentSlotType SlotType, FName NewItemID);
-	virtual void OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID) {}
 };

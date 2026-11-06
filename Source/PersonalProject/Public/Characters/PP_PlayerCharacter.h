@@ -7,7 +7,7 @@
 #include "Data/PP_ItemTypes.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
-#include "Interfaces/PP_InteractableInterface.h"
+#include "Interfaces/PP_EquipmentUserInterface.h"
 #include "PP_PlayerCharacter.generated.h"
 
 struct FInputActionValue;
