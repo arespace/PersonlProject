@@ -17,6 +17,31 @@
 #include "GameFramework/Pawn.h"
 #include "Engine/GameInstance.h"
 
+namespace
+{
+	/** 旧装备槽 → 武器槽的对应关系（仅武器两槽） */
+	bool ToWeaponSlotType(EPP_EquipSlot Slot, EPP_EquipmentSlotType& OutSlotType)
+	{
+		switch (Slot)
+		{
+		case EPP_EquipSlot::MainHand: OutSlotType = EPP_EquipmentSlotType::PrimaryWeapon;   return true;
+		case EPP_EquipSlot::OffHand:  OutSlotType = EPP_EquipmentSlotType::SecondaryWeapon; return true;
+		default: return false;
+		}
+	}
+
+	/** 武器槽 → 旧装备槽的对应关系（仅武器两槽） */
+	bool ToEquipSlot(EPP_EquipmentSlotType SlotType, EPP_EquipSlot& OutSlot)
+	{
+		switch (SlotType)
+		{
+		case EPP_EquipmentSlotType::PrimaryWeapon:   OutSlot = EPP_EquipSlot::MainHand; return true;
+		case EPP_EquipmentSlotType::SecondaryWeapon: OutSlot = EPP_EquipSlot::OffHand;  return true;
+		default: return false;
+		}
+	}
+}
+
 UPP_InventoryComponent::UPP_InventoryComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -277,14 +302,7 @@ FName UPP_InventoryComponent::ApplyUnequip(EPP_EquipSlot Slot)
 
 FName UPP_InventoryComponent::GetEquippedItemID(EPP_EquipSlot Slot) const
 {
-	for (const FPP_EquippedItem& E : EquippedItems)
-	{
-		if (E.Slot == Slot)
-		{
-			return E.ItemID;
-		}
-	}
-	return NAME_None;
+	return GetEquippedItemInSlot(Slot).ItemID;
 }
 
 UAbilitySystemComponent* UPP_InventoryComponent::GetOwningAbilitySystemComponent() const
@@ -427,6 +445,28 @@ void UPP_InventoryComponent::ApplyConsumable(const FPP_ItemInfo& ItemInfo)
 
 FPP_EquippedItem UPP_InventoryComponent::GetEquippedItemInSlot(EPP_EquipSlot Slot) const
 {
+	// 武器两槽以 EquipmentSlots 为唯一数据源（新装备链路只写这里）
+	EPP_EquipmentSlotType WeaponSlotType;
+	if (ToWeaponSlotType(Slot, WeaponSlotType))
+	{
+		for (const FPP_EquipmentSlot& S : EquipmentSlots)
+		{
+			if (S.SlotType != WeaponSlotType)
+			{
+				continue;
+			}
+			if (!S.ItemID.IsNone())
+			{
+				FPP_EquippedItem Equipped;
+				Equipped.ItemID = S.ItemID;
+				Equipped.Slot = Slot;
+				return Equipped;
+			}
+			break;
+		}
+		return FPP_EquippedItem();
+	}
+
 	for (const FPP_EquippedItem& E : EquippedItems)
 	{
 		if (E.Slot == Slot)
@@ -446,7 +486,32 @@ TArray<FPP_ItemInstance> UPP_InventoryComponent::QueryItems_Implementation()
 
 TArray<FPP_EquippedItem> UPP_InventoryComponent::QueryEquippedItems_Implementation()
 {
-	return EquippedItems;
+	// 武器两槽由 EquipmentSlots 提供（新链路只写这里），其余槽位仍来自旧轨 EquippedItems
+	TArray<FPP_EquippedItem> Result;
+	Result.Reserve(EquippedItems.Num() + EquipmentSlots.Num());
+
+	for (const FPP_EquippedItem& E : EquippedItems)
+	{
+		if (E.Slot != EPP_EquipSlot::MainHand && E.Slot != EPP_EquipSlot::OffHand)
+		{
+			Result.Add(E);
+		}
+	}
+
+	for (const FPP_EquipmentSlot& S : EquipmentSlots)
+	{
+		EPP_EquipSlot EquipSlot;
+		if (S.ItemID.IsNone() || !ToEquipSlot(S.SlotType, EquipSlot))
+		{
+			continue;
+		}
+		FPP_EquippedItem Equipped;
+		Equipped.ItemID = S.ItemID;
+		Equipped.Slot = EquipSlot;
+		Result.Add(Equipped);
+	}
+
+	return Result;
 }
 
 int32 UPP_InventoryComponent::QueryGold_Implementation()
@@ -592,6 +657,9 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	// 更新槽位
 	EquipmentSlots[Idx].ItemID = ItemID;
 
+	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_WeaponSlots）
+	BroadcastEquipmentUpdatedEvent();
+
 	// 通知拥有者 Pawn（PlayerCharacter 实现 IPP_EquipmentUser）
 	// BlueprintNativeEvent 不能直接调用，必须走 Execute_ 包装
 	AActor* NotifyTarget = GetEquipmentUserActor();
@@ -633,6 +701,9 @@ void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSl
 
 	EquipmentSlots[Idx].ItemID = NAME_None;
 
+	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_WeaponSlots）
+	BroadcastEquipmentUpdatedEvent();
+
 	// 通知装备用户（BlueprintNativeEvent 必须走 Execute_ 包装）
 	if (AActor* NotifyTarget = GetEquipmentUserActor())
 	{
@@ -657,6 +728,9 @@ FName UPP_InventoryComponent::GetWeaponInSlot(EPP_EquipmentSlotType SlotType) co
 
 void UPP_InventoryComponent::OnRep_WeaponSlots(const TArray<FPP_EquipmentSlot>& OldSlots)
 {
+	// UI 装备栏刷新不依赖 Pawn 是否就绪，先广播事件
+	BroadcastEquipmentUpdatedEvent();
+
 	// 客户端收到武器槽复制：SetMaterial / SetStaticMesh 不参与网络复制，
 	// 因此外观（隐藏自带武器 / 显示装备武器网格）必须在客户端收到槽位变化后重新应用一次。
 	AActor* NotifyTarget = GetEquipmentUserActor();
