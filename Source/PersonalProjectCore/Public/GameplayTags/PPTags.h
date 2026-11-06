@@ -93,7 +93,7 @@ namespace PPTags
 		/** Boss 阶段切换期间的短暂无敌：由 Boss 基类在阶段切换时 AddTag */
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BossPhaseTransition);
 
-		/** 翻滚 i-frames 无敌窗口：由 GA_PP_Roll 的 RollStart/RollEnd Notify 控制 */
+		/** 无敌窗口（翻滚 i-frames 等）：由 PP_BaseCharacter::CanBeDamaged 统一检查；当前无 C++ 授予方，需靠动画 Notify 授予/移除 */
 		PERSONALPROJECTCORE_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Invulnerable);
 
 		/** Boss 场地已激活：BossArenaTrigger OverlapBegin 时给 Boss AddTag，Boss 据此激活 SearchForTarget GA */
