@@ -103,7 +103,8 @@ void UPP_QuestEventBridge::NotifyChatSent(APlayerController* Sender)
 	UPP_QuestComponent* QC = GetQuestComponentFromPC(Sender);
 	if (QC)
 	{
-		QC->UpdateObjectiveProgress(EPP_QuestObjectiveType::SendChat, FName("Chat"), 1);
+		// 聊天目标不绑定具体 TargetID，由数据表决定哪些 SendChat 目标被推进
+		QC->UpdateObjectiveProgress(EPP_QuestObjectiveType::SendChat, NAME_None, 1);
 	}
 }
 

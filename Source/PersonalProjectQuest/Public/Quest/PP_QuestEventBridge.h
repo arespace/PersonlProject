@@ -44,7 +44,7 @@ public:
 
 	// ===== 外部通知入口（由各子系统在事件发生时调用） =====
 
-	/** 聊天消息发送通知 */
+	/** 聊天消息发送通知（推进所有 SendChat 类型目标，不依赖具体 TargetID） */
 	UFUNCTION(BlueprintCallable, Category = "Quest|Bridge")
 	void NotifyChatSent(APlayerController* Sender);
 

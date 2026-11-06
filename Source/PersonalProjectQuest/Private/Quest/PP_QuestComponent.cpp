@@ -200,7 +200,8 @@ void UPP_QuestComponent::UpdateObjectiveProgress(EPP_QuestObjectiveType Type, FN
 
 			if (Obj.bCompleted) continue;
 			if (Obj.Type != Type) continue;
-			if (Obj.TargetID != TargetID) continue;
+			// TargetID 传 NAME_None 表示匹配该类型的任意目标（如聊天，具体配置由数据表决定）
+			if (!TargetID.IsNone() && Obj.TargetID != TargetID) continue;
 
 			bMatched = true;
 			Obj.CurrentCount = FMath::Min(Obj.CurrentCount + Count, Obj.RequiredCount);
