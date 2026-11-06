@@ -17,6 +17,28 @@ class UInputMappingContext;
 class UInputAction;
 class APP_SoulPickupActor;
 class UDataTable;
+class UStaticMesh;
+class UStaticMeshComponent;
+class UMaterialInterface;
+
+/** 单把武器的网格与挂载变换（各武器模型枢轴位置不同，必须逐把配置） */
+USTRUCT(BlueprintType)
+struct FPP_WeaponMeshVisual
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
+	TObjectPtr<UStaticMesh> Mesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
+	FVector RelativeLocation{FVector::ZeroVector};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
+	FRotator RelativeRotation{FRotator::ZeroRotator};
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
+	FVector RelativeScale{FVector::OneVector};
+};
 
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter, public IPP_EquipmentUser
@@ -43,6 +65,12 @@ public:
 	/** 根据角色ID应用外观（模型+动画） */
 	void ApplyCharacterAppearance(FName CharacterId);
 
+	// ===== 调试命令（控制台：PPAddItem Longsword 1，需在服务器窗口执行） =====
+
+	/** 给本机玩家背包添加物品，用于测试装备/武器流程 */
+	UFUNCTION(Exec)
+	void PPAddItem(FName ItemID, int32 Count = 1);
+
 	// ===== 锁定系统（仅本地玩家生效：目标选择/相机朝向/角色朝向；服务端依靠 ALS 视角同步） =====
 
 	/** 当前锁定的敌人（无锁定时为 nullptr） */
@@ -56,6 +84,8 @@ public:
 	// ===== ALS 相机与输入（移植自 AAlsCharacterExample，避免依赖 demo 模块 ALSExtras） =====
 
 protected:
+	virtual void BeginPlay() override;
+
 	/** 玩家死亡：基类处理死亡/复活计时，这里额外把携带的金币掉落成魂 */
 	virtual void HandleDeath() override;
 
@@ -271,7 +301,64 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Weapon")
 	TObjectPtr<UDataTable> WeaponDataTable;
 
+	// ===== 武器外观（自带烘焙武器隐藏 / 装备武器网格显示） =====
+
+	/** 切换自带（烘焙在骨骼网格上的）武器是否可见：材质槽换成隐形材质 */
+	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
+	void SetBuiltInWeaponVisible(bool bVisible);
+
+	/** 把 WeaponMesh 换成 ItemID 对应的武器网格（WeaponMeshMap 里查） */
+	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
+	void SetWeaponMesh(FName ItemID);
+
+	/** 清空 WeaponMesh（空手） */
+	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
+	void ClearWeaponMesh();
+
+	/** 调试：切换主武器（已装备则卸下，未装备则自动补一件再装上），绑定 F9，不占用技能键 */
+	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
+	void DebugTogglePrimaryWeapon();
+
+	/** 调试键 F9 使用的武器 ItemID */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	FName DebugPrimaryWeaponItemID{TEXTVIEW("Longsword")};
+
+	/** 自带武器占用的材质槽索引（如 Kwang 的 17） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	TArray<int32> BuiltInWeaponMaterialSlots;
+
+	/** 隐藏自带武器时使用的全透明材质 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMaterialInterface> HiddenWeaponMaterial;
+
+	/** 装备武器网格挂载的骨骼/socket 名（Kwang 为 VB_Kwang_weapon） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	FName WeaponAttachSocketName{TEXTVIEW("VB_Kwang_weapon")};
+
+	/** 武器 ItemID → 武器网格与挂载变换 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	TMap<FName, FPP_WeaponMeshVisual> WeaponMeshMap;
+
+	/** BeginPlay 时是否立即隐藏自带武器（默认空手） */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	bool bHideBuiltInWeaponOnBeginPlay{true};
+
+	/** 装备武器的网格容器（默认无网格，挂在 WeaponAttachSocketName 上） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
+
+	/** 客户端窗口执行 PPAddItem 时转发到服务器 */
+	UFUNCTION(Server, Reliable)
+	void ServerPPAddItem(FName ItemID, int32 Count);
+
+	/** 服务器实际执行的加物品逻辑 */
+	void GrantItemToInventory(FName ItemID, int32 Count);
+
 private:
 	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除） */
 	TMap<EPP_EquipmentSlotType, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
+
+	/** 自带武器材质槽的原始材质缓存（与 BuiltInWeaponMaterialSlots 一一对应） */
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInterface>> CachedBuiltInWeaponMaterials;
 };

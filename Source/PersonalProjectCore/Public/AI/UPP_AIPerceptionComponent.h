@@ -10,7 +10,7 @@ class AAIController;
 class APP_BaseCharacter;
 
 /**
- * 敌人 AI 感知组件：搜敌、视野锥、脱战 leash、仇恨粘性。
+ * 敌人 AI 感知组件：全向搜敌（不限朝向，仅要求视线未被遮挡）、脱战 leash、仇恨粘性。
  * 挂到 AIController 上（不是 EnemyCharacter），由 AIController 的 BeginPlay 触发。
  * 对外暴露 CurrentTarget 供 SearchForTarget GA 直接读取。
  */
@@ -22,6 +22,10 @@ class PERSONALPROJECTCORE_API UPP_AIPerceptionComponent : public UActorComponent
 public:
 	UPP_AIPerceptionComponent();
 
+	/** 启动/重启搜索定时器（幂等；运行时补建组件后需显式调用） */
+	UFUNCTION(BlueprintCallable, Category = "PP|AI|Perception")
+	void StartSearching();
+
 	/** 搜索半径（cm）：超过这个距离不考虑 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|AI|Perception")
 	float SearchRadius{1500.f};
@@ -29,10 +33,6 @@ public:
 	/** 脱战 leash 距离：目标超过这个距离强制清空 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|AI|Perception")
 	float LeashRange{3500.f};
-
-	/** 视野锥半角（度） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|AI|Perception")
-	float VisionHalfAngle{60.f};  // 默认 120° 视野 = 半角 60°
 
 	/** 高度差容忍：目标比感知者高/低超过此值忽略 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|AI|Perception")

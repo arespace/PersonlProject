@@ -35,9 +35,6 @@ public:
 private:
 	
 	UPROPERTY()
-	TObjectPtr<UPP_WaitGameplayEvent> WaitEndAttackTask;
-
-	UPROPERTY()
 	TObjectPtr<UPP_WaitGameplayEvent> WaitHitReactTask;
 	
 	UPROPERTY()
@@ -51,11 +48,26 @@ private:
 	
 	UPROPERTY()
 	TObjectPtr<UAbilityTask_WaitDelay> PostAttackCooldownTask;
+
+	/** 诊断：StartSearch 调用序号 */
+	int32 SearchSerial{0};
+
+	/** 诊断：已挂起但尚未到时的搜索 Delay 数量 */
+	int32 SearchPending{0};
+
+	/** 诊断：已发起但尚未回调的 MoveTo 数量 */
+	int32 MoveToPending{0};
+
+	/** 诊断：Attack 触发序号 */
+	int32 AttackSerial{0};
+
+	/** 诊断：上一次 Attack 的世界时间 */
+	float LastAttackTime{-1.f};
+
+	/** 下一次允许攻击的世界时间（冷却门控） */
+	float NextAttackAllowedTime{-1.f};
 	
 	void StartSearch();
-	
-	UFUNCTION()
-	void EndAttackEventReceived(FGameplayEventData Payload);
 	
 	UFUNCTION()
 	void HitReactEventReceived(FGameplayEventData Payload);

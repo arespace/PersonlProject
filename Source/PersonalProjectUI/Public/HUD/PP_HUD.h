@@ -19,6 +19,7 @@ class UPP_WidgetPool;
 class UPP_QuestListWidget;
 class UPP_QuestTrackerWidget;
 class UPP_InventoryWidget;
+class UPP_SettlementWidget;
 
 /**
  * APP_HUD - UI总调度器
@@ -159,6 +160,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|HUD|Widgets")
 	TSubclassOf<UUserWidget> InventoryWidgetClass;
 
+	/** Boss 结算 Widget 类（WBP_Settlement，需含 BossNameText/TimeText/GoldText/ContinueButton） */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|HUD|Widgets")
+	TSubclassOf<UUserWidget> SettlementWidgetClass;
+
 	// ===== 伤害数字对象池配置 =====
 
 	/** 伤害数字对象池初始大小 */
@@ -210,6 +215,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UPP_InventoryWidget> InventoryWidget;
 
+	/** Boss 结算界面（首次收到结算事件时创建） */
+	UPROPERTY()
+	TObjectPtr<UPP_SettlementWidget> SettlementWidget;
+
 	/** 初始化ViewModel */
 	void InitializeViewModel();
 
@@ -232,6 +241,12 @@ private:
 
 	/** 任务完成事件订阅句柄（EndPlay 时退订） */
 	FDelegateHandle QuestCompletedEventHandle;
+
+	/** Boss 结算事件回调（EventBus 订阅 → 创建结算 Widget） */
+	void OnSettlementShowEvent(const struct FPP_SettlementShowEvent& Event);
+
+	/** Boss 结算事件订阅句柄（EndPlay 时退订） */
+	FDelegateHandle SettlementShowEventHandle;
 
 	/** 创建所有HUD Widget */
 	void CreateHUDWidgets();

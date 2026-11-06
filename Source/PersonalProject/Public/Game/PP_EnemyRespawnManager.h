@@ -9,14 +9,35 @@
 class APP_EnemyCharacter;
 
 /**
+ * 一条敌人生成记录。
+ * 记录独立于 Actor 生命周期：敌人死亡后被销毁，篝火休息仍可据此在生成点重建。
+ */
+USTRUCT()
+struct FPP_EnemySpawnRecord
+{
+	GENERATED_BODY()
+
+	/** 敌人蓝图类（重建时用） */
+	UPROPERTY()
+	TSubclassOf<APP_EnemyCharacter> EnemyClass;
+
+	/** 生成点变换 */
+	UPROPERTY()
+	FTransform SpawnTransform;
+
+	/** 当前实例（死亡销毁后自动变空） */
+	UPROPERTY()
+	TWeakObjectPtr<APP_EnemyCharacter> Enemy;
+};
+
+/**
  * 关卡内敌人统一注册表 + 篝火休息重置派发器。
- * 挂到 GameMode（蓝图子类里 Add Component）。
+ * 由 C++ 在 APP_CrashGameMode 里默认创建，无需蓝图手动添加。
  *
  * 使用流程：
- *   1. GameMode 的蓝图子类 Add UPP_EnemyRespawnManager（C++ 也可以手动 RegisterAllEnemies）
- *   2. RespawnManager 在 BeginPlay 时 GetAllActorsOfClass<APP_EnemyCharacter> 注册
- *   3. BonfireActor::Rest() 通过 GetAuthGameMode()->FindComponentByClass<UPP_EnemyRespawnManager>()
- *      拿到它，调 ResetEnemiesInRadius(Location, Radius)
+ *   1. 敌人 BeginPlay 自动 RegisterEnemy（记录类 + 生成点）
+ *   2. BonfireActor::Rest() 调 ResetEnemiesInRadius(Location, Radius)
+ *   3. 半径内活着的敌人 ResetToSpawn；已死亡销毁的按记录重建
  */
 UCLASS(ClassGroup = (PP), meta = (BlueprintSpawnableComponent))
 class PERSONALPROJECT_API UPP_EnemyRespawnManager : public UActorComponent
@@ -26,19 +47,19 @@ class PERSONALPROJECT_API UPP_EnemyRespawnManager : public UActorComponent
 public:
 	UPP_EnemyRespawnManager();
 
-	/** 注册一个敌人（关卡蓝图 Spawn 时手动调，或自动批量） */
+	/** 注册一个敌人（敌人 BeginPlay 自动调用） */
 	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
 	void RegisterEnemy(APP_EnemyCharacter* Enemy);
 
-	/** 取消注册（敌人被永久销毁时） */
+	/** 取消注册（敌人被永久移除，不再参与篝火重置） */
 	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
 	void UnregisterEnemy(APP_EnemyCharacter* Enemy);
 
-	/** BeginPlay 时自动扫关卡内所有敌人并注册 */
+	/** 扫描关卡内所有敌人并注册 */
 	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
 	void RegisterAllEnemies();
 
-	/** 半径内所有敌人执行 ResetToSpawn */
+	/** 半径内敌人全部回生成点满血；已死亡销毁的按记录重建 */
 	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
 	int32 ResetEnemiesInRadius(const FVector& Origin, float Radius);
 
@@ -46,15 +67,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PP|EnemyRespawn")
 	void ClearAll();
 
-	/** 当前注册数量 */
+	/** 已记录敌人数（含死亡待重建） */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|EnemyRespawn")
-	int32 GetEnemyCount() const { return EnemiesInLevel.Num(); }
+	int32 GetEnemyCount() const { return EnemySpawnRecords.Num(); }
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	/** 关卡内所有活着的敌人 */
+	/** 关卡内所有敌人的生成记录 */
 	UPROPERTY()
-	TArray<TObjectPtr<APP_EnemyCharacter>> EnemiesInLevel;
+	TArray<FPP_EnemySpawnRecord> EnemySpawnRecords;
+
+	/** 重建中：SpawnActor 触发的 BeginPlay 不要重复登记 */
+	bool bIsRespawning{false};
 };

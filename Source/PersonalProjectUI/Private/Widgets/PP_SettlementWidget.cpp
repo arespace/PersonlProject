@@ -23,10 +23,6 @@ void UPP_SettlementWidget::NativeConstruct()
 	{
 		ContinueButton->OnClicked.AddDynamic(this, &ThisClass::OnContinueClicked);
 	}
-
-	// 订阅结算事件
-	SubscribeEventBus<FPP_SettlementShowEvent>(
-		[this](const FPP_SettlementShowEvent& Event) { HandleSettlementShow(Event); });
 }
 
 void UPP_SettlementWidget::NativeDestruct()
@@ -49,7 +45,7 @@ FReply UPP_SettlementWidget::NativeOnKeyDown(const FGeometry& InGeometry, const 
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-void UPP_SettlementWidget::HandleSettlementShow(const FPP_SettlementShowEvent& Event)
+void UPP_SettlementWidget::ShowSettlement(const FPP_SettlementShowEvent& Event)
 {
 	// 填入数据
 	if (BossNameText)

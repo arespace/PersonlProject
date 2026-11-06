@@ -8,6 +8,7 @@
 #include "PP_CrashGameMode.generated.h"
 
 class UPP_QuestEventBridge;
+class UPP_EnemyRespawnManager;
 
 /** 角色能力列表包装结构（UHT不支持TArray作为TMap值类型） */
 USTRUCT(BlueprintType)
@@ -76,8 +77,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Quest")
 	UPP_QuestEventBridge* GetQuestEventBridge() const { return QuestEventBridge; }
 
+	/** 获取敌人重生管理器（篝火休息重置区域敌人） */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Game")
+	UPP_EnemyRespawnManager* GetEnemyRespawnManager() const { return EnemyRespawnManager; }
+
 protected:
 	/** 任务事件桥接器组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Quest")
 	TObjectPtr<UPP_QuestEventBridge> QuestEventBridge;
+
+	/** 敌人重生管理器组件（C++ 默认创建，无需蓝图手动 Add Component） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Game")
+	TObjectPtr<UPP_EnemyRespawnManager> EnemyRespawnManager;
 };

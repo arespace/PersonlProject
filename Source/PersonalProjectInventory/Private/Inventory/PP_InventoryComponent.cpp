@@ -540,20 +540,39 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 		return; // 相同物品无需重复装备
 	}
 
+	// 新武器必须先在背包里（防止凭空装备）
+	if (!HasItem(ItemID, 1))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 背包中没有 %s，装备失败"), *ItemID.ToString());
+		return;
+	}
+
+	// 新武器出背包
+	if (!RemoveItem(ItemID, 1))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 扣减背包 %s 失败"), *ItemID.ToString());
+		return;
+	}
+
+	// 旧武器回背包（保证换下的武器还能再装回去）
+	if (!OldItemID.IsNone() && !AddItem(OldItemID, 1))
+	{
+		// 背包已满：把新武器还回背包，取消换装，避免物品凭空消失
+		AddItem(ItemID, 1);
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 背包已满，无法收回旧武器 %s，换装取消"), *OldItemID.ToString());
+		return;
+	}
+
 	// 更新槽位
 	EquipmentSlots[Idx].ItemID = ItemID;
 
 	// 通知拥有者 Pawn（PlayerCharacter 实现 IPP_EquipmentUser）
-	if (AActor* NotifyTarget = GetEquipmentUserActor())
+	// BlueprintNativeEvent 不能直接调用，必须走 Execute_ 包装
+	AActor* NotifyTarget = GetEquipmentUserActor();
+	if (NotifyTarget && NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
 	{
-		if (IPP_EquipmentUser* EquipmentUser = Cast<IPP_EquipmentUser>(NotifyTarget))
-		{
-			EquipmentUser->OnEquipmentChanged(SlotType, ItemID);
-		}
+		IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, SlotType, ItemID);
 	}
-
-	UE_LOG(LogPP, Log, TEXT("[WeaponEquip] 装备槽 %d: %s → %s"),
-		static_cast<int32>(SlotType), *OldItemID.ToString(), *ItemID.ToString());
 }
 
 void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSlotType SlotType)
@@ -569,28 +588,33 @@ void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSl
 	});
 	if (Idx == INDEX_NONE)
 	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] UnequipWeapon: 槽位 %d 不存在"), static_cast<int32>(SlotType));
 		return;
 	}
 
 	const FName OldItemID = EquipmentSlots[Idx].ItemID;
 	if (OldItemID.IsNone())
 	{
-		return; // 已经是空槽
+		return;
+	}
+
+	// 卸下的武器回到背包；背包满则取消卸下，避免物品凭空消失
+	if (!AddItem(OldItemID, 1))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] UnequipWeapon: 背包已满，无法收回 %s，卸下取消"), *OldItemID.ToString());
+		return;
 	}
 
 	EquipmentSlots[Idx].ItemID = NAME_None;
 
-	// 通知装备用户
+	// 通知装备用户（BlueprintNativeEvent 必须走 Execute_ 包装）
 	if (AActor* NotifyTarget = GetEquipmentUserActor())
 	{
-		if (IPP_EquipmentUser* EquipmentUser = Cast<IPP_EquipmentUser>(NotifyTarget))
+		if (NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
 		{
-			EquipmentUser->OnEquipmentChanged(SlotType, NAME_None);
+			IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, SlotType, NAME_None);
 		}
 	}
-
-	UE_LOG(LogPP, Log, TEXT("[WeaponEquip] 卸下槽 %d: 原=%s"),
-		static_cast<int32>(SlotType), *OldItemID.ToString());
 }
 
 FName UPP_InventoryComponent::GetWeaponInSlot(EPP_EquipmentSlotType SlotType) const
@@ -607,6 +631,26 @@ FName UPP_InventoryComponent::GetWeaponInSlot(EPP_EquipmentSlotType SlotType) co
 
 void UPP_InventoryComponent::OnRep_WeaponSlots(const TArray<FPP_EquipmentSlot>& OldSlots)
 {
-	// 客户端收到武器槽复制：这里暂不额外广播，UI 直接读 EquipmentSlots 数组
-	// 如果后续需要客户端独立响应可在此扩展
+	// 客户端收到武器槽复制：SetMaterial / SetStaticMesh 不参与网络复制，
+	// 因此外观（隐藏自带武器 / 显示装备武器网格）必须在客户端收到槽位变化后重新应用一次。
+	AActor* NotifyTarget = GetEquipmentUserActor();
+	if (!IsValid(NotifyTarget) || !NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
+	{
+		// 客户端 Pawn 可能还没生成，此时外观由角色 BeginPlay 的默认状态负责
+		return;
+	}
+
+	for (const FPP_EquipmentSlot& Slot : EquipmentSlots)
+	{
+		const FPP_EquipmentSlot* OldSlot = OldSlots.FindByPredicate(
+			[Slot](const FPP_EquipmentSlot& Candidate) { return Candidate.SlotType == Slot.SlotType; });
+
+		const FName OldItemID = OldSlot ? OldSlot->ItemID : NAME_None;
+		if (OldItemID == Slot.ItemID)
+		{
+			continue;
+		}
+
+		IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, Slot.SlotType, Slot.ItemID);
+	}
 }
