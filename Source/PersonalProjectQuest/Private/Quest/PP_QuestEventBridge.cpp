@@ -30,9 +30,6 @@ void UPP_QuestEventBridge::BeginPlay()
 
 	BindToGatherSystem();
 	BindToShopSystem();
-	BindToChatSystem();
-	BindToCombatSystem();
-	BindToDialogueSystem();
 
 	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] All subsystem bindings completed"));
 }
@@ -68,24 +65,6 @@ void UPP_QuestEventBridge::BindToShopSystem()
 	// 绑定静态委托，不依赖遍历 NPC 实例（参照 Gather 系统模式，避免 BeginPlay 时序问题）
 	UPP_ShopComponent::OnPurchaseCompletedDelegate.AddDynamic(this, &UPP_QuestEventBridge::OnPurchaseCompleted);
 	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] Bound to ShopSystem (static delegate)"));
-}
-
-void UPP_QuestEventBridge::BindToChatSystem()
-{
-	// 聊天系统通过 NotifyChatSent 被 PP_PlayerController 主动调用
-	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] ChatSystem ready (push-based via NotifyChatSent)"));
-}
-
-void UPP_QuestEventBridge::BindToCombatSystem()
-{
-	// 战斗系统通过 NotifyEnemyKilled 被 PP_EnemyCharacter::HandleDeath 主动调用
-	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] CombatSystem ready (push-based via NotifyEnemyKilled)"));
-}
-
-void UPP_QuestEventBridge::BindToDialogueSystem()
-{
-	// 对话系统通过 NotifyDialogueCompleted 被 PC 主动调用
-	UE_LOG(LogPP, Log, TEXT("[QuestEventBridge] DialogueSystem ready (push-based via NotifyDialogueCompleted)"));
 }
 
 // ===== 事件回调 =====
