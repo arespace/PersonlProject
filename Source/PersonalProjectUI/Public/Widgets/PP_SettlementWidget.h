@@ -10,7 +10,7 @@ class UButton;
 
 /**
  * Boss 结算界面。
- * 由 HUD 收到 FPP_SettlementShowEvent 后创建并调用 ShowSettlement，
+ * 由 HUD 收到 FPP_BossDeadEvent 后创建并调用 ShowSettlement，
  * 3 秒后或按 R 淡出 RemoveFromParent。
  */
 UCLASS()
@@ -22,7 +22,7 @@ public:
 	UPP_SettlementWidget();
 
 	/** 填入结算数据并加入视口（由 HUD 的 EventBus 回调驱动） */
-	void ShowSettlement(const struct FPP_SettlementShowEvent& Event);
+	void ShowSettlement(const struct FPP_BossDeadEvent& Event);
 
 protected:
 	virtual void NativeConstruct() override;

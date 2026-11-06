@@ -199,12 +199,6 @@ void APP_BossCharacter::HandleDeath()
 		DeadEvent.GoldReward = GoldDropAmount;
 		UPP_EventBus::BroadcastEvent(this, DeadEvent);
 
-		FPP_SettlementShowEvent SettlementEvent;
-		SettlementEvent.BossName = BossName;
-		SettlementEvent.TimeToKill = TimeToKill;
-		SettlementEvent.GoldReward = GoldDropAmount;
-		UPP_EventBus::BroadcastEvent(this, SettlementEvent);
-
 		UE_LOG(LogPP, Warning, TEXT("[Boss] %s 死亡，击杀金币=%d 倍率=%.1f 用时=%.1fs"),
 			*GetName(), GoldDropAmount, BossGoldMultiplier, TimeToKill);
 	}

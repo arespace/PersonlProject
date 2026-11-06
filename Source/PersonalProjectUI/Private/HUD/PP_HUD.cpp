@@ -111,8 +111,8 @@ void APP_HUD::BeginPlay()
 			});
 
 		// Boss 结算事件：HUD 负责按需创建结算 Widget（Widget 自己不在 Initialize 阶段常驻）
-		SettlementShowEventHandle = EventBus->Subscribe<FPP_SettlementShowEvent>(
-			[this](const FPP_SettlementShowEvent& Event)
+		SettlementShowEventHandle = EventBus->Subscribe<FPP_BossDeadEvent>(
+			[this](const FPP_BossDeadEvent& Event)
 			{
 				OnSettlementShowEvent(Event);
 			});
@@ -135,7 +135,7 @@ void APP_HUD::OnQuestCompletedEvent(const FPP_QuestCompletedEvent& Event)
 	AddNotification(FString::Printf(TEXT("任务完成：%s"), *Event.QuestName));
 }
 
-void APP_HUD::OnSettlementShowEvent(const FPP_SettlementShowEvent& Event)
+void APP_HUD::OnSettlementShowEvent(const FPP_BossDeadEvent& Event)
 {
 	if (!SettlementWidgetClass || !PlayerOwner)
 	{
