@@ -56,14 +56,6 @@ namespace PPTags
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(HitReact,"PPTags.Events.Enemy.HitReact","Tag for the HitReact Event")
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(EndAttack,"PPTags.Events.Enemy.EndAttack","Tag for the Ending an Attack ")
 			UE_DEFINE_GAMEPLAY_TAG_COMMENT(MeleeTraceHit,"PPTags.Events.Enemy.MeleeTraceHit","Tag for the Enemy Melee Trace Hit ")
-			UE_DEFINE_GAMEPLAY_TAG_COMMENT(Reset,"PPTags.Events.Enemy.Reset","篝火休息后重置区域敌人事件")
-		}
-
-		namespace UI
-		{
-			UE_DEFINE_GAMEPLAY_TAG_COMMENT(ShowScoreboard,"PPTags.Events.UI.ShowScoreboard","Tag for the Show Scoreboard UI Event")
-			UE_DEFINE_GAMEPLAY_TAG_COMMENT(TogglePause,"PPTags.Events.UI.TogglePause","Tag for the Toggle Pause UI Event")
-			UE_DEFINE_GAMEPLAY_TAG_COMMENT(DamageNumber,"PPTags.Events.UI.DamageNumber","Tag for the Damage Number UI Event")
 		}
 
 		namespace Boss
