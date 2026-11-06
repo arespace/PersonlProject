@@ -13,7 +13,7 @@ class APP_BossArenaGate;
  * Boss 场地触发器。
  * 玩家进入 Box 时 → 给 Boss AddTag(BossArenaArmed) + 关 ArenaGate 碰撞，
  * Boss 据此激活 SearchForTarget GA，场地门落下锁住区域。
- * 关卡中通过 Blueprint 子类放置，需配置 BossRef 和 GateRef。
+ * 关卡中通过 Blueprint 子类放置；BossRef / GateRef 未配置时 BeginPlay 会就近自动查找并打印告警。
  */
 UCLASS(Blueprintable)
 class PERSONALPROJECT_API APP_BossArenaTrigger : public AActor
@@ -26,15 +26,18 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	/** 未配置引用时就近自动查找 Boss / 场地门，并把门与本场地 Boss 绑定 */
+	void ResolveReferencedActors();
+
 	/** 触发盒：玩家进入即激活场地 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|BossArena")
 	TObjectPtr<UBoxComponent> BoxComponent;
 
-	/** 关联的 Boss（蓝图配置，也可在 BeginPlay 自动查找） */
+	/** 关联的 Boss（蓝图配置；未配置时 BeginPlay 就近自动查找，找不到则 Error） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|BossArena")
 	TObjectPtr<APP_BossCharacter> BossRef;
 
-	/** 关联的场地门（蓝图配置，也可在 BeginPlay 自动查找） */
+	/** 关联的场地门（蓝图配置；未配置时 BeginPlay 就近自动查找，找不到则 Warning） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|BossArena")
 	TObjectPtr<APP_BossArenaGate> GateRef;
 

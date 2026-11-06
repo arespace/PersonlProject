@@ -1,10 +1,12 @@
 
 #include "GameObjects/PP_BossArenaGate.h"
 
+#include "Characters/PP_BossCharacter.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Events/PP_EventBus.h"
 #include "Events/PP_EventTypes.h"
+#include "Framework/PP_Log.h"
 
 APP_BossArenaGate::APP_BossArenaGate()
 {
@@ -51,6 +53,23 @@ void APP_BossArenaGate::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void APP_BossArenaGate::HandleBossDead(const FPP_BossDeadEvent& Event)
 {
+	// 只响应本场地关联 Boss 的死亡事件，避免多 Boss 关卡互相开错门
+	if (LinkedBoss)
+	{
+		if (LinkedBoss->GetBossName() != Event.BossName)
+		{
+			UE_LOG(LogPP, Verbose, TEXT("[BossArenaGate] %s 忽略非本场地 Boss（%s）的死亡事件"),
+				*GetName(), *Event.BossName.ToString());
+			return;
+		}
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning,
+			TEXT("[BossArenaGate] %s 未关联 Boss，收到任意 Boss（%s）死亡事件都会开门，请在蓝图配置或由 BossArenaTrigger 绑定"),
+			*GetName(), *Event.BossName.ToString());
+	}
+
 	// 解锁碰撞 → 开门
 	SetActorEnableCollision(false);
 
