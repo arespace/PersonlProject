@@ -204,6 +204,9 @@ private:
 	/** 服务端检测 ALS 进入翻滚瞬间，扣除翻滚体力 */
 	void UpdateRollStaminaCost();
 
+	/** 服务端同步 ALS 翻滚状态到 Status.Invulnerable（i-frames 无敌窗口），跟随 Rolling 起止 */
+	void UpdateRollInvulnerability();
+
 	/** 通过 StaminaCostEffect 扣除指定体力（SetByCaller 传 -Amount） */
 	void ApplyStaminaCost(float Amount);
 
