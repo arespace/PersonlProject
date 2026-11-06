@@ -19,6 +19,7 @@ class UDataTable;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UMaterialInterface;
+class UGameplayEffect;
 
 /** 单把武器的网格与挂载变换（各武器模型枢轴位置不同，必须逐把配置） */
 USTRUCT(BlueprintType)
