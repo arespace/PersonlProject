@@ -577,6 +577,7 @@ void APP_PlayerCharacter::Tick(float DeltaTime)
 
 	UpdateStaminaStateTags();
 	UpdateRollStaminaCost();
+	UpdateRollInvulnerability();
 }
 
 void APP_PlayerCharacter::UpdateStaminaStateTags()
@@ -649,6 +650,29 @@ void APP_PlayerCharacter::UpdateRollStaminaCost()
 	}
 
 	bWasRolling = bRolling;
+}
+
+void APP_PlayerCharacter::UpdateRollInvulnerability()
+{
+	// i-frames：跟随 ALS Rolling 状态给/移 Status.Invulnerable，
+	// 伤害入口在 PP_BaseCharacter::CanBeDamaged 统一读取该标签。
+	// 与 UpdateStaminaStateTags 同一模式：loose tag 仅服务端维护。
+	if (!HasAuthority() || !IsValid(GetAbilitySystemComponent()))
+	{
+		return;
+	}
+
+	const bool bRolling = IsAlive() && GetLocomotionAction() == AlsLocomotionActionTags::Rolling;
+	const bool bHasInvulnerableTag = GetAbilitySystemComponent()->HasMatchingGameplayTag(PPTags::Status::Invulnerable);
+
+	if (bRolling && !bHasInvulnerableTag)
+	{
+		GetAbilitySystemComponent()->AddLooseGameplayTag(PPTags::Status::Invulnerable);
+	}
+	else if (!bRolling && bHasInvulnerableTag)
+	{
+		GetAbilitySystemComponent()->RemoveLooseGameplayTag(PPTags::Status::Invulnerable);
+	}
 }
 
 void APP_PlayerCharacter::ApplyStaminaCost(float Amount)
