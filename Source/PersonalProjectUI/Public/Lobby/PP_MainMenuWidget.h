@@ -25,6 +25,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PP|Lobby")
 	void RefreshRoomList();
 
+	/** 显示一行状态提示；bIsError=true 用红色且停 5s，否则灰色停 30s */
+	void SetStatusMessage(const FString& Message, bool bIsError);
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeDestruct() override;
@@ -105,9 +108,6 @@ private:
 
 	/** 当前选中的房间索引（-1 表示未选择） */
 	int32 SelectedSessionIndex = -1;
-
-	/** 显示一行状态提示；bIsError=true 用红色且停 5s，否则灰色停 30s */
-	void SetStatusMessage(const FString& Message, bool bIsError);
 
 	UFUNCTION()
 	void ClearStatusMessage();

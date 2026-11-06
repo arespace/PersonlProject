@@ -87,7 +87,10 @@ void UPP_HostSettingsWidget::OnCreateSessionCompleted(bool bSuccess)
 	else
 	{
 		UE_LOG(LogPP, Error, TEXT("[HostSettings] Session creation failed! ServerTravel aborted."));
-		// TODO: 可以在此显示错误提示给玩家
+		if (APP_LobbyHUD* LobbyHUD = GetLobbyHUD())
+		{
+			LobbyHUD->NotifyHostCreationFailed(TEXT("创建房间失败，请检查网络或稍后重试"));
+		}
 	}
 }
 
