@@ -468,11 +468,37 @@ FPP_EquippedItem UPP_InventoryComponent::QueryEquippedItemInSlot_Implementation(
 
 void UPP_InventoryComponent::RequestEquipItem_Implementation(FName ItemID)
 {
+	// 主手/副手武器走新的装备槽系统；防具等仍走旧轨（旧轨统一留到装备槽批次再删）
+	if (const FPP_ItemInfo* Info = FindItemInfo(ItemID))
+	{
+		if (Info->ItemType == EPP_ItemType::Equipment && Info->EquipSlot == EPP_EquipSlot::MainHand)
+		{
+			Server_EquipWeapon(ItemID, EPP_EquipmentSlotType::PrimaryWeapon);
+			return;
+		}
+		if (Info->ItemType == EPP_ItemType::Equipment && Info->EquipSlot == EPP_EquipSlot::OffHand)
+		{
+			Server_EquipWeapon(ItemID, EPP_EquipmentSlotType::SecondaryWeapon);
+			return;
+		}
+	}
+
 	Server_EquipItem(ItemID);
 }
 
 void UPP_InventoryComponent::RequestUnequipItem_Implementation(EPP_EquipSlot Slot)
 {
+	if (Slot == EPP_EquipSlot::MainHand)
+	{
+		Server_UnequipWeapon(EPP_EquipmentSlotType::PrimaryWeapon);
+		return;
+	}
+	if (Slot == EPP_EquipSlot::OffHand)
+	{
+		Server_UnequipWeapon(EPP_EquipmentSlotType::SecondaryWeapon);
+		return;
+	}
+
 	Server_UnequipItem(Slot);
 }
 
