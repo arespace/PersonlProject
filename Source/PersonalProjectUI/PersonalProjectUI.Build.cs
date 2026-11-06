@@ -23,7 +23,6 @@ public class PersonalProjectUI : ModuleRules
 			"GameplayTags",
 			"EnhancedInput",
 			"PersonalProjectCore",
-			"PersonalProjectInventory",
 			"PersonalProjectQuest",
 			"PersonalProject"
 		});
