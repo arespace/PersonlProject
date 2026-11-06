@@ -1,6 +1,7 @@
 
 #include "Session/PP_SessionManager.h"
 #include "OnlineSubsystem.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSessionSettings.h"
 #include "Online/OnlineSessionNames.h" // from OnlineBase module
 #include "GameFramework/PlayerController.h"
@@ -219,12 +220,15 @@ void UPP_SessionManager::JoinSession(int32 SessionIndex, const FString& PlayerNa
 	}
 
 	JoinSessionDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
-		FOnJoinSessionCompleteDelegate::CreateUObject(this, &UPP_SessionManager::OnJoinSessionCompleteInternal));
+		FOnJoinSessionCompleteDelegate::CreateWeakLambda(this, [this](FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+		{
+			OnJoinSessionCompleteInternal(SessionName, static_cast<int32>(Result));
+		}));
 
 	SessionInterface->JoinSession(0, NAME_GameSession, SearchSettings->SearchResults[SessionIndex]);
 }
 
-void UPP_SessionManager::OnJoinSessionCompleteInternal(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+void UPP_SessionManager::OnJoinSessionCompleteInternal(FName SessionName, int32 Result)
 {
 	IOnlineSessionPtr SessionInterface = GetSessionInterface();
 	if (SessionInterface.IsValid())
