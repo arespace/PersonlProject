@@ -255,6 +255,31 @@ void APP_PlayerController::TogglePauseMenu()
 void APP_PlayerController::ShowScoreboard()
 {
 	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestShowScoreboard);
+
+	// 计分板没有数据推送源，打开时汇总一次当前玩家数据上报（击杀/死亡暂无统计，先以金币作为分数）
+	TArray<FScoreboardEntry> Entries;
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* OtherPC = It->Get();
+			const APP_PlayerState* OtherPS = OtherPC ? OtherPC->GetPlayerState<APP_PlayerState>() : nullptr;
+			if (!OtherPS)
+			{
+				continue;
+			}
+
+			FScoreboardEntry Entry;
+			Entry.PlayerName = OtherPS->GetPlayerName();
+			if (const UPP_InventoryComponent* Inventory = OtherPS->GetInventoryComponent())
+			{
+				Entry.Score = Inventory->GetGold();
+			}
+			Entries.Add(Entry);
+		}
+	}
+
+	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestUpdateScoreboard, Entries);
 }
 
 void APP_PlayerController::HideScoreboard()
