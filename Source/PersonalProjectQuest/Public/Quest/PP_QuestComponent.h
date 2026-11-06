@@ -68,7 +68,7 @@ public:
 	 * 更新目标进度
 	 * 遍历活跃任务匹配目标类型+TargetID，更新 CurrentCount
 	 * @param Type 目标类型
-	 * @param TargetID 目标ID
+	 * @param TargetID 目标ID；传 NAME_None 表示匹配该类型的任意目标
 	 * @param Count 增量（默认1）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Quest")

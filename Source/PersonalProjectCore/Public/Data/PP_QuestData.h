@@ -54,7 +54,7 @@ struct FPP_QuestObjective
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
 	FText Description;
 
-	/** 目标ID（敌人ID/物品ID/NPC ID 等，根据Type解释） */
+	/** 目标ID（敌人ID/物品ID/NPC ID 等，根据Type解释；SendChat 不使用该字段） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quest")
 	FName TargetID;
 
