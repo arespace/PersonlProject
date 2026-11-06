@@ -3,9 +3,11 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Interfaces/OnlineSessionInterface.h"
 #include "Session/PP_LobbyTypes.h"
 #include "PP_SessionManager.generated.h"
+
+class IOnlineSession;
+class FOnlineSessionSearch;
 
 /** 房主迁移数据（存储在 GameInstance 中跨关卡持久化） */
 USTRUCT(BlueprintType)
@@ -153,11 +155,12 @@ public:
 	const TArray<FRoomInfo>& GetLastSearchResults() const { return LastSearchResults; }
 
 private:
-	IOnlineSessionPtr GetSessionInterface() const;
+	TSharedPtr<IOnlineSession, ESPMode::ThreadSafe> GetSessionInterface() const;
 
 	void OnCreateSessionCompleteInternal(FName SessionName, bool bSuccess);
 	void OnFindSessionsCompleteInternal(bool bSuccess);
-	void OnJoinSessionCompleteInternal(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+	/** Result 为 EOnJoinSessionCompleteResult::Type 的整型值（避免头文件依赖 OnlineSessionInterface.h） */
+	void OnJoinSessionCompleteInternal(FName SessionName, int32 Result);
 	void OnDestroySessionCompleteInternal(FName SessionName, bool bSuccess);
 
 	TSharedPtr<FOnlineSessionSearch> SearchSettings;
