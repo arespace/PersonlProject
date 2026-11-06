@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Session/PP_ScoreboardTypes.h"
 #include "Session/PP_SessionManager.h"
@@ -14,6 +13,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UUserWidget;
 class APP_NPCActor;
 class APP_GatherableActor;
 class APP_BonfireActor;
