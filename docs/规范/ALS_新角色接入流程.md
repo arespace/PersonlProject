@@ -1,5 +1,6 @@
 # ALS 新角色接入流程
 
+> 状态：现行 · 最后更新：2026-11-06 · 取代关系：无
 > 适用条件：Paragon 或任何 UE5 角色资产，有完整 Skeleton + SkeletalMesh。
 > 以下以 Shinbi 为例，Kwang 是第一个接入的（已完成），照此流程复制即可。
 

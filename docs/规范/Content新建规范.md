@@ -1,5 +1,6 @@
 # Content 新建规范（标准流程与规范）
 
+> 状态：现行 · 最后更新：2026-11-06 · 取代关系：无
 > 生成日期：2026-11-06
 > 配套文档：[Content资产整理方案.md](../方案/Content资产整理方案.md)（存量整理，一次性执行）；本文档管「以后新建怎么建」，长期有效。
 > 所有规范与整理方案的目标结构一致，不另起一套。文中引用的类名、路径、标签均来自项目实际代码/资产。
@@ -46,33 +47,11 @@
 - 不要「按类型建顶层」再往里塞功能资产（`Materials/` 只放一个 M_HiddenWeapon 就是这个错误）；
 - 不要「按系统建顶层」放类型混杂的东西（`Player/` 里放 `BP_EnemyController` 就是这个错误）。
 
-### 1.2 目标目录树（与整理方案一致，新内容只准落到这些位置）
+### 1.2 目标目录树（以整理方案为准）
 
-```
-Content/PersonalProject/
-├─ AbilitySystem/
-│  ├─ Abilities/
-│  │  ├─ GA_PP_Death / GA_PP_ListenForHealthChange   ← 跨侧共享 GA（基类/监听类）
-│  │  ├─ PlayerAbilities/                            ← 玩家 GA（含角色专属）
-│  │  └─ EnemyAbilities/{Melee,Ranged}/              ← 敌人 GA，按攻击方式分
-│  ├─ GameplayEffects/{Player,Enemy,Consumable}/     ← 共享 GE（AddHealth/Initialize 等）留根目录
-│  └─ GameplayCues/                                  ← 根路径被 DefaultGame.ini 写死，只许内部分
-├─ Animations/{AlsKwang,AlsShinbi}/                  ← ALS 重定向产物，工具写死根目录
-│  └─ {AnimationBlueprints,BlendSpaces,Montages,Sequences}/
-├─ Animations/{Retarget,Notifies}/
-├─ Characters/
-│  ├─ PlayerCharacter/{Animations/{Montages,Source,Retargeted},Materials}/
-│  ├─ EnemyCharacter/Animations/
-│  └─ NPC/
-├─ Data/                                             ← 全局表在根（ini 引用），子域进子目录（NPC/Login）
-├─ GameObjects/{Interactables,Pickups,Projectiles,Boss}/
-├─ Input/{AbilityActions,MovementActions,UI}/
-├─ Maps/                                             ← 正式图；测试图进 Maps/Dev/
-├─ UI/{HUD/{Combat,Info,Status},Inventory,Shop,Dialogue,Quest,Lobby/{Pages,Components},Components}/
-├─ UI/Textures/Imported/<包名>/                      ← 所有第三方素材唯一入口
-├─ FX/
-└─ _Archive/                                         ← 退役资产缓冲区，只进不出（出=删除）
-```
+目标树、各目录的「保持 / 改名 / 并入」标注，**唯一标准**是 [《Content资产整理方案》§2.2 目标目录树](../方案/Content资产整理方案.md)。本文不再复制第二份树，避免两处漂移；目录结构调整只改那一份。
+
+新内容落位时只需记住三条判据（详见 1.1）：按功能聚合、跨功能共享进类型根目录、第三方素材进 `UI/Textures/Imported/<包名>/`。目录是否允许新建，看 1.3 的准入规则。
 
 ### 1.3 新目录的准入规则
 
@@ -95,32 +74,21 @@ Content/PersonalProject/
 
 ## 2. 命名规范
 
-### 2.1 资产前缀表
+### 2.1 资产前缀（通用部分以整理方案为准）
 
-| 前缀 | 类型 | 示例 | 状态 |
-|---|---|---|---|
-| `BP_` | Actor 蓝图 | `BP_Bonfire`、`BP_NPC_Merchant` | 既有约定 |
-| `WBP_` | Widget 蓝图 | `WBP_Inventory`、`WBP_ShopItem` | 既有约定（`BPW_CustomButton` 待改） |
-| `ABP_` | 项目自建动画蓝图 | `ABP_Enemy_Melee` | 既有约定 |
-| `AB_` | ALS 重定向动画蓝图 | `AB_Als_Kwang` | 既有约定（仅 ALS 壳用） |
-| `AM_` | 蒙太奇 | `AM_MeleePlayer_Death`、`AM_Attack_Melee_1` | 既有约定（Melle 拼写待改） |
-| `A_` | 动画序列 | `A_Als_IdleKwang` | 既有约定 |
-| `BS_` | 混合空间 | `BS_Als_LeanKwang` | 既有约定 |
-| `GA_PP_` | GameplayAbility | `GA_PP_Primary`、`GA_PP_Death_Player` | **收紧**：`PP_` 必须有（`GA_Secondary/Tertiary` 待补） |
-| `GE_PP_` | GameplayEffect | `GE_PP_PlayerDamage`（现 `GE_PlyaerDamage`） | **收紧**：`PP_` 必须有 |
-| `GE_` 功能前缀 | Cost/Cooldown/Damage/Heal/Regen/Init/Reset | `GE_Cost_Stamina`、`GE_Cooldown_Secondary`、`GE_AddHealth` | 既有约定（CoolDown→Cooldown 待改） |
-| `GC_` | GameplayCue | `GC_HitReact` | 既有约定 |
-| `AN_` | 动画通知 | `AN_MeleeAttack` | 既有约定 |
-| `CT_` | 曲线表 | `CT_PlayerDamage` | 既有约定 |
-| `DT_<域>_<对象>` | 数据表 | `DT_NPC_Dialogue_Merchant`、`DT_Items`、`DT_WeaponData` | **收紧**：域在前（`DT_DialogueNPC_Merchant` 待改） |
-| `IA_` / `IMC_` | 输入动作/映射上下文 | `IA_Primary`、`IMC_Abilities` | 既有约定 |
-| `M_` / `MI_` | 材质 / 材质实例 | `M_HiddenWeapon`、`MI_Weapon_Iron_Base` | `MI_` 为新增建议，实例参数化统一走 MI |
-| `SM_` | 静态网格 | `SM_Projectile` | 既有约定 |
-| `SK_` | 骨骼网格（导入时统一） | `SK_Weapon_Longsword` | 新增建议 |
-| `T_` | 贴图 | `T_ICON_Coin` | 既有约定（Imported 包内豁免） |
-| `IKR_` / `RTG_` | IK Rig / Retargeter | `IKR_Kwang`、`RTG_Als_Kwang` | 既有约定 |
-| `AIS_` | ALS 动画实例子类 | `AIS_Als_Kwang` | 既有约定 |
-| `NS_` | Niagara | `NS_XXX` | 既有约定 |
+`BP_`、`WBP_`、`ABP_`、`AB_`、`AM_`、`A_`、`BS_`、`GA_PP_`、`GE_PP_`、`GC_`、`DT_<域>_<对象>`、`IA_` / `IMC_`、`AN_`、`M_` / `SM_` / `T_`、`IKR_` / `RTG_` 的规则与示例，见 [《Content资产整理方案》§2.3 命名约定](../方案/Content资产整理方案.md)。**两份冲突时以整理方案为准。**
+
+整理方案未列、但本规范新增的前缀：
+
+| 前缀 | 类型 | 示例 |
+|---|---|---|
+| `MI_` | 材质实例（参数化统一走 MI） | `MI_Weapon_Iron_Base` |
+| `SK_` | 骨骼网格（导入时统一） | `SK_Weapon_Longsword` |
+| `CT_` | 曲线表 | `CT_PlayerDamage` |
+| `NS_` | Niagara 系统 | `NS_HitSpark` |
+| `AIS_` | ALS 动画实例子类 | `AIS_Als_Kwang` |
+
+新增前缀必须先加到本表，再在整理方案 §2.3 同步，避免两处不一致。
 
 ### 2.2 C++ 侧对应命名（与资产前缀一一映射）
 
@@ -287,5 +255,5 @@ Content/PersonalProject/
 ## 附：本规范与存量整理的衔接
 
 - 整理方案执行完毕前，新内容照本规范落位即可，**不要**为对齐旧资产而暂停新功能开发。
-- 整理方案中「待改」的命名（GA_Secondary、GE_PlyaerDamage、Pags 等）在 2.1 表中已标注；整理批次 2.5 执行后，本表即成为唯一标准。
-- 两个文档共同维护：目录树变更、前缀表新增条目时，两份一起改。
+- **目标目录树与通用命名前缀以《Content资产整理方案》为唯一标准**；本规范只维护新建操作流程、各资产类型的必配项与自检清单。两份文档出现不一致时，目录树/前缀以整理方案为准，流程与必配项以本规范为准。
+- 本规范 2.1 新增的前缀（`MI_`/`SK_`/`CT_`/`NS_`/`AIS_`）需同步进整理方案 §2.3。

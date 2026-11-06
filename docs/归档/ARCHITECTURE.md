@@ -1,8 +1,11 @@
 # 项目架构梳理 — 现状 / 问题 / 目标 / 迁移步骤
 
+> 状态：已被取代 · 归档：2026-11-06 · 取代者：`docs/计划/当前主线任务书.md`
+> 保留原因：历史迁移步骤有参考价值；架构参考另见 `docs/架构/Architecture.md`
+
 日期：2026-11-06
 分支：`poc/als-integration`（已推送到 origin，含 F1/F2/F3/F5/F10 全部实现）
-配套文档：[FEATURE_PLAN.md](FEATURE_PLAN.md)（功能规划）、[ALS_Bug复盘.md](../复盘/ALS_Bug复盘.md)（历史教训）
+配套文档：[FEATURE_PLAN.md](../计划/FEATURE_PLAN.md)（功能规划）、[ALS_Bug复盘.md](../复盘/ALS_Bug复盘.md)（历史教训）
 
 ---
 

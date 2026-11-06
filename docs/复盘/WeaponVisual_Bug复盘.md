@@ -1,5 +1,6 @@
 # 武器外观系统 Bug 修复复盘
 
+> 状态：背景资料 · 最后更新：2026-11-06 · 取代关系：无（历史排障记录）
 > 日期：2026-11-06 | 分支：poc/als-integration
 > 模块：PersonalProject（Characters）+ PersonalProjectInventory（装备槽复制）
 > 目标：装备武器时隐藏角色自带烘焙武器，改为显示对应武器的静态网格
