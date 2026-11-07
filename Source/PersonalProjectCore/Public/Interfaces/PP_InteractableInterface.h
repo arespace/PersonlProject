@@ -50,21 +50,3 @@ public:
 	void ResetToSpawn();
 	virtual void ResetToSpawn_Implementation() {}
 };
-
-/**
- * 可硬直接口：敌人被累计伤害打崩时进入 stagger 状态，播放受击/倒地蒙太奇。
- */
-UINTERFACE(MinimalAPI, Blueprintable)
-class UPP_Staggerable : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class PERSONALPROJECTCORE_API IPP_Staggerable : public IInterface
-{
-	GENERATED_BODY()
-public:
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Combat")
-	void PlayStaggered();
-	virtual void PlayStaggered_Implementation() {}
-};
