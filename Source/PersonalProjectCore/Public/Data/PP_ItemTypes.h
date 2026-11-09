@@ -105,10 +105,6 @@ struct FPP_WeaponConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<UGameplayAbility> WeaponAbilityClass;
 
-	/** 伤害倍率（由 GameplayEffect 消费） */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
-	float DamageMultiplier = 1.f;
-
 	/** 网格与挂载变换 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
 	FPP_WeaponVisual Visual;
