@@ -42,6 +42,17 @@ void UPP_ItemSlotWidget::SetupSlot(UObject* InOwnerInventory, const FPP_ItemInst
 	}
 }
 
+FReply UPP_ItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// SlotButton 若被图标/文字盖住，点击会冒泡到卡片本身；这里接住左键，复用同一套装备逻辑
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		HandleSlotClicked();
+		return FReply::Handled();
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
 void UPP_ItemSlotWidget::HandleSlotClicked()
 {
 	UObject* Source = OwnerInventory.Get();
