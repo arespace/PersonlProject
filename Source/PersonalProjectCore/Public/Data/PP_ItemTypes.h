@@ -8,6 +8,7 @@
 #include "PP_ItemTypes.generated.h"
 
 class UGameplayAbility;
+class UStaticMesh;
 
 /**
  * 物品类型枚举
@@ -119,4 +120,60 @@ struct FPP_WeaponData : public FTableRowBase
 	/** 伤害倍率（由 GameplayEffect 消费，这里仅存表供后续扩展） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
 	float DamageMultiplier = 1.f;
+};
+
+/**
+ * 武器外观配置
+ * 各武器模型枢轴位置不同，必须逐把配置挂载变换
+ */
+USTRUCT(BlueprintType)
+struct FPP_WeaponVisual
+{
+	GENERATED_BODY()
+
+	/** 武器静态网格（软引用，装备时按需加载） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Visual")
+	TSoftObjectPtr<UStaticMesh> Mesh;
+
+	/** 挂载到角色骨骼的插槽名（NAME_None 时由代码使用默认插槽） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Visual")
+	FName AttachSocket = NAME_None;
+
+	/** 相对挂载点的位移 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Visual")
+	FVector RelativeLocation = FVector::ZeroVector;
+
+	/** 相对挂载点的旋转 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Visual")
+	FRotator RelativeRotation = FRotator::ZeroRotator;
+
+	/** 相对挂载点的缩放 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Visual")
+	FVector RelativeScale = FVector::OneVector;
+};
+
+/**
+ * 武器完整配置
+ * 内嵌在物品数据行中，用于取代独立的武器数据表
+ */
+USTRUCT(BlueprintType)
+struct FPP_WeaponConfig
+{
+	GENERATED_BODY()
+
+	/** 装备该武器时需要授予的 GameplayAbility 类（空则不授予 GA） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TSubclassOf<UGameplayAbility> WeaponAbilityClass;
+
+	/** 伤害倍率（由 GameplayEffect 消费） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0.0"))
+	float DamageMultiplier = 1.f;
+
+	/** 网格与挂载变换 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	FPP_WeaponVisual Visual;
+
+	/** 是否允许装备到副手 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	bool bCanUseOffHand = false;
 };

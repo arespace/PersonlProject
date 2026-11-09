@@ -4,6 +4,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Abilities/GameplayAbility.h"
 #include "Framework/PP_Log.h"
 
 void UPP_DataManager::Initialize(FSubsystemCollectionBase& Collection)
@@ -58,6 +59,27 @@ const FPP_ItemInfo* UPP_DataManager::GetItemInfo(FName ItemID)
 {
 	return FindRowFromTable<FPP_ItemInfo>(ItemDataTable, LoadedItemTable, TEXT("ItemDataTable"),
 		ItemID, TEXT("DataManager.GetItemInfo"), false);
+}
+
+const FPP_WeaponConfig* UPP_DataManager::GetWeaponConfig(FName ItemID)
+{
+	const FPP_ItemInfo* ItemInfo = GetItemInfo(ItemID);
+	if (!ItemInfo || ItemInfo->ItemType != EPP_ItemType::Equipment)
+	{
+		return nullptr;
+	}
+	if (ItemInfo->EquipSlot != EPP_EquipSlot::MainHand && ItemInfo->EquipSlot != EPP_EquipSlot::OffHand)
+	{
+		return nullptr;
+	}
+
+	// 配置全空说明该行还没迁移，交由调用方走旧路径（DT_WeaponData / WeaponMeshMap）
+	const FPP_WeaponConfig& WeaponConfig = ItemInfo->WeaponConfig;
+	if (WeaponConfig.WeaponAbilityClass == nullptr && WeaponConfig.Visual.Mesh.IsNull())
+	{
+		return nullptr;
+	}
+	return &ItemInfo->WeaponConfig;
 }
 
 const FPP_QuestInfo* UPP_DataManager::GetQuestInfo(FName QuestID)

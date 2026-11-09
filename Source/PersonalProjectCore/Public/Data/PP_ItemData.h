@@ -72,6 +72,13 @@ struct FPP_ItemInfo : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Equipment")
 	EPP_ItemRarity Rarity = EPP_ItemRarity::Common;
 
+	/**
+	 * 武器配置（仅主手/副手武器填写）。
+	 * 全部留空表示该行仍走旧路径（DT_WeaponData + 角色蓝图 WeaponMeshMap）。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Equipment|Weapon")
+	FPP_WeaponConfig WeaponConfig;
+
 	/** 消耗品使用时施加的 GameplayEffect（回血/回蓝等） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Consumable")
 	TSubclassOf<UGameplayEffect> ConsumeEffectClass;
