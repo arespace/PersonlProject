@@ -1,0 +1,64 @@
+---
+name: pp-gas-tag-convention
+description: Enforce GameplayTag declaration and usage conventions for PersonalProject GAS. Use when the user adds new GameplayTag, modifies PPTags files, or writes ASC-related code. Do not use for normal gameplay code edits.
+---
+
+# PP GAS Tag 规范（GameplayTag 声明与使用）
+
+**适用项目**：PersonalProject GAS 战斗系统
+
+## 1. 声明位置
+
+Tag **必须** 在以下两个文件里成对声明：
+
+| 文件 | 操作 |
+|---|---|
+| `Source/PersonalProjectCore/Public/GameplayTags/PPTags.h` | `UE_DECLARE_GAMEPLAY_TAG_EXTERN(Namespace);` |
+| `Source/PersonalProjectCore/Private/GameplayTags/PPTags.cpp` | `UE_DEFINE_GAMEPLAY_TAG_COMMENT(Namespace, "Full.Path.String", "说明");` |
+
+**禁止** 在蓝图里直接写字符串硬编码 Tag，必须走 C++ 声明后蓝图里选枚举下拉。
+
+## 2. 命名空间前缀（PPTags.h 已有结构，新增时按现有分组加）
+
+```cpp
+namespace PPTags
+{
+    // 状态类（Status.）：AddTag 永久生效直到 RemoveTag 显式移除
+    namespace Status { extern FGameplayTag Invulnerable; /* i-frames */ }
+    
+    // 事件类（Event. / Events.）：广播一次性消息，不带持久状态
+    namespace Events::Enemy { extern FGameplayTag Reset; }
+    
+    // 战斗专用（Combat. / PPAbilities.）
+    namespace PPAbilities::Enemy { extern FGameplayTag Attack; }
+    
+    // Boss 专用（Boss.）
+    namespace Boss { extern FGameplayTag ArenaArmed; }
+}
+```
+
+## 3. 生命周期检查清单
+
+**任何加 Tag 的地方，必须同时存在对应的 RemoveTag 路径**：
+
+| 加 Tag | 必须有 Remove Tag |
+|---|---|
+| 翻滚 GA Montage Notify | 翻滚结束 Notify / 超时 Timer 兜底 |
+| 格挡 GA 开始 | 松开按键 / GA EndAbility |
+| Boss 阶段过渡 | 固定时长后 Timer 移除 |
+
+**典型 bug**：只 AddTag 没 RemoveTag → 玩家永久无敌 / Boss 永远免疫伤害。
+
+## 4. 添加新 Tag 的步骤
+
+1. 在 `PPTags.h` 现有命名空间下加 `extern FGameplayTag XXX;`
+2. 在 `PPTags.cpp` 对应位置加 `UE_DEFINE_GAMEPLAY_TAG_COMMENT(XXX, "PPTags.Status.XXX", "用途说明");`
+3. 跑 `Generate Visual Studio project files`（或直接 Build.bat）让 UHT 扫描新 Tag
+4. 在使用处 `GetAbilitySystemComponent()->AddLooseGameplayTag(PPTags::Status::XXX);`
+5. **写注释说明谁负责 RemoveTag**
+
+## 5. 禁止事项
+
+- 不要用 `GameplayTag::RequestGameplayTag(FName("字符串"), false)` 临时请求
+- 不要把 Tag 存到 .ini 或 DataTable 的字符串字段（必须用 `FGameplayTag` 类型）
+- 不要在客户端 AddTag 而只在服务端 RemoveTag（RPC 不同步会永久卡死）

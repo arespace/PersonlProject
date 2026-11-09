@@ -1,73 +1,53 @@
-# ===== 默认忽略一切 =====
+# ===== 规则形态：黑名单（默认入库，只排除下列内容）=====
 #
-# 本仓库是「代码展示」仓库，不是「可克隆构建」仓库：
-# Content 下的美术/蓝图资产、Binaries/Intermediate 等生成物都不入库。
-/*
-# ===== 例外 0：规则文件自身 =====
-#
-# 上面的 /* 会把 .gitignore 自己也排除掉，必须在这里放行，
-# 否则规则文件不会入库，别人 clone 下来就丢了这套规则。
-!/.gitignore
-# ===== 例外 1：C++ 源码（PersonalProject 本体）=====
-!/Source/
-# ===== 例外 2：项目自己的 Lua 脚本 =====
-#
-# 注意：Git 不允许「父目录被排除时再单独放行其子文件」，
-# 所以必须先把 Content 目录本身放行，再排除 Content 下的其他内容，
-# 最后才放行 Content/Script。顺序不能颠倒。
-!/Content/
-Content/*
-!/Content/Script/
-# ===== 例外 3：插件源码 =====
-#
-# 插件只入库源码（.uplugin / Source / Content），不入库构建产物。
-# 下面是排除规则，写在 !/Plugins/ 之后才能生效（Git 是「后匹配的规则胜出」）。
-!/Plugins/
+# 本仓库要能 clone 下来直接构建并打开工程，因此不再使用「忽略一切 + 逐条放行」
+# 的白名单写法：白名单会静默漏掉新增的源码/配置/文档目录，且漏掉时没有任何提示。
+# 现在改为黑名单——只有明确列出的构建产物、第三方素材包、本地工具才会被排除。
 
-# ===== 例外 4：工程文件与配置（纯文本，既非资产也非生成物）=====
-#
-# .uproject 声明五个模块；Config/*.ini 承载 79 条 CoreRedirects、
-# DataManager 数据表路径、GameMode/Map 配置。它们不属于上面排除的
-# 「美术/蓝图资产」，也不是构建产物——之前被 /* 连带排除属于疏漏：
-# 一旦丢失，clone 后无法构建、蓝图全部加载失败（已实际踩过）。
-!/PersonalProject.uproject
-!/Config/
-# .gitattributes 属于规则文件自身，必须入库（否则 LFS 规则跟着丢）
-!/.gitattributes
-
-# ===== 例外 5：自有蓝图资产（体积可控，需版本控制兜底）=====
-#
-# 只放行自己产出的蓝图/地图/外部 Actor 数据（合计约 62 MB），
-# 为蓝图提供回滚兜底；第三方素材包（Fantastic_Dungeon_Pack / Paragon* /
-# Scifi_desert_city 等，合计约 15 GB）仍不入库，它们可从市场重新获取。
-!/Content/PersonalProject/
-!/Content/Maps/
-!/Content/UI/
-!/Content/CrashCourse/
-!/Content/__ExternalActors__/
-!/Content/__ExternalObjects__/
-
-# ===== 例外 6：项目文档 =====
-#
-# docs/ 下是架构、方案、规范、复盘、计划、参考六类 Markdown，纯文本、体积小，
-# 且是项目决策的唯一记录，必须入库。
-!/docs/
-
-# 计划与归档只在本地：排期与批次状态变动频繁，归档件已废弃，均不随仓库分发。
-# 注意顺序：必须写在 !/docs/ 之后，否则会被父目录的放行规则覆盖。
-docs/计划/
-docs/归档/
-
-# ===== 构建产物：任何深度都不入库 =====
-#
-# 这 4 个目录占了 Plugins 总体积 3.5 GB 中的 3.46 GB，
-# 且都是本地编译生成的中间物，换台机器重新编译即可，没有版本控制价值。
-# 排除后 Plugins 从 3.5 GB 降到约 57 MB。
+# ===== 构建产物（任意层级）=====
 Binaries/
 Intermediate/
 Saved/
 DerivedDataCache/
 .vs/
-# 调试符号与 MSBuild 输出（少数 .pdb / obj 不在 Binaries 下，单独兜底）
+*.sln
 *.pdb
 obj/
+
+# 打包输出
+/Build/Windows/
+
+# ===== 本地计划与归档，刻意不入库 =====
+#
+# 排期与批次状态变动频繁，归档件已废弃，均不随仓库分发。
+docs/计划/
+docs/归档/
+
+# ===== 第三方素材包（市场可重新获取，且不受 LFS 规则覆盖）=====
+Content/Paragon*/
+Content/Scifi_desert_city/
+Content/Pirate/
+Content/SlashTrail_SoftTofu/
+Content/Mixed_Magic_VFX_Pack/
+Content/Urban_Nomad/
+Content/GuiParts/
+Content/SciFi_UI_Project/
+Content/CrosshairFreePack/
+
+# ===== IDE 与本地工具 =====
+#
+# `.trae/*` 而不是 `.trae/`：Git 无法在被整目录排除后再放行子目录，
+# 必须先只排除「目录下的内容」，后面的 `!.trae/skills/` 才能生效。
+.trae/*
+!.trae/skills/
+.vscode/
+.idea/
+.qoder/
+.claude/
+_tools/
+.clangd
+.ignore
+PersonalProject.code-workspace
+PersonalProject.uproject.DotSettings.user
+_window_*.txt
+lark_auth_qr.png

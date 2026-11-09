@@ -1,0 +1,61 @@
+---
+name: pp-code-review
+description: Review Unreal Engine 5 C++ changes for the PersonalProject game before commit. Use when the user asks to review changes, check diff quality, or before git commit. Do not use for writing new features or fixing bugs.
+---
+
+# PP Code Review（UE5 C++ 提交前审查）
+
+**适用项目**：PersonalProject（魂类 4 人联机游戏，UE 5.7，GAS + ALS）
+
+**作用**：每次 commit 前跑这条审查，按优先级报告问题。只提**能导致功能失效、链接错误、运行时崩溃**的问题，忽略纯风格建议除非它隐藏缺陷。
+
+## 审查顺序（按优先级）
+
+### P0 · 功能链路断裂（直接导致功能无效）
+
+对改动里每个**新增接口 / 新增 Component / 新增 Broadcast**，**必须同时存在调用方**。常见断点：
+
+| 断点类型 | 必查 |
+|---|---|
+| 新增 IPP_* 接口 | 有没有 Actor 实现 `_Implementation`？有没有地方调这个接口 |
+| 新增 ActorComponent | 有没有 `CreateDefaultSubobject` 或运行时补建（`NewObject` + `RegisterComponent`）？只挂蓝图不算（运行时可能没绑） |
+| 新增 EventBus Broadcast | 有没有订阅方？通常是 HUD / Widget / 蓝图组件 |
+| 新增 `FindComponentByClass` | **如果找不到怎么办？** 必须有 fallback（自动补建或日志警告，不能静默返回 null） |
+| 新增 GameplayTag 广播 | 有没有 GA / Actor 在某个时机 AddTag 和 RemoveTag？只有 Add 没有 Remove = 永久状态 bug |
+| GA_GameplayAbility 改动 | **Ability 会不会永远不 EndAbility？** 没调 EndAbility 的 GA 会让 ASC 卡死，后续激活同 GA 永远失败 |
+| RPC / Server 函数 | 有没有 `HasAuthority()` 检查？客户端 RPC 有没有正确的 Server 转发链路 |
+| 新增 BP 字段 | **类默认值是不是合理？** 是不是必须手动配置？如果必须，在审查结尾附上**蓝图配置 checklist** |
+
+### P1 · 编译 / 链接错误（一编就炸）
+
+- 新增文件忘了在 `.Build.cs` 模块里 include（PersonalProjectCore / PersonalProject / Inventory / Quest / UI 五个模块各自独立）
+- include 顺序错误：先 UE 头（CoreMinimal.h / Engine/），再项目头，最后第三方
+- UFUNCTION / UPROPERTY 重复定义（同项目已经踩过两个同名 `PP_InteractableInterface.h`）
+- 两个 Actor 同时修改 PPTags.h 同一个命名空间 → Git 合并失败；**不同命名空间可以自动合并**
+- 新增 `.cpp` 文件在 Unity Build 里未被包含 → 增量编译不过
+
+### P2 · 运行时崩溃 / 稳定性
+
+- `check()` 语句：会不会在合法 null 场景崩溃？改成 `if (!IsValid(...)) return` + `UE_LOG` 警告
+- Timer / Delegate 必须在 EndPlay 或析构里清理（`UnbindAll` / `ClearTimer`），否则 Actor 销毁后回调野指针
+- `NewObject<UClass>(Outer, NAME_XXX)` 的 Outer 必须是该 Actor 或 Component，不能是 GetWorld()
+- Replication：Replicated 字段必须有 `DOREPLIFETIME`；ServerOnly 的 GA 不要在客户端调 RPC
+- 搜索逻辑：`FindClosestActorWithTag` / LineTrace 必须有 `HasAuthority()` 或 `IsLocallyControlled()` 检查
+
+## 输出格式
+
+```
+## 审查结果 · <commit hash> · <改动简述>
+
+### P0 功能断点（<N> 项）
+- [文件:行] 描述 + 建议修复代码
+
+### P1 编译风险（<N> 项）
+- [文件:行] 描述
+
+### P2 稳定性（<N> 项）
+- [文件:行] 描述 + 修复建议
+
+### 蓝图配置 Checklist（必须手动配，不配会触发 P0 断点）
+- [资产路径] 要改什么字段 → 字段名 = 值
+```

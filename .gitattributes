@@ -24,6 +24,8 @@ Content/CrashCourse/**/*.uasset        filter=lfs diff=lfs merge=lfs -text
 Content/CrashCourse/**/*.umap          filter=lfs diff=lfs merge=lfs -text
 Content/__ExternalActors__/**/*.uasset filter=lfs diff=lfs merge=lfs -text
 Content/__ExternalObjects__/**/*.uasset filter=lfs diff=lfs merge=lfs -text
+Content/Longsword/**/*.uasset          filter=lfs diff=lfs merge=lfs -text
+Content/Longsword/**/*.umap            filter=lfs diff=lfs merge=lfs -text
 
 # ALS 插件资产（POC 分支引入）：同属二进制资产，路径限定不影响既有跟踪文件
 Plugins/ALS/Content/**/*.uasset        filter=lfs diff=lfs merge=lfs -text

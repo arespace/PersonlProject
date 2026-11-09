@@ -1,0 +1,102 @@
+---
+name: systematic-debugging
+description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes. Mandatory root-cause-first process.
+---
+
+# Systematic Debugging
+
+## Overview
+
+**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
+
+If you haven't completed Phase 1, you cannot propose fixes.
+
+## When to Use
+
+Use for ANY technical issue: test failures, bugs in production, unexpected behavior, performance problems, build failures, integration issues.
+
+**Use ESPECIALLY when:**
+- Under time pressure (emergencies make guessing tempting)
+- "Just one quick fix" seems obvious
+- You've already tried multiple fixes
+- Previous fix didn't work
+- You don't fully understand the issue
+
+**Don't skip when:** issue seems simple (simple bugs have root causes too), you're in a hurry (rushing guarantees rework), manager wants it fixed NOW (systematic is faster than thrashing).
+
+## The Four Phases — MUST complete each before proceeding to the next
+
+### Phase 1: Root Cause Investigation (BEFORE attempting ANY fix)
+
+1. **Read Error Messages Carefully** — Don't skip past errors or warnings. They often contain the exact solution. Read stack traces completely. Note line numbers, file paths, error codes.
+2. **Reproduce Consistently** — Can you trigger it reliably? What are the exact steps? If not reproducible → gather more data, don't guess.
+3. **Check Recent Changes** — Git diff, recent commits, new dependencies, config changes, environmental differences.
+4. **Gather Evidence in Multi-Component Systems** — For each component boundary, log what data enters, what data exits, verify environment/config propagation, check state at each layer. Run once to gather evidence showing WHERE it breaks. THEN analyze evidence to identify failing component. THEN investigate that specific component.
+5. **Trace Data Flow** — Where does bad value originate? What called this with bad value? Keep tracing up until you find the source. Fix at source, not at symptom.
+
+### Phase 2: Pattern Analysis
+
+1. **Find Working Examples** — Locate similar working code in same codebase. What works that's similar to what's broken?
+2. **Compare Against References** — If implementing a pattern, read reference implementation COMPLETELY. Don't skim.
+3. **Identify Differences** — What's different between working and broken? List every difference, however small.
+4. **Understand Dependencies** — What other components does this need? What settings, config, environment?
+
+### Phase 3: Hypothesis and Testing
+
+1. **Form Single Hypothesis** — State clearly: "I think X is the root cause because Y". Write it down. Be specific.
+2. **Test Minimally** — Make the SMALLEST possible change to test hypothesis. One variable at a time.
+3. **Verify Before Continuing** — Did it work? Yes → Phase 4. Didn't work? Form NEW hypothesis. DON'T add more fixes on top.
+4. **When You Don't Know** — Say "I don't understand X". Don't pretend. Ask for help.
+
+### Phase 4: Implementation
+
+1. **Create Failing Test Case** — Simplest possible reproduction. MUST have before fixing.
+2. **Implement Single Fix** — Address the root cause identified. ONE change at a time. No "while I'm here" improvements.
+3. **Verify Fix** — Test passes now? No other tests broken? Issue actually resolved?
+4. **If Fix Doesn't Work — STOP.** Count how many fixes you've tried.
+   - If < 3: Return to Phase 1, re-analyze with new information.
+   - **If ≥ 3: STOP and question the architecture.** Each fix reveals new shared state/coupling in different place → this is a wrong pattern, not a fixable bug. Discuss with human partner before attempting more fixes.
+
+## Red Flags — STOP and Return to Phase 1
+
+If you catch yourself thinking any of these:
+
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "Add multiple changes, run tests"
+- "Skip the test, I'll manually verify"
+- "It's probably X, let me fix that"
+- "One more fix attempt" (after 2+ failures)
+- Each fix reveals new problem in different place
+
+**ALL of these mean: STOP. Return to Phase 1.**
+
+## UE5 / PersonalProject Specific Debugging Triggers
+
+Common root causes in this project, trace in this order:
+
+| Symptom | Likely Root Cause | How to Verify |
+|---|---|---|
+| `Fatal error: [File:Unknown] Assertion failed` | UCLASS 重定义 / USTRUCT 没 GENERATED_BODY | 查编译日志里的 UHT 警告 |
+| GA 激活后卡死 | GA 没调 EndAbility → ASC 卡死同 GA | `UGameplayAbility::IsActive()` 日志 + timer 是否 stop |
+| 玩家被打永久无敌 | `Status.Invulnerable` AddTag 没 RemoveTag | `HasMatchingGameplayTag(Invulnerable)` 实时日志 |
+| 敌人永远不攻击 | Boss 没 ArenaArmed tag / AIPerception 没 StartSearching | 查 tag 状态 + CurrentTarget 是否有效 |
+| `check()` 崩溃 | 用了 check() 而不是 if(!IsValid) return | 把所有 check 换成 if + UE_LOG |
+| Delegate 回调野指针 | Actor 销毁后 Delegate 没 UnbindAll | EndPlay 里必须清理所有 FDelegateHandle |
+| NewObject 运行时创建的组件不跑 BeginPlay | 没调 RegisterComponent | 创建后必须 `RegisterComponent()` |
+| 编译 killed "Low on memory" | clangd 单进程占 20GB+ | 关 Rider / `Get-Process clangd \| Stop-Process -Force` |
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|---|---|---|
+| 1. Root Cause | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
+| 2. Pattern | Find working examples, compare | Identify differences |
+| 3. Hypothesis | Form theory, test minimally | Confirmed or new hypothesis |
+| 4. Implementation | Create test, fix, verify | Bug resolved, tests pass |

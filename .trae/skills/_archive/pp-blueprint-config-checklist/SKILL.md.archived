@@ -1,0 +1,64 @@
+---
+name: pp-blueprint-config-checklist
+description: Produce a structured blueprint configuration checklist for new C++ features in PersonalProject. Use after implementing C++ changes that expose UCLASS/UPROPERTY fields or require Blueprint wiring. Do not use for gameplay code writing or bug fixes.
+---
+
+# PP Blueprint Config Checklist（C++ 功能写完后输出蓝图配置清单）
+
+## 触发时机
+
+C++ 功能写完后告诉用户"蓝图里还要配什么"时，**不要零散描述**，按下面结构化输出。
+
+## 输出模板
+
+```markdown
+## <功能名> 蓝图配置 Checklist
+
+> 前置：**必须关掉编辑器重新编译并重开**，新字段才会出现在 Details 面板里。
+
+### 资产清单（要创建 / 修改的蓝图）
+
+| # | 资产路径（新建） | 父类 | 用途 |
+|---|---|---|---|
+| 1 | Content/PP/Blueprints/BP_XXX | C++ 类名 | 什么用途 |
+
+### 字段配置（Class Defaults 里改）
+
+| # | 资产 | 分类 | 字段名 | 建议值 | 必填 |
+|---|---|---|---|---|---|
+| 1 | BP_EnemyAIController | PP\|AI\|Perception | SearchRadius | 1500 | ✅ |
+| 2 | BP_PP_PlayerCharacter | PP\|Weapon | WeaponDataTable | DT_WeaponData | ✅ |
+
+### 关卡摆放（场景里放 Actor 实例）
+
+| # | Actor 类 | 数量 | 要引用谁 | 备注 |
+|---|---|---|---|---|
+| 1 | PP_BossArenaTrigger | 1 | BossRef / GateRef | Box Extent 覆盖整个场地 |
+
+### GA Montage Notify（蓝图 GA 里改）
+
+| GA 名 | Notify 位置 | 动作 |
+|---|---|---|
+| GA_PP_Roll | 翻滚起始帧 | Add Loose Gameplay Tag → Status.Invulnerable |
+| GA_PP_Roll | 翻滚结束帧 | Remove Loose Gameplay Tag → Status.Invulnerable |
+
+### 验证步骤（PIE 里测）
+
+1. 敌人看到玩家 → 索敌（隔墙不索）→ 攻击（有冷却）→ 玩家跑远脱战
+2. 翻滚被打 → 不掉血（i-frames）
+3. 装备 Sword_Iron → ASC 多出 GA_PP_Sword_Primary
+4. 进 Boss 场地 → 门落下 → Boss 激活 → 击杀 → 弹结算
+```
+
+## 字段名核对要点
+
+- 字段名**一字不差**匹配 C++ 声明（不是描述性名字）
+- 分类名 `PP|AI|Perception`、`PP|Bonfire` 等来自 UPROPERTY 里的 `Category = "...", meta = (...)`
+- TSubclassOf 字段的值要明确是哪个 **Blueprint 类资产**，不能是 C++ 类
+- `BindWidget` 要求的控件名（如 `BossNameText`）必须**完全一致**，否则蓝图编译报错
+
+## 反模式（禁止）
+
+- ❌ "你可能需要配一下 HUD 里的那个字段" → 必须写 `SettlementWidgetClass = WBP_Settlement`
+- ❌ "Boss 激活需要有 tag" → 必须写 `Status.BossArenaArmed 由 ArenaTrigger 自动 Add`
+- ❌ 漏掉编辑器重编译前提（新增 UPROPERTY 必须重开编辑器才可见）

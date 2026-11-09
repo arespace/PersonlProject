@@ -1,0 +1,39 @@
+---
+name: pp-build-precheck
+description: Verify preconditions and run Build.bat for PersonalProject Editor target. Use when the user asks to build, compile, or after significant C++ changes. Do not use as a substitute for writing code.
+---
+
+# PP Build Precheck（UE5 构建前置检查）
+
+**适用项目**：PersonalProject，目标 `PersonalProjectEditor Win64 Development`
+
+## Step 1 · 前置检查（必须全部通过才跑 Build）
+
+1. **UnrealEditor.exe 是否运行？** → 运行则输出 "必须先关闭编辑器（或 Ctrl+Alt+F11 停止 Live Coding）" 并中止
+2. **提交内存情况**：如果提交上限 < 58GB，先提示关闭 Rider / clangd / 多余 Trae 窗口（之前 clangd 单进程占 28GB 被 UBA kill 过）
+3. **Git 工作区状态**：有未提交改动警告但不阻止（用户可能想先编一次再 commit）
+
+## Step 2 · 执行构建命令
+
+```powershell
+& "D:\Ue\UnrealEngine\UE_5.7\Engine\Build\BatchFiles\Build.bat" PersonalProjectEditor Win64 Development -Project="D:\Ue\UnrealEngine\program\PersonalProject\PersonalProject.uproject" -WaitMutex
+```
+
+- 用 PowerShell 5 语法（不用 && / ||）
+- timeout 设 600000ms（10 分钟）
+- 输出里找 `Result: Succeeded` 或 `Result: Failed`
+
+## Step 3 · 失败分类处理
+
+| 关键词 | 含义 | 处理 |
+|---|---|---|
+| `Unable to build while Live Coding is active` | 编辑器开着 | 让用户 Ctrl+Alt+F11 或关编辑器 |
+| `Low on memory. Kill threshold` | 内存耗尽 | 提示关 clangd / 页面文件调大 |
+| `LNK2019 unresolved external` | 链接缺符号 | 检查类是否 UCLASS/USTRUCT 正确、模块 Build.cs 是否 include 了依赖 |
+| `C4443 / C2509` | 头文件循环依赖 | 用 `class XXX;` 前置声明替代 `#include` |
+| `UHT-Error` | Unreal Header Tool 解析失败 | 检查 UFUNCTION/UPROPERTY 语法、逗号/括号是否闭合 |
+| `Unity file excluded` | 新文件未进 unity build | 提示这是正常 Adaptive Build 行为，不阻塞 |
+
+## 成功判定
+
+输出必须包含 `Result: Succeeded` + 编译耗时秒数。构建日志文件位置：`C:\Users\72883\AppData\Local\UnrealBuildTool\Log.txt`。

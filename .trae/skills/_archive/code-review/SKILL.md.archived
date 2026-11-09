@@ -1,0 +1,73 @@
+---
+name: code-review
+description: Review code for bugs, regressions, and maintainability before commit or merge. Use when user asks for code review, before git commit, or diff verification.
+---
+
+# Code Review (Superpowers methodology + PersonalProject 定制)
+
+## Overview
+
+Review code **before** commit. Report bugs first, then regressions, then missing tests, then style. Skip style nits unless they hide a defect.
+
+**核心原则**：Bug > Regression > Missing Test > Style.
+
+## What to Check (按优先级)
+
+### 1. Bugs (直接导致功能无效)
+
+- 新增接口（IPP_*）有没有 Actor 实现 `_Implementation`？
+- 新增 ActorComponent 有没有 `CreateDefaultSubobject` 或运行时补建（NewObject + RegisterComponent）？只挂蓝图不算
+- 新增 EventBus Broadcast 有没有订阅方？通常是 HUD / Widget
+- 新增 `FindComponentByClass` 如果找不到怎么办？必须有 fallback（自动补建或日志警告）
+- 新增 GameplayTag 广播有没有同时处理 AddTag 和 RemoveTag？只 Add 没有 Remove = 永久状态 bug
+- GA_GameplayAbility 会不会永远不 EndAbility？没调 EndAbility 的 GA 让 ASC 卡死，后续激活同 GA 永远失败
+- RPC / Server 函数有没有 `HasAuthority()` 检查？客户端 RPC 有没有正确的 Server 转发链路
+- `NewObject<UClass>(Outer, NAME_XXX)` 的 Outer 必须是该 Actor 或 Component，不能是 GetWorld()
+
+### 2. 编译 / 链接风险
+
+- 新增文件忘了在 `.Build.cs` 模块里 include（PersonalProjectCore / PersonalProject / Inventory / Quest / UI 五个模块各自独立）
+- include 顺序错误：先 UE 头（CoreMinimal.h / Engine/），再项目头，最后第三方
+- 两个 Actor 同时修改 PPTags.h 同一个命名空间 → Git 合并失败（不同命名空间可以自动合并）
+- UFUNCTION / UPROPERTY 重复定义（同项目已踩过两个同名 `PP_InteractableInterface.h`）
+- `check()` 改成 `if (!IsValid(...)) return` + `UE_LOG` warning
+
+### 3. 运行时稳定性
+
+- Timer / Delegate 必须在 EndPlay 或析构里清理（`UnbindAll` / `ClearTimer`），否则 Actor 销毁后回调野指针
+- Replication：Replicated 字段必须有 `DOREPLIFETIME`；ServerOnly 的 GA 不要在客户端调 RPC
+- 搜索逻辑：`FindClosestActorWithTag` / LineTrace 必须有 `HasAuthority()` 或 `IsLocallyControlled()` 检查
+- UE5 项目必须用 `TObjectPtr<>` 而非裸 `UObject*`（例外：函数参数可以用引用，但成员变量必须用 TObjectPtr）
+- 所有持有 `UObject*` 的成员变量必须是 `UPROPERTY()`，否则 GC 会把它回收掉
+
+### 4. PersonalProject 特定规则
+
+- PPTags.h 的 namespace 分层：`Status::`（持久状态）、`Events::Enemy`（事件）、`Boss::`（Boss 专属）—— 新增 Tag 必须在对应 namespace 下成对声明
+- `.h` 里 `UE_DECLARE_GAMEPLAY_TAG_EXTERN(XXX)`，`.cpp` 里 `UE_DEFINE_GAMEPLAY_TAG_COMMENT(XXX, "Full.Path", "说明")`
+- 项目有 5 个模块：PersonalProjectCore（基类/属性系统）→ PersonalProject（玩法）→ PersonalProjectUI/HUD/Inventory/Quest（UI/背包/任务）。UI 模块禁止反向依赖 Core
+- 新增 UCLASS 必须有 Category 前缀 `PP|`（Blueprint 面板里搜不到就是没加）
+- 所有蓝图可配字段在 commit message 或 PR 描述里附上 **Blueprint config checklist**
+
+### 5. Style (风格，非阻塞)
+
+- UE5 Epic 命名规范：类 `APP_` / `UPP_` 前缀、函数 PascalCase、变量 `b` 前缀 for bool、成员变量下划线前缀 `_`
+- `.h` 和 `.cpp` 对应，不跨文件散放
+- 注释写"为什么"，不是"做什么"
+
+## Output Format
+
+```
+## 审查结果 · <commit hash> · <改动简述>
+
+### P0 功能断点（<N> 项）
+- [文件:行] 描述 + 建议修复代码
+
+### P1 编译风险（<N> 项）
+- [文件:行] 描述
+
+### P2 稳定性（<N> 项）
+- [文件:行] 描述 + 修复建议
+
+### 蓝图配置 Checklist（必须手动配）
+- [资产路径] 要改什么字段 → 字段名 = 值
+```
