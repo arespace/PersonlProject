@@ -15,30 +15,10 @@ class UAlsCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class APP_SoulPickupActor;
-class UDataTable;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UMaterialInterface;
 class UGameplayEffect;
-
-/** 单把武器的网格与挂载变换（各武器模型枢轴位置不同，必须逐把配置） */
-USTRUCT(BlueprintType)
-struct FPP_WeaponMeshVisual
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
-	TObjectPtr<UStaticMesh> Mesh;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
-	FVector RelativeLocation{FVector::ZeroVector};
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
-	FRotator RelativeRotation{FRotator::ZeroRotator};
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual")
-	FVector RelativeScale{FVector::OneVector};
-};
 
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter, public IPP_EquipmentUser
@@ -297,12 +277,8 @@ private:
 
 	// ===== 武器装备接口（IPP_EquipmentUser 实现） =====
 
-	/** 武器装备槽变更回调 — 从 DT_WeaponData 查 AbilityTags → ASC 切换 GA */
-	virtual void OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID) override;
-
-	/** 武器数据表（DT_WeaponData，行结构 FPP_WeaponData） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Weapon")
-	TObjectPtr<UDataTable> WeaponDataTable;
+	/** 武器装备槽变更回调 — 从 DT_Items 的 WeaponConfig 取 GA → ASC 切换 */
+	virtual void OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, FName NewItemID) override;
 
 	// ===== 武器外观（自带烘焙武器隐藏 / 装备武器网格显示） =====
 
@@ -310,21 +286,13 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void SetBuiltInWeaponVisible(bool bVisible);
 
-	/** 把 WeaponMesh 换成 ItemID 对应的武器网格（WeaponMeshMap 里查） */
+	/** 把 WeaponMesh 换成 ItemID 对应的武器网格（读 DT_Items 的 WeaponConfig.Visual） */
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void SetWeaponMesh(FName ItemID);
 
 	/** 清空 WeaponMesh（空手） */
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void ClearWeaponMesh();
-
-	/** 调试：切换主武器（已装备则卸下，未装备则自动补一件再装上），绑定 F9，不占用技能键 */
-	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
-	void DebugTogglePrimaryWeapon();
-
-	/** 调试键 F9 使用的武器 ItemID */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
-	FName DebugPrimaryWeaponItemID{TEXTVIEW("Longsword")};
 
 	/** 自带武器占用的材质槽索引（如 Kwang 的 17） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
@@ -334,13 +302,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMaterialInterface> HiddenWeaponMaterial;
 
-	/** 装备武器网格挂载的骨骼/socket 名（Kwang 为 VB_Kwang_weapon） */
+	/** 装备武器网格挂载的骨骼/socket 名；仅当武器行未配置 AttachSocket 时兜底 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
 	FName WeaponAttachSocketName{TEXTVIEW("VB_Kwang_weapon")};
-
-	/** 武器 ItemID → 武器网格与挂载变换 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
-	TMap<FName, FPP_WeaponMeshVisual> WeaponMeshMap;
 
 	/** BeginPlay 时是否立即隐藏自带武器（默认空手） */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
@@ -362,10 +326,10 @@ private:
 	void RestoreEquippedWeapon();
 
 	/** 授予/替换某武器槽对应的 GA（仅服务器调用；会先移除该槽上一次授予的 GA） */
-	void GrantWeaponAbility(EPP_EquipmentSlotType SlotType, FName NewItemID);
+	void GrantWeaponAbility(EPP_EquipSlot Slot, FName NewItemID);
 
 	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除） */
-	TMap<EPP_EquipmentSlotType, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
+	TMap<EPP_EquipSlot, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
 
 	/** 自带武器材质槽的原始材质缓存（与 BuiltInWeaponMaterialSlots 一一对应） */
 	UPROPERTY()
