@@ -74,7 +74,7 @@ struct FPP_ItemInfo : public FTableRowBase
 
 	/**
 	 * 武器配置（仅主手/副手武器填写）。
-	 * 全部留空表示该行仍走旧路径（DT_WeaponData + 角色蓝图 WeaponMeshMap）。
+	 * 这是武器外观与技能的唯一数据源；留空表示该武器没有外观与专属技能。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Equipment|Weapon")
 	FPP_WeaponConfig WeaponConfig;

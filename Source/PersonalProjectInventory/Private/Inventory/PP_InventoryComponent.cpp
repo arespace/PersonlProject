@@ -19,26 +19,10 @@
 
 namespace
 {
-	/** 旧装备槽 → 武器槽的对应关系（仅武器两槽） */
-	bool ToWeaponSlotType(EPP_EquipSlot Slot, EPP_EquipmentSlotType& OutSlotType)
+	/** 主手/副手 */
+	bool IsWeaponSlot(EPP_EquipSlot Slot)
 	{
-		switch (Slot)
-		{
-		case EPP_EquipSlot::MainHand: OutSlotType = EPP_EquipmentSlotType::PrimaryWeapon;   return true;
-		case EPP_EquipSlot::OffHand:  OutSlotType = EPP_EquipmentSlotType::SecondaryWeapon; return true;
-		default: return false;
-		}
-	}
-
-	/** 武器槽 → 旧装备槽的对应关系（仅武器两槽） */
-	bool ToEquipSlot(EPP_EquipmentSlotType SlotType, EPP_EquipSlot& OutSlot)
-	{
-		switch (SlotType)
-		{
-		case EPP_EquipmentSlotType::PrimaryWeapon:   OutSlot = EPP_EquipSlot::MainHand; return true;
-		case EPP_EquipmentSlotType::SecondaryWeapon: OutSlot = EPP_EquipSlot::OffHand;  return true;
-		default: return false;
-		}
+		return Slot == EPP_EquipSlot::MainHand || Slot == EPP_EquipSlot::OffHand;
 	}
 }
 
@@ -47,12 +31,6 @@ UPP_InventoryComponent::UPP_InventoryComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 	Gold = 1000;
-
-	// 武器系统 4 个固定装备槽
-	EquipmentSlots.Emplace(EPP_EquipmentSlotType::PrimaryWeapon);
-	EquipmentSlots.Emplace(EPP_EquipmentSlotType::SecondaryWeapon);
-	EquipmentSlots.Emplace(EPP_EquipmentSlotType::Helmet);
-	EquipmentSlots.Emplace(EPP_EquipmentSlotType::Accessory);
 }
 
 void UPP_InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -60,7 +38,6 @@ void UPP_InventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UPP_InventoryComponent, Items);
 	DOREPLIFETIME(UPP_InventoryComponent, EquippedItems);
-	DOREPLIFETIME(UPP_InventoryComponent, EquipmentSlots);
 	DOREPLIFETIME(UPP_InventoryComponent, Gold);
 }
 
@@ -201,161 +178,210 @@ bool UPP_InventoryComponent::HasItem(FName ItemID, int32 Count) const
 
 void UPP_InventoryComponent::Server_EquipItem_Implementation(FName ItemID)
 {
-	if (!HasItem(ItemID, 1))
-	{
-		UE_LOG(LogPP, Warning, TEXT("[Inventory] EquipItem: 背包中无物品 %s"), *ItemID.ToString());
-		return;
-	}
-	const FPP_ItemInfo* Info = FindItemInfo(ItemID);
-	if (!Info)
-	{
-		return;
-	}
-	if (Info->ItemType != EPP_ItemType::Equipment || Info->EquipSlot == EPP_EquipSlot::None)
-	{
-		UE_LOG(LogPP, Warning, TEXT("[Inventory] EquipItem: 物品 %s 不是装备类型"), *ItemID.ToString());
-		return;
-	}
-
-	// 1) 若该槽位已有装备，先脱下并将旧物品归还背包
-	if (GetEquippedItemID(Info->EquipSlot) != NAME_None)
-	{
-		const FName OldItemID = ApplyUnequip(Info->EquipSlot);
-		if (!OldItemID.IsNone())
-		{
-			AddItem(OldItemID, 1);
-		}
-	}
-
-	// 2) 从背包扣减一件
-	if (!RemoveItem(ItemID, 1))
-	{
-		return;
-	}
-
-	// 3) 施加 GE 并记录句柄
-	ApplyEquip(*Info);
+	EquipItemInternal(ItemID, EPP_EquipSlot::None);
 }
 
 void UPP_InventoryComponent::Server_UnequipItem_Implementation(EPP_EquipSlot Slot)
 {
-	if (Slot == EPP_EquipSlot::None) return;
+	UnequipItemInternal(Slot);
+}
 
-	const FName ItemID = ApplyUnequip(Slot);
-	if (!ItemID.IsNone())
+EPP_EquipSlot UPP_InventoryComponent::ResolveEquipSlot(const FPP_ItemInfo& ItemInfo, EPP_EquipSlot PreferredSlot) const
+{
+	if (ItemInfo.EquipSlot == EPP_EquipSlot::None)
 	{
-		AddItem(ItemID, 1);
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 物品 %s 未配置装备槽位，无法装备"), *ItemInfo.ItemID.ToString());
+		return EPP_EquipSlot::None;
 	}
-}
-
-void UPP_InventoryComponent::ApplyEquip(const FPP_ItemInfo& ItemInfo)
-{
-	FPP_EquippedItem NewEquip;
-	NewEquip.ItemID = ItemInfo.ItemID;
-	NewEquip.Slot = ItemInfo.EquipSlot;
-
-	// 通过拥有者 ASC 施加 GE
-	if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+	if (PreferredSlot == EPP_EquipSlot::None || PreferredSlot == ItemInfo.EquipSlot)
 	{
-		if (ItemInfo.EquipEffectClass)
-		{
-			FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-			Context.AddSourceObject(GetOwner());
-			const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(ItemInfo.EquipEffectClass, 1.0f, Context);
-			if (SpecHandle.IsValid())
-			{
-				NewEquip.EffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-			}
-		}
-	} 
-
-	EquippedItems.Add(NewEquip);
-	BroadcastEquipmentUpdatedEvent();
-}
-
-FName UPP_InventoryComponent::ApplyUnequip(EPP_EquipSlot Slot)
-{
-	const int32 Idx = EquippedItems.IndexOfByPredicate([Slot](const FPP_EquippedItem& E)
-	{
-		return E.Slot == Slot;
-	});
-	if (Idx == INDEX_NONE)
-	{
-		return NAME_None;
+		return ItemInfo.EquipSlot;
 	}
 
-	const FPP_EquippedItem Old = EquippedItems[Idx];
-
-	// 通过句柄精确移除 GE
-	if (Old.EffectHandle.IsValid())
+	// 武器允许主/副手互换，但必须由数据表显式放行副手
+	if (IsWeaponSlot(PreferredSlot) && IsWeaponSlot(ItemInfo.EquipSlot)
+		&& PreferredSlot == EPP_EquipSlot::OffHand && ItemInfo.WeaponConfig.bCanUseOffHand)
 	{
-		if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
-		{
-			ASC->RemoveActiveGameplayEffect(Old.EffectHandle);
-		}
+		return EPP_EquipSlot::OffHand;
 	}
 
-	EquippedItems.RemoveAt(Idx);
-	BroadcastEquipmentUpdatedEvent();
-	return Old.ItemID;
+	UE_LOG(LogPP, Warning, TEXT("[Equipment] 物品 %s 的槽位 %d 与请求槽位 %d 不匹配，装备失败"),
+		*ItemInfo.ItemID.ToString(), static_cast<int32>(ItemInfo.EquipSlot), static_cast<int32>(PreferredSlot));
+	return EPP_EquipSlot::None;
 }
 
-FName UPP_InventoryComponent::GetEquippedItemID(EPP_EquipSlot Slot) const
+FActiveGameplayEffectHandle UPP_InventoryComponent::ApplyEquipEffect(const FPP_ItemInfo& ItemInfo)
 {
-	return GetEquippedItemInSlot(Slot).ItemID;
-}
-
-void UPP_InventoryComponent::ApplyWeaponEffect(EPP_EquipmentSlotType SlotType, FName ItemID)
-{
-	// 换装时先移除该槽位上一把武器的属性效果，避免叠加
-	RemoveWeaponEffect(SlotType);
-
-	const FPP_ItemInfo* ItemInfo = FindItemInfo(ItemID);
-	if (!ItemInfo || !ItemInfo->EquipEffectClass)
+	// 未配置属性效果属正常情况（纯技能武器 / 纯外观装备）
+	if (!ItemInfo.EquipEffectClass)
 	{
-		// 武器未配置属性效果（纯技能武器）属正常情况
-		return;
+		return FActiveGameplayEffectHandle();
 	}
 
 	UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
 	if (!IsValid(ASC))
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 槽 %d 装备 %s：ASC 无效，属性效果未施加"),
-			static_cast<int32>(SlotType), *ItemID.ToString());
-		return;
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 装备 %s：ASC 无效，属性效果未施加"), *ItemInfo.ItemID.ToString());
+		return FActiveGameplayEffectHandle();
 	}
 
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	Context.AddSourceObject(GetOwner());
-	const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(ItemInfo->EquipEffectClass, 1.0f, Context);
+	const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(ItemInfo.EquipEffectClass, 1.0f, Context);
 	if (!SpecHandle.IsValid())
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 槽 %d 装备 %s：EquipEffectClass 无法生成 Spec"),
-			static_cast<int32>(SlotType), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 装备 %s：EquipEffectClass 无法生成 Spec"), *ItemInfo.ItemID.ToString());
+		return FActiveGameplayEffectHandle();
+	}
+	return ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+void UPP_InventoryComponent::EquipItemInternal(FName ItemID, EPP_EquipSlot PreferredSlot)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	if (ItemID.IsNone())
+	{
 		return;
 	}
 
-	const FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-	if (Handle.IsValid())
+	const FPP_ItemInfo* ItemInfo = FindItemInfo(ItemID);
+	if (!ItemInfo || ItemInfo->ItemType != EPP_ItemType::Equipment || ItemInfo->EquipSlot == EPP_EquipSlot::None)
 	{
-		WeaponEffectHandles.Add(SlotType, Handle);
-		UE_LOG(LogPP, Log, TEXT("[WeaponEquip] 槽 %d 装备 %s：属性效果已施加"),
-			static_cast<int32>(SlotType), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 物品 %s 不是可装备物品，装备失败"), *ItemID.ToString());
+		return;
+	}
+
+	const EPP_EquipSlot TargetSlot = ResolveEquipSlot(*ItemInfo, PreferredSlot);
+	if (TargetSlot == EPP_EquipSlot::None)
+	{
+		return;
+	}
+
+	// 相同物品重复装备直接短路，避免一次操作产生双 GA / 双 GE
+	if (FindEquippedItemID(TargetSlot) == ItemID)
+	{
+		return;
+	}
+
+	// 新装备必须先在背包里（防止凭空装备）
+	if (!HasItem(ItemID, 1))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 背包中没有 %s，装备失败"), *ItemID.ToString());
+		return;
+	}
+	if (!RemoveItem(ItemID, 1))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 扣减背包 %s 失败"), *ItemID.ToString());
+		return;
+	}
+
+	// 同槽旧装备回背包；背包满则整次换装回滚，避免物品凭空消失
+	const FName OldItemID = FindEquippedItemID(TargetSlot);
+	if (!OldItemID.IsNone())
+	{
+		if (!AddItem(OldItemID, 1))
+		{
+			AddItem(ItemID, 1);
+			UE_LOG(LogPP, Warning, TEXT("[Equipment] 背包已满，无法收回旧装备 %s，换装取消"), *OldItemID.ToString());
+			return;
+		}
+		RemoveEquippedSlot(TargetSlot);
+	}
+
+	FPP_EquippedItem NewEquip;
+	NewEquip.ItemID = ItemID;
+	NewEquip.Slot = TargetSlot;
+	NewEquip.EffectHandle = ApplyEquipEffect(*ItemInfo);
+	EquippedItems.Add(NewEquip);
+
+	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_Equipped）
+	BroadcastEquipmentUpdatedEvent();
+	NotifyEquipmentUser(TargetSlot, ItemID);
+}
+
+void UPP_InventoryComponent::UnequipItemInternal(EPP_EquipSlot Slot)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	if (Slot == EPP_EquipSlot::None)
+	{
+		return;
+	}
+
+	const FName ItemID = FindEquippedItemID(Slot);
+	if (ItemID.IsNone())
+	{
+		return;
+	}
+
+	// 卸下物品回背包；背包满则取消卸下
+	if (!AddItem(ItemID, 1))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 背包已满，无法收回 %s，卸下取消"), *ItemID.ToString());
+		return;
+	}
+
+	RemoveEquippedSlot(Slot);
+
+	BroadcastEquipmentUpdatedEvent();
+	NotifyEquipmentUser(Slot, NAME_None);
+}
+
+void UPP_InventoryComponent::RemoveEquippedSlot(EPP_EquipSlot Slot)
+{
+	const int32 Idx = EquippedItems.IndexOfByPredicate([Slot](const FPP_EquippedItem& E)
+	{
+		return E.Slot == Slot;
+	});
+
+	if (Idx != INDEX_NONE)
+	{
+		// 通过句柄精确移除 GE
+		if (EquippedItems[Idx].EffectHandle.IsValid())
+		{
+			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+			{
+				ASC->RemoveActiveGameplayEffect(EquippedItems[Idx].EffectHandle);
+			}
+		}
+		EquippedItems.RemoveAt(Idx);
 	}
 }
 
-void UPP_InventoryComponent::RemoveWeaponEffect(EPP_EquipmentSlotType SlotType)
+void UPP_InventoryComponent::NotifyEquipmentUser(EPP_EquipSlot Slot, FName NewItemID)
 {
-	FActiveGameplayEffectHandle Handle;
-	if (!WeaponEffectHandles.RemoveAndCopyValue(SlotType, Handle) || !Handle.IsValid())
+	AActor* NotifyTarget = GetEquipmentUserActor();
+	if (!NotifyTarget || !NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
 	{
+		UE_LOG(LogPP, Warning, TEXT("[Equipment] 槽 %d 变更：未找到装备使用者 Actor（Pawn 为空或未实现 IPP_EquipmentUser），外观/技能不会切换"),
+			static_cast<int32>(Slot));
 		return;
 	}
 
-	if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+	// BlueprintNativeEvent 不能直接调用，必须走 Execute_ 包装
+	IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, Slot, NewItemID);
+}
+
+FName UPP_InventoryComponent::FindEquippedItemID(EPP_EquipSlot Slot) const
+{
+	for (const FPP_EquippedItem& E : EquippedItems)
 	{
-		ASC->RemoveActiveGameplayEffect(Handle);
+		if (E.Slot == Slot)
+		{
+			return E.ItemID;
+		}
 	}
+	return NAME_None;
+}
+
+FName UPP_InventoryComponent::GetEquippedItemID(EPP_EquipSlot Slot) const
+{
+	return GetEquippedItemInSlot(Slot).ItemID;
 }
 
 UAbilitySystemComponent* UPP_InventoryComponent::GetOwningAbilitySystemComponent() const
@@ -437,6 +463,42 @@ void UPP_InventoryComponent::OnRep_Equipped(const TArray<FPP_EquippedItem>& OldE
 {
 	// 装备列表变化：触发 UI 重绘
 	BroadcastEquipmentUpdatedEvent();
+
+	// 客户端收到装备复制：SetMaterial / SetStaticMesh 不参与网络复制，
+	// 因此外观（隐藏自带武器 / 显示装备武器网格）必须在客户端收到槽位变化后重新应用一次。
+	AActor* NotifyTarget = GetEquipmentUserActor();
+	if (!IsValid(NotifyTarget) || !NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
+	{
+		// 客户端 Pawn 可能还没生成，此时外观由角色 BeginPlay 的默认状态负责
+		return;
+	}
+
+	// 找出所有发生变化的槽位（新增/替换/卸下），逐个通知
+	auto FindOldItemID = [&OldEquipped](EPP_EquipSlot Slot) -> FName
+	{
+		const FPP_EquippedItem* Old = OldEquipped.FindByPredicate(
+			[Slot](const FPP_EquippedItem& E) { return E.Slot == Slot; });
+		return Old ? Old->ItemID : NAME_None;
+	};
+
+	for (const FPP_EquippedItem& Equipped : EquippedItems)
+	{
+		if (FindOldItemID(Equipped.Slot) != Equipped.ItemID)
+		{
+			IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, Equipped.Slot, Equipped.ItemID);
+		}
+	}
+
+	// 处理被卸下的槽位：旧列表里有、新列表里没有 → 通知 NAME_None
+	for (const FPP_EquippedItem& Old : OldEquipped)
+	{
+		const bool StillEquipped = EquippedItems.ContainsByPredicate(
+			[&Old](const FPP_EquippedItem& E) { return E.Slot == Old.Slot; });
+		if (!StillEquipped)
+		{
+			IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, Old.Slot, NAME_None);
+		}
+	}
 }
 
 void UPP_InventoryComponent::OnRep_Gold(int32 OldGold)
@@ -498,28 +560,7 @@ void UPP_InventoryComponent::ApplyConsumable(const FPP_ItemInfo& ItemInfo)
 
 FPP_EquippedItem UPP_InventoryComponent::GetEquippedItemInSlot(EPP_EquipSlot Slot) const
 {
-	// 武器两槽以 EquipmentSlots 为唯一数据源（新装备链路只写这里）
-	EPP_EquipmentSlotType WeaponSlotType;
-	if (ToWeaponSlotType(Slot, WeaponSlotType))
-	{
-		for (const FPP_EquipmentSlot& S : EquipmentSlots)
-		{
-			if (S.SlotType != WeaponSlotType)
-			{
-				continue;
-			}
-			if (!S.ItemID.IsNone())
-			{
-				FPP_EquippedItem Equipped;
-				Equipped.ItemID = S.ItemID;
-				Equipped.Slot = Slot;
-				return Equipped;
-			}
-			break;
-		}
-		return FPP_EquippedItem();
-	}
-
+	// B2 起唯一数据源为 EquippedItems；武器槽也由双写写入这里
 	for (const FPP_EquippedItem& E : EquippedItems)
 	{
 		if (E.Slot == Slot)
@@ -539,32 +580,8 @@ TArray<FPP_ItemInstance> UPP_InventoryComponent::QueryItems_Implementation()
 
 TArray<FPP_EquippedItem> UPP_InventoryComponent::QueryEquippedItems_Implementation()
 {
-	// 武器两槽由 EquipmentSlots 提供（新链路只写这里），其余槽位仍来自旧轨 EquippedItems
-	TArray<FPP_EquippedItem> Result;
-	Result.Reserve(EquippedItems.Num() + EquipmentSlots.Num());
-
-	for (const FPP_EquippedItem& E : EquippedItems)
-	{
-		if (E.Slot != EPP_EquipSlot::MainHand && E.Slot != EPP_EquipSlot::OffHand)
-		{
-			Result.Add(E);
-		}
-	}
-
-	for (const FPP_EquipmentSlot& S : EquipmentSlots)
-	{
-		EPP_EquipSlot EquipSlot;
-		if (S.ItemID.IsNone() || !ToEquipSlot(S.SlotType, EquipSlot))
-		{
-			continue;
-		}
-		FPP_EquippedItem Equipped;
-		Equipped.ItemID = S.ItemID;
-		Equipped.Slot = EquipSlot;
-		Result.Add(Equipped);
-	}
-
-	return Result;
+	// B2 起单一数据源：EquippedItems 同时包含武器与护甲
+	return EquippedItems;
 }
 
 int32 UPP_InventoryComponent::QueryGold_Implementation()
@@ -586,37 +603,12 @@ FPP_EquippedItem UPP_InventoryComponent::QueryEquippedItemInSlot_Implementation(
 
 void UPP_InventoryComponent::RequestEquipItem_Implementation(FName ItemID)
 {
-	// 主手/副手武器走新的装备槽系统；防具等仍走旧轨（旧轨统一留到装备槽批次再删）
-	if (const FPP_ItemInfo* Info = FindItemInfo(ItemID))
-	{
-		if (Info->ItemType == EPP_ItemType::Equipment && Info->EquipSlot == EPP_EquipSlot::MainHand)
-		{
-			Server_EquipWeapon(ItemID, EPP_EquipmentSlotType::PrimaryWeapon);
-			return;
-		}
-		if (Info->ItemType == EPP_ItemType::Equipment && Info->EquipSlot == EPP_EquipSlot::OffHand)
-		{
-			Server_EquipWeapon(ItemID, EPP_EquipmentSlotType::SecondaryWeapon);
-			return;
-		}
-	}
-
+	// 写路径已统一：武器/护甲都走 Server_EquipItem → EquipItemInternal
 	Server_EquipItem(ItemID);
 }
 
 void UPP_InventoryComponent::RequestUnequipItem_Implementation(EPP_EquipSlot Slot)
 {
-	if (Slot == EPP_EquipSlot::MainHand)
-	{
-		Server_UnequipWeapon(EPP_EquipmentSlotType::PrimaryWeapon);
-		return;
-	}
-	if (Slot == EPP_EquipSlot::OffHand)
-	{
-		Server_UnequipWeapon(EPP_EquipmentSlotType::SecondaryWeapon);
-		return;
-	}
-
 	Server_UnequipItem(Slot);
 }
 
@@ -650,170 +642,4 @@ void UPP_InventoryComponent::BroadcastGoldUpdatedEvent(int32 NewGold)
 	Event.Player = OwnerPS ? OwnerPS->GetPlayerController() : nullptr;
 	Event.NewGold = NewGold;
 	UPP_EventBus::BroadcastEvent(this, Event);
-}
-
-// ===== 武器系统装备槽实现（EPP_EquipmentSlotType） =====
-
-void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP_EquipmentSlotType SlotType)
-{
-	if (!GetOwner() || !GetOwner()->HasAuthority())
-	{
-		return;
-	}
-	if (ItemID.IsNone())
-	{
-		return;
-	}
-
-	// 找到对应槽位（构造函数已初始化 4 槽）
-	const int32 Idx = EquipmentSlots.IndexOfByPredicate([SlotType](const FPP_EquipmentSlot& S)
-	{
-		return S.SlotType == SlotType;
-	});
-	if (Idx == INDEX_NONE)
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 装备槽 %d 不存在（EquipmentSlots 未初始化？共 %d 个）"),
-			static_cast<int32>(SlotType), EquipmentSlots.Num());
-		return;
-	}
-
-	// 记录旧值用于回调
-	const FName OldItemID = EquipmentSlots[Idx].ItemID;
-	if (OldItemID == ItemID)
-	{
-		return; // 相同物品无需重复装备
-	}
-
-	// 新武器必须先在背包里（防止凭空装备）
-	if (!HasItem(ItemID, 1))
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 背包中没有 %s，装备失败"), *ItemID.ToString());
-		return;
-	}
-
-	// 新武器出背包
-	if (!RemoveItem(ItemID, 1))
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 扣减背包 %s 失败"), *ItemID.ToString());
-		return;
-	}
-
-	// 旧武器回背包（保证换下的武器还能再装回去）
-	if (!OldItemID.IsNone() && !AddItem(OldItemID, 1))
-	{
-		// 背包已满：把新武器还回背包，取消换装，避免物品凭空消失
-		AddItem(ItemID, 1);
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 背包已满，无法收回旧武器 %s，换装取消"), *OldItemID.ToString());
-		return;
-	}
-
-	// 更新槽位
-	EquipmentSlots[Idx].ItemID = ItemID;
-
-	// 施加武器属性效果（旧效果在 ApplyWeaponEffect 内部移除）
-	ApplyWeaponEffect(SlotType, ItemID);
-
-	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_WeaponSlots）
-	BroadcastEquipmentUpdatedEvent();
-
-	// 通知拥有者 Pawn（PlayerCharacter 实现 IPP_EquipmentUser）
-	// BlueprintNativeEvent 不能直接调用，必须走 Execute_ 包装
-	AActor* NotifyTarget = GetEquipmentUserActor();
-	if (NotifyTarget && NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
-	{
-		IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, SlotType, ItemID);
-	}
-	else
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 未找到装备使用者 Actor（Pawn 为空或未实现 IPP_EquipmentUser），外观/技能不会切换"));
-	}
-}
-
-void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSlotType SlotType)
-{
-	if (!GetOwner() || !GetOwner()->HasAuthority())
-	{
-		return;
-	}
-
-	const int32 Idx = EquipmentSlots.IndexOfByPredicate([SlotType](const FPP_EquipmentSlot& S)
-	{
-		return S.SlotType == SlotType;
-	});
-	if (Idx == INDEX_NONE)
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 卸下失败：槽位 %d 不存在"), static_cast<int32>(SlotType));
-		return;
-	}
-
-	const FName OldItemID = EquipmentSlots[Idx].ItemID;
-	if (OldItemID.IsNone())
-	{
-		return;
-	}
-
-	// 卸下的武器回到背包；背包满则取消卸下，避免物品凭空消失
-	if (!AddItem(OldItemID, 1))
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] UnequipWeapon: 背包已满，无法收回 %s，卸下取消"), *OldItemID.ToString());
-		return;
-	}
-
-	EquipmentSlots[Idx].ItemID = NAME_None;
-
-	// 移除武器属性效果
-	RemoveWeaponEffect(SlotType);
-
-	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_WeaponSlots）
-	BroadcastEquipmentUpdatedEvent();
-
-	// 通知装备用户（BlueprintNativeEvent 必须走 Execute_ 包装）
-	if (AActor* NotifyTarget = GetEquipmentUserActor())
-	{
-		if (NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
-		{
-			IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, SlotType, NAME_None);
-		}
-	}
-}
-
-FName UPP_InventoryComponent::GetWeaponInSlot(EPP_EquipmentSlotType SlotType) const
-{
-	for (const FPP_EquipmentSlot& S : EquipmentSlots)
-	{
-		if (S.SlotType == SlotType)
-		{
-			return S.ItemID;
-		}
-	}
-	return NAME_None;
-}
-
-void UPP_InventoryComponent::OnRep_WeaponSlots(const TArray<FPP_EquipmentSlot>& OldSlots)
-{
-	// UI 装备栏刷新不依赖 Pawn 是否就绪，先广播事件
-	BroadcastEquipmentUpdatedEvent();
-
-	// 客户端收到武器槽复制：SetMaterial / SetStaticMesh 不参与网络复制，
-	// 因此外观（隐藏自带武器 / 显示装备武器网格）必须在客户端收到槽位变化后重新应用一次。
-	AActor* NotifyTarget = GetEquipmentUserActor();
-	if (!IsValid(NotifyTarget) || !NotifyTarget->GetClass()->ImplementsInterface(UPP_EquipmentUser::StaticClass()))
-	{
-		// 客户端 Pawn 可能还没生成，此时外观由角色 BeginPlay 的默认状态负责
-		return;
-	}
-
-	for (const FPP_EquipmentSlot& Slot : EquipmentSlots)
-	{
-		const FPP_EquipmentSlot* OldSlot = OldSlots.FindByPredicate(
-			[Slot](const FPP_EquipmentSlot& Candidate) { return Candidate.SlotType == Slot.SlotType; });
-
-		const FName OldItemID = OldSlot ? OldSlot->ItemID : NAME_None;
-		if (OldItemID == Slot.ItemID)
-		{
-			continue;
-		}
-
-		IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, Slot.SlotType, Slot.ItemID);
-	}
 }

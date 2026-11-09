@@ -21,10 +21,10 @@ class PERSONALPROJECTCORE_API IPP_EquipmentUser : public IInterface
 public:
 	/**
 	 * 装备槽位变更回调
-	 * @param SlotType  哪个槽位发生了变化
-	 * @param NewItemID 新装备的物品ID（NAME_None 表示卸下）
+	 * @param Slot       哪个槽位发生了变化
+	 * @param NewItemID  新装备的物品ID（NAME_None 表示卸下）
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|Equipment")
-	void OnEquipmentChanged(EPP_EquipmentSlotType SlotType, FName NewItemID);
-	virtual void OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID) {}
+	void OnEquipmentChanged(EPP_EquipSlot Slot, FName NewItemID);
+	virtual void OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, FName NewItemID) {}
 };

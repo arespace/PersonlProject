@@ -73,7 +73,7 @@ const FPP_WeaponConfig* UPP_DataManager::GetWeaponConfig(FName ItemID)
 		return nullptr;
 	}
 
-	// 配置全空说明该行还没迁移，交由调用方走旧路径（DT_WeaponData / WeaponMeshMap）
+	// 配置全空视为该武器没有外观与专属技能，返回 nullptr 由调用方兜底
 	const FPP_WeaponConfig& WeaponConfig = ItemInfo->WeaponConfig;
 	if (WeaponConfig.WeaponAbilityClass == nullptr && WeaponConfig.Visual.Mesh.IsNull())
 	{

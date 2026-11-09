@@ -388,20 +388,26 @@ void APP_PlayerCharacter::SetWeaponMesh(FName ItemID)
 		return;
 	}
 
-	const FPP_WeaponMeshVisual* Visual = WeaponMeshMap.Find(ItemID);
-	if (!Visual)
+	// 唯一数据源：DT_Items 行内嵌的 WeaponConfig
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	const FPP_WeaponConfig* WeaponConfig = DataManager ? DataManager->GetWeaponConfig(ItemID) : nullptr;
+	if (!WeaponConfig)
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] WeaponMeshMap 未找到 ItemID='%s'（Map 当前 %d 条）"),
-			*ItemID.ToString(), WeaponMeshMap.Num());
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] ItemID=%s 在 DT_Items 中没有 WeaponConfig，武器无外观"), *ItemID.ToString());
 		WeaponMesh->SetStaticMesh(nullptr);
 		return;
 	}
 
-	// 挂点在 BeginPlay 时可能查不到（网格资产还没就绪），这里再挂一次兜底，并应用该武器自己的变换
-	PP_AttachWeaponMeshToSocket(GetMesh(), WeaponMesh, WeaponAttachSocketName,
-		Visual->RelativeLocation, Visual->RelativeRotation, Visual->RelativeScale);
-
-	WeaponMesh->SetStaticMesh(Visual->Mesh);
+	const FPP_WeaponVisual& Visual = WeaponConfig->Visual;
+	UStaticMesh* LoadedMesh = Visual.Mesh.LoadSynchronous();
+	const FName SocketName = Visual.AttachSocket.IsNone() ? WeaponAttachSocketName : Visual.AttachSocket;
+	PP_AttachWeaponMeshToSocket(GetMesh(), WeaponMesh, SocketName,
+		Visual.RelativeLocation, Visual.RelativeRotation, Visual.RelativeScale);
+	WeaponMesh->SetStaticMesh(LoadedMesh);
+	if (!LoadedMesh)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] DT_Items 行 %s 的 WeaponConfig.Visual.Mesh 为空，武器无外观"), *ItemID.ToString());
+	}
 }
 
 void APP_PlayerCharacter::ClearWeaponMesh()
@@ -410,44 +416,6 @@ void APP_PlayerCharacter::ClearWeaponMesh()
 	{
 		WeaponMesh->SetStaticMesh(nullptr);
 	}
-}
-
-void APP_PlayerCharacter::DebugTogglePrimaryWeapon()
-{
-	constexpr EPP_EquipmentSlotType SlotType = EPP_EquipmentSlotType::PrimaryWeapon;
-
-	APP_PlayerState* PPPlayerState = Cast<APP_PlayerState>(GetPlayerState());
-	UPP_InventoryComponent* Inventory = IsValid(PPPlayerState) ? PPPlayerState->GetInventoryComponent() : nullptr;
-	if (!IsValid(Inventory))
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponDebug] F9: 取不到 InventoryComponent，无法切换主武器"));
-		return;
-	}
-
-	const FPP_EquipmentSlot* CurrentSlot = Inventory->GetEquipmentSlots().FindByPredicate(
-		[SlotType](const FPP_EquipmentSlot& Candidate) { return Candidate.SlotType == SlotType; });
-	const FName CurrentItemID = CurrentSlot ? CurrentSlot->ItemID : NAME_None;
-
-	// 已装备 → 卸下；未装备 → 补一件再装上
-	if (!CurrentItemID.IsNone())
-	{
-		Inventory->Server_UnequipWeapon(SlotType);
-		return;
-	}
-
-	if (Inventory->GetItemCount(DebugPrimaryWeaponItemID) <= 0)
-	{
-		if (HasAuthority())
-		{
-			GrantItemToInventory(DebugPrimaryWeaponItemID, 1);
-		}
-		else
-		{
-			ServerPPAddItem(DebugPrimaryWeaponItemID, 1);
-		}
-	}
-
-	Inventory->Server_EquipWeapon(DebugPrimaryWeaponItemID, SlotType);
 }
 
 // ===== 调试命令 =====
@@ -1061,9 +1029,6 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 		{
 			Input->BindKey(LockOnKey, IE_Pressed, this, &ThisClass::Input_OnLockOn);
 		}
-
-		// 武器外观调试键：F9 切换主武器（F 已被攻击技能占用，不能复用）
-		Input->BindKey(EKeys::F9, IE_Pressed, this, &ThisClass::DebugTogglePrimaryWeapon);
 	}
 	else
 	{
@@ -1425,10 +1390,10 @@ void APP_PlayerCharacter::ReleaseLockOn()
 
 // ===== IPP_EquipmentUser 实现（武器装备 → GA 切换） =====
 
-void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID)
+void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, FName NewItemID)
 {
 	// 先同步武器外观：主手枪位为空 → 露出自带武器；有武器 → 隐藏自带武器并显示对应网格
-	if (SlotType == EPP_EquipmentSlotType::PrimaryWeapon)
+	if (Slot == EPP_EquipSlot::MainHand)
 	{
 		if (NewItemID.IsNone())
 		{
@@ -1448,10 +1413,10 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 		return;
 	}
 
-	GrantWeaponAbility(SlotType, NewItemID);
+	GrantWeaponAbility(Slot, NewItemID);
 }
 
-void APP_PlayerCharacter::GrantWeaponAbility(EPP_EquipmentSlotType SlotType, FName NewItemID)
+void APP_PlayerCharacter::GrantWeaponAbility(EPP_EquipSlot Slot, FName NewItemID)
 {
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!IsValid(ASC))
@@ -1461,52 +1426,49 @@ void APP_PlayerCharacter::GrantWeaponAbility(EPP_EquipmentSlotType SlotType, FNa
 	}
 
 	// 第一步：移除该槽位上一次激活的 GA
-	if (const FGameplayAbilitySpecHandle* OldHandle = WeaponAbilityHandles.Find(SlotType))
+	if (const FGameplayAbilitySpecHandle* OldHandle = WeaponAbilityHandles.Find(Slot))
 	{
 		if (OldHandle->IsValid())
 		{
 			ASC->ClearAbility(*OldHandle);
-			WeaponAbilityHandles.Remove(SlotType);
+			WeaponAbilityHandles.Remove(Slot);
 		}
 	}
 
-	// 第二步：如果 NewItemID 有效 → 查 WeaponData → Give 新 GA
+	// 第二步：如果 NewItemID 有效 → 查武器配置 → Give 新 GA
 	if (NewItemID.IsNone())
 	{
 		// 卸下，到此结束
 		return;
 	}
 
-	if (!IsValid(WeaponDataTable))
+	// 唯一数据源：DT_Items 行内嵌的 WeaponConfig
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	const FPP_WeaponConfig* WeaponConfig = DataManager ? DataManager->GetWeaponConfig(NewItemID) : nullptr;
+	if (!WeaponConfig)
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] WeaponDataTable 未配置，无法给 %s 装备 GA"), *NewItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] ItemID=%s 在 DT_Items 中没有 WeaponConfig，不授予武器 GA"), *NewItemID.ToString());
 		return;
 	}
 
-	const FPP_WeaponData* WeaponRow = WeaponDataTable->FindRow<FPP_WeaponData>(NewItemID, TEXT("OnEquipmentChanged"));
-	if (!WeaponRow)
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] DT_WeaponData 中未找到 ItemID=%s"), *NewItemID.ToString());
-		return;
-	}
-
-	if (!WeaponRow->WeaponAbilityClass)
+	const TSubclassOf<UGameplayAbility> AbilityClass = WeaponConfig->WeaponAbilityClass;
+	if (!AbilityClass)
 	{
 		// 该武器未配置 GA 类，跳过（纯属性武器）
 		return;
 	}
 
 	// GiveAbility（Level 1，无 InputBinding）
-	FGameplayAbilitySpec Spec(WeaponRow->WeaponAbilityClass, 1, INDEX_NONE, this);
+	FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
 	const FGameplayAbilitySpecHandle NewHandle = ASC->GiveAbility(Spec);
 	if (NewHandle.IsValid())
 	{
-		WeaponAbilityHandles.Add(SlotType, NewHandle);
+		WeaponAbilityHandles.Add(Slot, NewHandle);
 	}
 	else
 	{
 		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] 槽 %d 装备 %s → GiveAbility 失败"),
-			static_cast<int32>(SlotType), *NewItemID.ToString());
+			static_cast<int32>(Slot), *NewItemID.ToString());
 	}
 }
 
@@ -1520,7 +1482,7 @@ void APP_PlayerCharacter::RestoreEquippedWeapon()
 	}
 
 	// 单武器槽口径：只恢复主手
-	const FName WeaponID = Inventory->GetWeaponInSlot(EPP_EquipmentSlotType::PrimaryWeapon);
+	const FName WeaponID = Inventory->GetEquippedItemID(EPP_EquipSlot::MainHand);
 	if (WeaponID.IsNone())
 	{
 		return;
@@ -1531,9 +1493,9 @@ void APP_PlayerCharacter::RestoreEquippedWeapon()
 	SetWeaponMesh(WeaponID);
 
 	// GA 只能由服务器授予；本生命周期内已授予过则跳过，避免重复实例
-	if (HasAuthority() && !WeaponAbilityHandles.Contains(EPP_EquipmentSlotType::PrimaryWeapon))
+	if (HasAuthority() && !WeaponAbilityHandles.Contains(EPP_EquipSlot::MainHand))
 	{
-		GrantWeaponAbility(EPP_EquipmentSlotType::PrimaryWeapon, WeaponID);
+		GrantWeaponAbility(EPP_EquipSlot::MainHand, WeaponID);
 	}
 }
 

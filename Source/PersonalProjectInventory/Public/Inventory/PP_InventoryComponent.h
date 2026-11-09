@@ -139,29 +139,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
 	FPP_EquippedItem GetEquippedItemInSlot(EPP_EquipSlot Slot) const;
 
-	// ===== 武器系统装备槽（EPP_EquipmentSlotType 四槽） =====
-
-	/**
-	 * 客户端请求装备武器到指定槽位
-	 * 服务器执行：替换旧装备 → 写 EquipmentSlots → 广播 PPTags.Events.Inventory.EquipmentChanged
-	 */
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|Weapon")
-	void Server_EquipWeapon(FName ItemID, EPP_EquipmentSlotType SlotType);
-
-	/**
-	 * 客户端请求从指定槽位卸下武器
-	 */
-	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|Weapon")
-	void Server_UnequipWeapon(EPP_EquipmentSlotType SlotType);
-
-	/** 获取指定武器槽位当前装备的物品ID */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Weapon")
-	FName GetWeaponInSlot(EPP_EquipmentSlotType SlotType) const;
-
-	/** 获取武器装备槽数组（共 4 槽，默认初始化） */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Weapon")
-	const TArray<FPP_EquipmentSlot>& GetEquipmentSlots() const { return EquipmentSlots; }
-
 	// ===== 货币接口 =====
 
 	/** 获取当前金币数量 */
@@ -198,9 +175,6 @@ protected:
 	void OnRep_Equipped(const TArray<FPP_EquippedItem>& OldEquipped);
 
 	UFUNCTION()
-	void OnRep_WeaponSlots(const TArray<FPP_EquipmentSlot>& OldSlots);
-
-	UFUNCTION()
 	void OnRep_Gold(int32 OldGold);
 
 	// ===== 复制属性 =====
@@ -212,10 +186,6 @@ protected:
 	/** 已装备物品列表（服务器权威） */
 	UPROPERTY(ReplicatedUsing = OnRep_Equipped, BlueprintReadOnly, Category = "Inventory")
 	TArray<FPP_EquippedItem> EquippedItems;
-
-	/** 武器系统装备槽（4 槽：PrimaryWeapon / SecondaryWeapon / Helmet / Accessory） */
-	UPROPERTY(ReplicatedUsing = OnRep_WeaponSlots, BlueprintReadOnly, Category = "Inventory|Weapon")
-	TArray<FPP_EquipmentSlot> EquipmentSlots;
 
 	/** 金币数量（服务器权威） */
 	UPROPERTY(ReplicatedUsing = OnRep_Gold, BlueprintReadOnly, Category = "Inventory")
@@ -230,17 +200,26 @@ protected:
 private:
 	// ===== 服务器内部实现 =====
 
-	/** 服务端实际执行的穿戴逻辑 */
-	void ApplyEquip(const FPP_ItemInfo& ItemInfo);
+	/** 统一装备写入口：校验 → 解析槽位 → 同槽替换 → 双写两轨 → 施加 GE → 通知 → 广播 */
+	void EquipItemInternal(FName ItemID, EPP_EquipSlot PreferredSlot);
 
-	/** 服务端实际执行的脱下逻辑，返回脱下物品的ID */
-	FName ApplyUnequip(EPP_EquipSlot Slot);
+	/** 统一卸下写入口：回包 → 移除 GE → 清两轨 → 通知 → 广播 */
+	void UnequipItemInternal(EPP_EquipSlot Slot);
 
-	/** 服务端内部：为武器槽施加 EquipEffectClass 属性效果，并记录句柄（会先移除该槽旧效果） */
-	void ApplyWeaponEffect(EPP_EquipmentSlotType SlotType, FName ItemID);
+	/** 解析最终装备槽：None 表示配置非法或与 PreferredSlot 冲突（内部已打 Warning） */
+	EPP_EquipSlot ResolveEquipSlot(const FPP_ItemInfo& ItemInfo, EPP_EquipSlot PreferredSlot) const;
 
-	/** 服务端内部：移除武器槽的属性效果 */
-	void RemoveWeaponEffect(EPP_EquipmentSlotType SlotType);
+	/** 施加 EquipEffectClass 并返回句柄（无效果类或无 ASC 时返回无效句柄） */
+	FActiveGameplayEffectHandle ApplyEquipEffect(const FPP_ItemInfo& ItemInfo);
+
+	/** 从 EquippedItems 移除指定槽（含移除 GE），不负责回包 */
+	void RemoveEquippedSlot(EPP_EquipSlot Slot);
+
+	/** 通知拥有者 Pawn（IPP_EquipmentUser）装备槽位变更 */
+	void NotifyEquipmentUser(EPP_EquipSlot Slot, FName NewItemID);
+
+	/** 查找 EquippedItems 中指定槽的 ItemID（不构造副本） */
+	FName FindEquippedItemID(EPP_EquipSlot Slot) const;
 
 	/** 服务端内部：使用消耗品逻辑（移除物品 + 施加 GE） */
 	void ApplyConsumable(const FPP_ItemInfo& ItemInfo);
@@ -259,7 +238,4 @@ private:
 
 	/** 广播金币变更事件到 EventBus */
 	void BroadcastGoldUpdatedEvent(int32 NewGold);
-
-	/** 武器槽属性 GE 句柄（仅服务器持有，无需复制） */
-	TMap<EPP_EquipmentSlotType, FActiveGameplayEffectHandle> WeaponEffectHandles;
 };
