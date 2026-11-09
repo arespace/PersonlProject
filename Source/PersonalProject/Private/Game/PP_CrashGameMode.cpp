@@ -8,6 +8,7 @@
 #include "Player/PP_PlayerState.h"
 #include "AbilitySystemComponent.h"
 #include "Quest/PP_QuestEventBridge.h"
+#include "Game/PP_EnemyRespawnManager.h"
 #include "Framework/PP_SessionManager.h"
 #include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
@@ -22,6 +23,9 @@ APP_CrashGameMode::APP_CrashGameMode()
 
 	// 任务事件桥接器组件
 	QuestEventBridge = CreateDefaultSubobject<UPP_QuestEventBridge>("QuestEventBridge");
+
+	// 敌人重生管理器（篝火休息时按半径重置敌人）
+	EnemyRespawnManager = CreateDefaultSubobject<UPP_EnemyRespawnManager>("EnemyRespawnManager");
 }
 
 void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)

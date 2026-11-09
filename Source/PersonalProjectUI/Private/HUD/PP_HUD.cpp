@@ -10,6 +10,7 @@
 #include "Widgets/PP_PauseMenuWidget.h"
 #include "Widgets/PP_DeathScreenWidget.h"
 #include "Widgets/PP_NotificationWidget.h"
+#include "Widgets/PP_SettlementWidget.h"
 #include "Quest/PP_QuestListWidget.h"
 #include "Quest/PP_QuestTrackerWidget.h"
 #include "Quest/PP_QuestQuery.h"
@@ -109,6 +110,13 @@ void APP_HUD::BeginPlay()
 			{
 				OnQuestCompletedEvent(Event);
 			});
+
+		// Boss 结算事件：HUD 负责按需创建结算 Widget（Widget 自己不在 Initialize 阶段常驻）
+		SettlementShowEventHandle = EventBus->Subscribe<FPP_SettlementShowEvent>(
+			[this](const FPP_SettlementShowEvent& Event)
+			{
+				OnSettlementShowEvent(Event);
+			});
 	}
 }
 
@@ -118,6 +126,7 @@ void APP_HUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UPP_EventBus* EventBus = UPP_EventBus::Get(this))
 	{
 		EventBus->Unsubscribe(QuestCompletedEventHandle);
+		EventBus->Unsubscribe(SettlementShowEventHandle);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -125,6 +134,25 @@ void APP_HUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void APP_HUD::OnQuestCompletedEvent(const FPP_QuestCompletedEvent& Event)
 {
 	AddNotification(FString::Printf(TEXT("任务完成：%s"), *Event.QuestName));
+}
+
+void APP_HUD::OnSettlementShowEvent(const FPP_SettlementShowEvent& Event)
+{
+	if (!SettlementWidgetClass || !PlayerOwner)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PP_HUD] 收到 Boss 结算事件，但 SettlementWidgetClass 未配置（HUD 蓝图里指定 WBP_Settlement）"));
+		return;
+	}
+
+	if (!SettlementWidget)
+	{
+		SettlementWidget = CreateWidget<UPP_SettlementWidget>(PlayerOwner, SettlementWidgetClass);
+	}
+
+	if (SettlementWidget)
+	{
+		SettlementWidget->ShowSettlement(Event);
+	}
 }
 
 void APP_HUD::DrawHUD()

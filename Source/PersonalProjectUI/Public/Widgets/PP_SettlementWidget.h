@@ -11,7 +11,7 @@ class UButton;
 
 /**
  * Boss 结算界面。
- * 订阅 FPP_SettlementShowEvent → 填入 BossName / Time / Gold → AddToViewport，
+ * 由 HUD 收到 FPP_SettlementShowEvent 后创建并调用 ShowSettlement，
  * 3 秒后或按 R 淡出 RemoveFromParent。
  */
 UCLASS()
@@ -21,6 +21,9 @@ class PERSONALPROJECTUI_API UPP_SettlementWidget : public UPP_UIUserWidget
 
 public:
 	UPP_SettlementWidget();
+
+	/** 填入结算数据并加入视口（由 HUD 的 EventBus 回调驱动） */
+	void ShowSettlement(const struct FPP_SettlementShowEvent& Event);
 
 protected:
 	virtual void NativeConstruct() override;
@@ -48,9 +51,6 @@ protected:
 	float AutoCloseTime{3.f};
 
 private:
-	/** EventBus 订阅回调：填入数据 + AddToViewport + 启动计时 */
-	void HandleSettlementShow(const struct FPP_SettlementShowEvent& Event);
-
 	/** 继续按钮绑定 */
 	UFUNCTION()
 	void OnContinueClicked();

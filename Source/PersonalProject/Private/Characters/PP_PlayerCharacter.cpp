@@ -11,7 +11,13 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Characters/PP_EnemyCharacter.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Data/PP_ItemTypes.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkeletalMeshSocket.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
@@ -52,6 +58,14 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.f);
 
 	Tags.Add(PersonalTags::Player);
+
+	// ===== 装备武器网格容器（挂在骨骼/socket 上，默认无网格） =====
+	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(GetMesh());
+	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WeaponMesh->SetGenerateOverlapEvents(false);
+	WeaponMesh->SetStaticMesh(nullptr);
+
 
 	// ===== ALS 相机组件（移自 AAlsCharacterExample） =====
 	Camera = CreateDefaultSubobject<UAlsCameraComponent>(FName{TEXTVIEW("Camera")});
@@ -166,6 +180,322 @@ UAttributeSet* APP_PlayerCharacter::GetAttributeSet() const
 	if (!IsValid(PPplayerState)) return nullptr;
 
 	return PPplayerState->GetAttributeSet();
+}
+
+// ===== 武器外观（自带烘焙武器 / 装备武器网格） =====
+
+namespace
+{
+	/** 按材质名自动识别自带武器材质槽（网格可能在 BeginPlay 之后才被角色外观逻辑替换，需惰性调用） */
+	void PP_AutoDetectWeaponMaterialSlots(USkeletalMeshComponent* SkeletalMesh, TArray<int32>& OutSlots)
+	{
+		if (!IsValid(SkeletalMesh)) return;
+
+		for (int32 MaterialIndex = 0; MaterialIndex < SkeletalMesh->GetNumMaterials(); ++MaterialIndex)
+		{
+			const UMaterialInterface* Material = SkeletalMesh->GetMaterial(MaterialIndex);
+			if (IsValid(Material) && Material->GetName().Contains(TEXT("Weapon"), ESearchCase::IgnoreCase))
+			{
+				OutSlots.Add(MaterialIndex);
+			}
+		}
+	}
+
+	/**
+	 * 把武器网格挂到 socket 上。
+	 * 配置的 socket 不存在时按 Paragon 通用挂点顺序回退（ik_hand_gun 是 Epic 给武器预留的挂点）；
+	 * 网格资产还没就绪时一个都查不到，直接返回，等下次应用外观时再挂。
+	 */
+	void PP_AttachWeaponMeshToSocket(USkeletalMeshComponent* SkeletalMesh, UStaticMeshComponent* WeaponMeshComponent,
+		FName SocketName, const FVector& RelativeLocation, const FRotator& RelativeRotation, const FVector& RelativeScale)
+	{
+		if (!IsValid(SkeletalMesh) || !IsValid(WeaponMeshComponent)) return;
+
+		FName ResolvedSocket = SocketName;
+		if (SkeletalMesh->DoesSocketExist(ResolvedSocket))
+		{
+			// 配置的挂点可用，直接使用
+		}
+		else
+		{
+			// 注意：不能声明为 static，否则 Live Coding 打补丁后不会重新初始化，仍用旧顺序
+			const FName FallbackSockets[]
+			{
+				FName{TEXTVIEW("hand_r")},
+				FName{TEXTVIEW("ik_hand_gun")},
+				FName{TEXTVIEW("weapon_r")}
+			};
+
+			// DoesSocketExist 只认 socket，不认骨骼；hand_r 这类真实手骨必须用 GetBoneIndex 判定
+			const auto IsValidAttachTarget = [SkeletalMesh](const FName& Candidate)
+			{
+				return SkeletalMesh->DoesSocketExist(Candidate) || SkeletalMesh->GetBoneIndex(Candidate) != INDEX_NONE;
+			};
+
+			ResolvedSocket = NAME_None;
+			for (const FName& Candidate : FallbackSockets)
+			{
+				if (IsValidAttachTarget(Candidate))
+				{
+					ResolvedSocket = Candidate;
+					break;
+				}
+			}
+
+			// 精确候选都不存在时，模糊匹配真实右手骨骼（排除 ik_ / VB_ 这些辅助骨骼）
+			if (ResolvedSocket.IsNone())
+			{
+				TArray<FName> BoneNames;
+				SkeletalMesh->GetBoneNames(BoneNames);
+				for (const FName& BoneName : BoneNames)
+				{
+					const FString NameStr = BoneName.ToString();
+					if (NameStr.StartsWith(TEXT("ik_"), ESearchCase::IgnoreCase) ||
+						NameStr.StartsWith(TEXT("VB_"), ESearchCase::IgnoreCase))
+					{
+						continue;
+					}
+					if (NameStr.Contains(TEXT("hand"), ESearchCase::IgnoreCase) &&
+						NameStr.EndsWith(TEXT("_r"), ESearchCase::IgnoreCase))
+					{
+						ResolvedSocket = BoneName;
+						break;
+					}
+				}
+			}
+
+			if (ResolvedSocket.IsNone())
+			{
+				UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] 骨骼上没有 socket '%s'，通用挂点也不存在（网格资产可能还没就绪），本次不挂载"),
+					*SocketName.ToString());
+				return;
+			}
+		}
+
+		WeaponMeshComponent->AttachToComponent(SkeletalMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale, ResolvedSocket);
+		// 模型枢轴与骨骼方向不一致时，用相对变换做修正
+		WeaponMeshComponent->SetRelativeLocationAndRotation(RelativeLocation, RelativeRotation);
+		WeaponMeshComponent->SetRelativeScale3D(RelativeScale);
+	}
+
+	/** 从网格资产取原始材质（不依赖运行时缓存，网格被替换后也能正确还原） */
+	UMaterialInterface* PP_GetSkeletalMeshAssetMaterial(USkeletalMeshComponent* SkeletalMesh, int32 SlotIndex)
+	{
+		if (!IsValid(SkeletalMesh)) return nullptr;
+
+		const USkeletalMesh* Asset = SkeletalMesh->GetSkeletalMeshAsset();
+		if (!IsValid(Asset)) return nullptr;
+
+		const TArray<FSkeletalMaterial>& Materials = Asset->GetMaterials();
+		return Materials.IsValidIndex(SlotIndex) ? Materials[SlotIndex].MaterialInterface.Get() : nullptr;
+	}
+}
+
+void APP_PlayerCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// 把武器网格容器挂到配置的骨骼/socket 上（蓝图里改 WeaponAttachSocketName 后运行时生效）
+	PP_AttachWeaponMeshToSocket(GetMesh(), WeaponMesh, WeaponAttachSocketName,
+		FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector);
+
+	// 未手动配置材质槽时，按材质名自动识别自带武器（M_Kwang_Weapon_Bright / M05_Weapon 等）
+	if (BuiltInWeaponMaterialSlots.Num() == 0)
+	{
+		PP_AutoDetectWeaponMaterialSlots(GetMesh(), BuiltInWeaponMaterialSlots);
+	}
+
+	// 缓存自带武器材质槽的原始材质，供后续还原
+	CachedBuiltInWeaponMaterials.Reset();
+	if (IsValid(GetMesh()))
+	{
+		for (int32 SlotIndex : BuiltInWeaponMaterialSlots)
+		{
+			CachedBuiltInWeaponMaterials.Add(GetMesh()->GetMaterial(SlotIndex));
+		}
+	}
+
+	if (bHideBuiltInWeaponOnBeginPlay)
+	{
+		SetBuiltInWeaponVisible(false);
+	}
+}
+
+void APP_PlayerCharacter::SetBuiltInWeaponVisible(bool bVisible)
+{
+	USkeletalMeshComponent* SkeletalMesh = GetMesh();
+	if (!IsValid(SkeletalMesh))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] SetBuiltInWeaponVisible(%d): 骨骼网格组件无效"), bVisible ? 1 : 0);
+		return;
+	}
+
+	// 网格可能在 BeginPlay 之后才被角色外观逻辑赋值，这里做一次惰性识别
+	if (BuiltInWeaponMaterialSlots.Num() == 0)
+	{
+		PP_AutoDetectWeaponMaterialSlots(SkeletalMesh, BuiltInWeaponMaterialSlots);
+	}
+
+	// 缓存缺失时（BeginPlay 时网格还没有材质）补录
+	if (CachedBuiltInWeaponMaterials.Num() != BuiltInWeaponMaterialSlots.Num())
+	{
+		CachedBuiltInWeaponMaterials.Reset();
+		for (int32 SlotIndex : BuiltInWeaponMaterialSlots)
+		{
+			UMaterialInterface* Material = SkeletalMesh->GetMaterial(SlotIndex);
+			// 已经是隐藏材质时不要缓存，改用网格资产里的原始材质
+			CachedBuiltInWeaponMaterials.Add(
+				Material == HiddenWeaponMaterial.Get() ? PP_GetSkeletalMeshAssetMaterial(SkeletalMesh, SlotIndex) : Material);
+		}
+	}
+
+	if (BuiltInWeaponMaterialSlots.Num() == 0)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] SetBuiltInWeaponVisible(%d): 未识别到自带武器材质槽"), bVisible ? 1 : 0);
+		return;
+	}
+
+	if (!bVisible && !IsValid(HiddenWeaponMaterial))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] HiddenWeaponMaterial 未配置，无法隐藏自带武器"));
+		return;
+	}
+
+	for (int32 Index = 0; Index < BuiltInWeaponMaterialSlots.Num(); ++Index)
+	{
+		const int32 SlotIndex = BuiltInWeaponMaterialSlots[Index];
+		UMaterialInterface* RestoreMaterial = CachedBuiltInWeaponMaterials.IsValidIndex(Index)
+			? CachedBuiltInWeaponMaterials[Index].Get()
+			: nullptr;
+
+		// 缓存拿不到时回退到网格资产自带的材质
+		if (!IsValid(RestoreMaterial))
+		{
+			RestoreMaterial = PP_GetSkeletalMeshAssetMaterial(SkeletalMesh, SlotIndex);
+		}
+
+		UMaterialInterface* AppliedMaterial = bVisible ? RestoreMaterial : HiddenWeaponMaterial.Get();
+		SkeletalMesh->SetMaterial(SlotIndex, AppliedMaterial);
+	}
+}
+
+void APP_PlayerCharacter::SetWeaponMesh(FName ItemID)
+{
+	if (!IsValid(WeaponMesh)) return;
+
+	const FPP_WeaponMeshVisual* Visual = WeaponMeshMap.Find(ItemID);
+	if (!Visual)
+	{
+		FString ExistingKeys;
+		for (const TPair<FName, FPP_WeaponMeshVisual>& Pair : WeaponMeshMap)
+		{
+			ExistingKeys += FString::Printf(TEXT("'%s' "), *Pair.Key.ToString());
+		}
+
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] WeaponMeshMap 未找到 ItemID='%s'（Map 当前 %d 条，已有键=[%s]）"),
+			*ItemID.ToString(), WeaponMeshMap.Num(), *ExistingKeys);
+		WeaponMesh->SetStaticMesh(nullptr);
+		return;
+	}
+
+	// 挂点在 BeginPlay 时可能查不到（网格资产还没就绪），这里再挂一次兜底，并应用该武器自己的变换
+	PP_AttachWeaponMeshToSocket(GetMesh(), WeaponMesh, WeaponAttachSocketName,
+		Visual->RelativeLocation, Visual->RelativeRotation, Visual->RelativeScale);
+
+	WeaponMesh->SetStaticMesh(Visual->Mesh);
+}
+
+void APP_PlayerCharacter::ClearWeaponMesh()
+{
+	if (IsValid(WeaponMesh))
+	{
+		WeaponMesh->SetStaticMesh(nullptr);
+	}
+}
+
+void APP_PlayerCharacter::DebugTogglePrimaryWeapon()
+{
+	constexpr EPP_EquipmentSlotType SlotType = EPP_EquipmentSlotType::PrimaryWeapon;
+
+	APP_PlayerState* PPPlayerState = Cast<APP_PlayerState>(GetPlayerState());
+	UPP_InventoryComponent* Inventory = IsValid(PPPlayerState) ? PPPlayerState->GetInventoryComponent() : nullptr;
+	if (!IsValid(Inventory))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponDebug] F9: 取不到 InventoryComponent，无法切换主武器"));
+		return;
+	}
+
+	const FPP_EquipmentSlot* CurrentSlot = Inventory->GetEquipmentSlots().FindByPredicate(
+		[SlotType](const FPP_EquipmentSlot& Candidate) { return Candidate.SlotType == SlotType; });
+	const FName CurrentItemID = CurrentSlot ? CurrentSlot->ItemID : NAME_None;
+
+	// 已装备 → 卸下；未装备 → 补一件再装上
+	if (!CurrentItemID.IsNone())
+	{
+		Inventory->Server_UnequipWeapon(SlotType);
+		return;
+	}
+
+	if (Inventory->GetItemCount(DebugPrimaryWeaponItemID) <= 0)
+	{
+		if (HasAuthority())
+		{
+			GrantItemToInventory(DebugPrimaryWeaponItemID, 1);
+		}
+		else
+		{
+			ServerPPAddItem(DebugPrimaryWeaponItemID, 1);
+		}
+	}
+
+	Inventory->Server_EquipWeapon(DebugPrimaryWeaponItemID, SlotType);
+}
+
+// ===== 调试命令 =====
+
+void APP_PlayerCharacter::PPAddItem(FName ItemID, int32 Count)
+{
+	if (HasAuthority())
+	{
+		GrantItemToInventory(ItemID, Count);
+		return;
+	}
+
+	// 客户端窗口执行时转发到服务器
+	ServerPPAddItem(ItemID, Count);
+}
+
+void APP_PlayerCharacter::ServerPPAddItem_Implementation(FName ItemID, int32 Count)
+{
+	GrantItemToInventory(ItemID, Count);
+}
+
+void APP_PlayerCharacter::GrantItemToInventory(FName ItemID, int32 Count)
+{
+	if (!HasAuthority())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Debug] PPAddItem: 只能在服务器执行"));
+		return;
+	}
+
+	const APP_PlayerState* PPPlayerState = Cast<APP_PlayerState>(GetPlayerState());
+	UPP_InventoryComponent* Inventory = PPPlayerState ? PPPlayerState->GetInventoryComponent() : nullptr;
+	if (!IsValid(Inventory))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Debug] PPAddItem: PlayerState 上未找到背包组件"));
+		return;
+	}
+
+	const int32 FinalCount = FMath::Max(1, Count);
+	if (Inventory->AddItem(ItemID, FinalCount))
+	{
+		UE_LOG(LogPP, Log, TEXT("[Debug] PPAddItem: 已添加 %s x%d"), *ItemID.ToString(), FinalCount);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Debug] PPAddItem: 添加 %s 失败，检查 DT_Items 是否存在该行且为装备类型"), *ItemID.ToString());
+	}
 }
 
 void APP_PlayerCharacter::PossessedBy(AController* NewController)
@@ -703,6 +1033,9 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 		{
 			Input->BindKey(LockOnKey, IE_Pressed, this, &ThisClass::Input_OnLockOn);
 		}
+
+		// 武器外观调试键：F9 切换主武器（F 已被攻击技能占用，不能复用）
+		Input->BindKey(EKeys::F9, IE_Pressed, this, &ThisClass::DebugTogglePrimaryWeapon);
 	}
 	else
 	{
@@ -1066,6 +1399,27 @@ void APP_PlayerCharacter::ReleaseLockOn()
 
 void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotType SlotType, FName NewItemID)
 {
+	// 先同步武器外观：主手枪位为空 → 露出自带武器；有武器 → 隐藏自带武器并显示对应网格
+	if (SlotType == EPP_EquipmentSlotType::PrimaryWeapon)
+	{
+		if (NewItemID.IsNone())
+		{
+			ClearWeaponMesh();
+			SetBuiltInWeaponVisible(true);
+		}
+		else
+		{
+			SetBuiltInWeaponVisible(false);
+			SetWeaponMesh(NewItemID);
+		}
+	}
+
+	// 以下只属于服务器：GA 的授予/移除必须由权威端执行（外观部分已在上方双端完成）
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!IsValid(ASC))
 	{
@@ -1080,7 +1434,6 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 		{
 			ASC->ClearAbility(*OldHandle);
 			WeaponAbilityHandles.Remove(SlotType);
-			UE_LOG(LogPP, Log, TEXT("[WeaponGA] 移除槽 %d 的旧 GA（ClearAbility 成功）"), static_cast<int32>(SlotType));
 		}
 	}
 
@@ -1088,7 +1441,6 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 	if (NewItemID.IsNone())
 	{
 		// 卸下，到此结束
-		UE_LOG(LogPP, Log, TEXT("[WeaponGA] 槽 %d 已卸下"), static_cast<int32>(SlotType));
 		return;
 	}
 
@@ -1108,7 +1460,6 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 	if (!WeaponRow->WeaponAbilityClass)
 	{
 		// 该武器未配置 GA 类，跳过（纯属性武器）
-		UE_LOG(LogPP, Log, TEXT("[WeaponGA] 武器 %s 未配置 WeaponAbilityClass，跳过 GiveAbility"), *NewItemID.ToString());
 		return;
 	}
 
@@ -1118,8 +1469,6 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 	if (NewHandle.IsValid())
 	{
 		WeaponAbilityHandles.Add(SlotType, NewHandle);
-		UE_LOG(LogPP, Log, TEXT("[WeaponGA] 槽 %d 装备 %s → GiveAbility %s 成功"),
-			static_cast<int32>(SlotType), *NewItemID.ToString(), *WeaponRow->WeaponAbilityClass->GetName());
 	}
 	else
 	{

@@ -13,9 +13,11 @@
 #include "Interfaces/PP_InteractableInterface.h"
 #include "Player/PP_PlayerState.h"
 #include "Runtime/AIModule/Classes/AIController.h"
+#include "TimerManager.h"
 #include "Net/UnrealNetwork.h"
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_CrashGameMode.h"
+#include "Game/PP_EnemyRespawnManager.h"
 #include "Framework/PP_Log.h"
 
 
@@ -82,12 +84,38 @@ void APP_EnemyCharacter::BeginPlay()
 	SpawnLocation = GetActorLocation();
 	SpawnRotation = GetActorRotation();
 
+	// 蓝图未给 AIController 挂感知组件时运行时补建，避免敌人彻底失去索敌能力
+	if (AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		if (!AIController->FindComponentByClass<UPP_AIPerceptionComponent>())
+		{
+			UPP_AIPerceptionComponent* PerceptionComponent =
+				NewObject<UPP_AIPerceptionComponent>(AIController, TEXT("PPAIPerception"));
+			PerceptionComponent->RegisterComponent();
+			PerceptionComponent->StartSearching();
+			UE_LOG(LogPP, Log, TEXT("[Enemy] %s 的 AIController 未配置 UPP_AIPerceptionComponent，已自动补建"),
+				*GetName());
+		}
+	}
+
 	if (!IsValid(GetAbilitySystemComponent())) return;
 
 	GetAbilitySystemComponent()->InitAbilityActorInfo(this,this);
 	OnASCInitialized.Broadcast(GetAbilitySystemComponent(),GetAttributeSet());
 
 	if (!HasAuthority()) return;
+
+	// 注册到重生管理器：动态生成的敌人也能被篝火休息重置
+	if (UWorld* World = GetWorld())
+	{
+		if (APP_CrashGameMode* GM = World->GetAuthGameMode<APP_CrashGameMode>())
+		{
+			if (UPP_EnemyRespawnManager* Manager = GM->GetEnemyRespawnManager())
+			{
+				Manager->RegisterEnemy(this);
+			}
+		}
+	}
 
 	GiveStartupAbilities();
 	InitializeAttributes();
@@ -106,6 +134,13 @@ void APP_EnemyCharacter::ResetToSpawn_Implementation()
 	// 1. 回到生成点
 	SetActorLocation(SpawnLocation, false, nullptr, ETeleportType::TeleportPhysics);
 	SetActorRotation(SpawnRotation);
+
+	// 1.5 取消死亡流程留下的延迟销毁并恢复可见/碰撞
+	// 死亡 GA 会 SetLifeSpan(1.0) + 隐藏；若篝火在 1 秒内重置，敌人必须撤回销毁计时，
+	// 否则会被"复活"后随即销毁。
+	SetLifeSpan(0.f);
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
 
 	// 2. 恢复 Alive
 	SetAlive(true);
@@ -143,6 +178,13 @@ void APP_EnemyCharacter::ResetToSpawn_Implementation()
 
 	// 7. 清 Ragdoll（若还在倒地状态）
 	StopRagdolling();
+
+	// 8. 清掉死亡流程留下的计时器与击飞标记，并通知索敌 GA 恢复循环
+	// 死亡时若挂过自动复活计时器，不清理会在复活后再次触发 HandleDeath。
+	GetWorldTimerManager().ClearTimer(RespawnTimerHandle);
+	bIsBeingLaunched = false;
+	LandedDelegate.RemoveAll(this);
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(this, PPTags::Events::Enemy::EndAttack, FGameplayEventData());
 }
 
 void APP_EnemyCharacter::HandleDeath()

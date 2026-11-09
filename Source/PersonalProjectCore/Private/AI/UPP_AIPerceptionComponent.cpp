@@ -18,7 +18,11 @@ UPP_AIPerceptionComponent::UPP_AIPerceptionComponent()
 void UPP_AIPerceptionComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	StartSearching();
+}
 
+void UPP_AIPerceptionComponent::StartSearching()
+{
 	AAIController* AIC = GetOwningAIController();
 	if (!AIC)
 	{
@@ -27,11 +31,12 @@ void UPP_AIPerceptionComponent::BeginPlay()
 	}
 
 	// 服务端权威搜敌（客户端不跑）
-	if (!GetOwner() || !GetOwner()->HasAuthority())
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !GetWorld())
 	{
 		return;
 	}
 
+	GetWorld()->GetTimerManager().ClearTimer(SearchTimerHandle);
 	GetWorld()->GetTimerManager().SetTimer(
 		SearchTimerHandle,
 		this,
@@ -92,7 +97,6 @@ void UPP_AIPerceptionComponent::Search()
 	if (!Pawn) return;
 
 	const FVector PerceiverLocation = Pawn->GetActorLocation();
-	const FRotator PerceiverRotation = Pawn->GetActorRotation();
 
 	// === 第一步：先检查当前目标是否仍有效（粘性 + leash）===
 	bool bCurrentStillValid = false;
@@ -101,7 +105,6 @@ void UPP_AIPerceptionComponent::Search()
 		const FVector CurrentLoc = CurrentTarget->GetActorLocation();
 		const float Dist = FVector::Dist(PerceiverLocation, CurrentLoc);
 
-		// Leash：超过 LeashRange 强制清空
 		if (Dist > LeashRange)
 		{
 			bLeashed = true;
@@ -111,37 +114,23 @@ void UPP_AIPerceptionComponent::Search()
 		else
 		{
 			bLeashed = false;
-
-			// 3D 距离
 			if (Dist <= SearchRadius)
 			{
-				// 高度差
 				const float HeightDiff = FMath::Abs(CurrentLoc.Z - PerceiverLocation.Z);
 				if (HeightDiff <= MaxHeightDiff)
 				{
-					// 视野锥
-					const FVector ToTarget = (CurrentLoc - PerceiverLocation).GetSafeNormal();
-					const FVector Forward = PerceiverRotation.Vector();
-					const float Dot = FVector::DotProduct(Forward, ToTarget);
-					const float CosHalf = FMath::Cos(FMath::DegreesToRadians(VisionHalfAngle));
-					if (Dot >= CosHalf)
+					FHitResult Hit;
+					FCollisionQueryParams Params(SCENE_QUERY_STAT(AIPerceptionSearch), false, Pawn);
+					Params.AddIgnoredActor(CurrentTarget.Get());
+					const bool bCanSee = !GetWorld()->LineTraceSingleByChannel(
+						Hit, PerceiverLocation, CurrentLoc, ECC_Visibility, Params);
+					if (bCanSee)
 					{
-						// LineTrace Visibility
-						FHitResult Hit;
-						FCollisionQueryParams Params(SCENE_QUERY_STAT(AIPerceptionSearch), false, Pawn);
-						Params.AddIgnoredActor(CurrentTarget.Get());
-						const bool bCanSee = !GetWorld()->LineTraceSingleByChannel(
-							Hit, PerceiverLocation, CurrentLoc, ECC_Visibility, Params);
-						if (bCanSee)
-						{
-							bCurrentStillValid = true;
-							LastTargetValidTime = GetWorld()->GetTimeSeconds();
-						}
+						bCurrentStillValid = true;
+						LastTargetValidTime = GetWorld()->GetTimeSeconds();
 					}
 				}
 			}
-
-			// 粘性窗口：哪怕上面某个检查没过，只要还在 0.5s 内就维持
 			if (!bCurrentStillValid)
 			{
 				const float Now = GetWorld()->GetTimeSeconds();
@@ -164,29 +153,19 @@ void UPP_AIPerceptionComponent::Search()
 	UWorld* World = GetWorld();
 	if (!World) return;
 
-	TArray<AActor*> FoundActors;
-	// PersonalTags::Player 在 PP_BaseCharacter 里定义
 	for (TActorIterator<APP_BaseCharacter> It(World); It; ++It)
 	{
 		APP_BaseCharacter* Candidate = *It;
 		if (!IsValid(Candidate) || !Candidate->IsAlive()) continue;
 
-		// 玩家才进候选池（敌人不互索）
 		if (!Candidate->ActorHasTag(PersonalTags::Player)) continue;
 
 		const FVector CandidateLoc = Candidate->GetActorLocation();
 		const float Dist = FVector::Dist(PerceiverLocation, CandidateLoc);
-
 		if (Dist > SearchRadius) continue;
 
 		const float HeightDiff = FMath::Abs(CandidateLoc.Z - PerceiverLocation.Z);
 		if (HeightDiff > MaxHeightDiff) continue;
-
-		const FVector ToTarget = (CandidateLoc - PerceiverLocation).GetSafeNormal();
-		const FVector Forward = PerceiverRotation.Vector();
-		const float Dot = FVector::DotProduct(Forward, ToTarget);
-		const float CosHalf = FMath::Cos(FMath::DegreesToRadians(VisionHalfAngle));
-		if (Dot < CosHalf) continue;
 
 		FHitResult Hit;
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(AIPerceptionSearch), false, Pawn);
@@ -197,7 +176,6 @@ void UPP_AIPerceptionComponent::Search()
 			continue;
 		}
 
-		// 取最近的
 		if (!CurrentTarget.IsValid() || Dist < FVector::Dist(PerceiverLocation, CurrentTarget->GetActorLocation()))
 		{
 			CurrentTarget = Candidate;
@@ -205,7 +183,6 @@ void UPP_AIPerceptionComponent::Search()
 		}
 	}
 
-	// 找到目标则设 AIController Focus
 	if (CurrentTarget.IsValid())
 	{
 		AIC->SetFocus(CurrentTarget.Get());
