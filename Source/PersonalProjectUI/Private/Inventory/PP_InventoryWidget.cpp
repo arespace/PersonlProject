@@ -200,6 +200,7 @@ void UPP_InventoryWidget::HandleEquipmentUpdated(const FPP_EquipmentUpdatedEvent
 	{
 		return;
 	}
+
 	RefreshEquipment();
 }
 

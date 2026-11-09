@@ -35,6 +35,9 @@ public:
 protected:
 	virtual void NativeConstruct() override;
 
+	/** 点击兜底：SlotButton 被图标/文字等子控件遮挡时，由整张卡片接收左键再转发到同一装备逻辑 */
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
 	/** 点击事件：装备物品请求穿戴；其他物品广播使用事件（暂无实现） */
 	UFUNCTION()
 	void HandleSlotClicked();

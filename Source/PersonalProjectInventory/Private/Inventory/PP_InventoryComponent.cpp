@@ -662,7 +662,6 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	}
 	if (ItemID.IsNone())
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: ItemID 无效"));
 		return;
 	}
 
@@ -673,7 +672,8 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	});
 	if (Idx == INDEX_NONE)
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 槽位 %d 不存在"), static_cast<int32>(SlotType));
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 装备槽 %d 不存在（EquipmentSlots 未初始化？共 %d 个）"),
+			static_cast<int32>(SlotType), EquipmentSlots.Num());
 		return;
 	}
 
@@ -687,14 +687,14 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	// 新武器必须先在背包里（防止凭空装备）
 	if (!HasItem(ItemID, 1))
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 背包中没有 %s，装备失败"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 背包中没有 %s，装备失败"), *ItemID.ToString());
 		return;
 	}
 
 	// 新武器出背包
 	if (!RemoveItem(ItemID, 1))
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 扣减背包 %s 失败"), *ItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 扣减背包 %s 失败"), *ItemID.ToString());
 		return;
 	}
 
@@ -703,7 +703,7 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	{
 		// 背包已满：把新武器还回背包，取消换装，避免物品凭空消失
 		AddItem(ItemID, 1);
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] EquipWeapon: 背包已满，无法收回旧武器 %s，换装取消"), *OldItemID.ToString());
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 背包已满，无法收回旧武器 %s，换装取消"), *OldItemID.ToString());
 		return;
 	}
 
@@ -723,6 +723,10 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	{
 		IPP_EquipmentUser::Execute_OnEquipmentChanged(NotifyTarget, SlotType, ItemID);
 	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 未找到装备使用者 Actor（Pawn 为空或未实现 IPP_EquipmentUser），外观/技能不会切换"));
+	}
 }
 
 void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSlotType SlotType)
@@ -738,7 +742,7 @@ void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSl
 	});
 	if (Idx == INDEX_NONE)
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] UnequipWeapon: 槽位 %d 不存在"), static_cast<int32>(SlotType));
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 卸下失败：槽位 %d 不存在"), static_cast<int32>(SlotType));
 		return;
 	}
 

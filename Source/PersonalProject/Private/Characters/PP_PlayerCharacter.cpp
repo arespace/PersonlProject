@@ -381,19 +381,18 @@ void APP_PlayerCharacter::SetBuiltInWeaponVisible(bool bVisible)
 
 void APP_PlayerCharacter::SetWeaponMesh(FName ItemID)
 {
-	if (!IsValid(WeaponMesh)) return;
+	if (!IsValid(WeaponMesh))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] WeaponMesh 组件无效（蓝图未添加 StaticMeshComponent 或已被清空），无法显示 %s"),
+			*ItemID.ToString());
+		return;
+	}
 
 	const FPP_WeaponMeshVisual* Visual = WeaponMeshMap.Find(ItemID);
 	if (!Visual)
 	{
-		FString ExistingKeys;
-		for (const TPair<FName, FPP_WeaponMeshVisual>& Pair : WeaponMeshMap)
-		{
-			ExistingKeys += FString::Printf(TEXT("'%s' "), *Pair.Key.ToString());
-		}
-
-		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] WeaponMeshMap 未找到 ItemID='%s'（Map 当前 %d 条，已有键=[%s]）"),
-			*ItemID.ToString(), WeaponMeshMap.Num(), *ExistingKeys);
+		UE_LOG(LogPP, Warning, TEXT("[WeaponVisual] WeaponMeshMap 未找到 ItemID='%s'（Map 当前 %d 条）"),
+			*ItemID.ToString(), WeaponMeshMap.Num());
 		WeaponMesh->SetStaticMesh(nullptr);
 		return;
 	}
