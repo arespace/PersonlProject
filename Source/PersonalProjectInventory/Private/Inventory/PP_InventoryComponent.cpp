@@ -305,6 +305,59 @@ FName UPP_InventoryComponent::GetEquippedItemID(EPP_EquipSlot Slot) const
 	return GetEquippedItemInSlot(Slot).ItemID;
 }
 
+void UPP_InventoryComponent::ApplyWeaponEffect(EPP_EquipmentSlotType SlotType, FName ItemID)
+{
+	// 换装时先移除该槽位上一把武器的属性效果，避免叠加
+	RemoveWeaponEffect(SlotType);
+
+	const FPP_ItemInfo* ItemInfo = FindItemInfo(ItemID);
+	if (!ItemInfo || !ItemInfo->EquipEffectClass)
+	{
+		// 武器未配置属性效果（纯技能武器）属正常情况
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
+	if (!IsValid(ASC))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 槽 %d 装备 %s：ASC 无效，属性效果未施加"),
+			static_cast<int32>(SlotType), *ItemID.ToString());
+		return;
+	}
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(GetOwner());
+	const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(ItemInfo->EquipEffectClass, 1.0f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[WeaponEquip] 槽 %d 装备 %s：EquipEffectClass 无法生成 Spec"),
+			static_cast<int32>(SlotType), *ItemID.ToString());
+		return;
+	}
+
+	const FActiveGameplayEffectHandle Handle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	if (Handle.IsValid())
+	{
+		WeaponEffectHandles.Add(SlotType, Handle);
+		UE_LOG(LogPP, Log, TEXT("[WeaponEquip] 槽 %d 装备 %s：属性效果已施加"),
+			static_cast<int32>(SlotType), *ItemID.ToString());
+	}
+}
+
+void UPP_InventoryComponent::RemoveWeaponEffect(EPP_EquipmentSlotType SlotType)
+{
+	FActiveGameplayEffectHandle Handle;
+	if (!WeaponEffectHandles.RemoveAndCopyValue(SlotType, Handle) || !Handle.IsValid())
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+	{
+		ASC->RemoveActiveGameplayEffect(Handle);
+	}
+}
+
 UAbilitySystemComponent* UPP_InventoryComponent::GetOwningAbilitySystemComponent() const
 {
 	// 优先从挂载的 PlayerState 获取
@@ -657,6 +710,9 @@ void UPP_InventoryComponent::Server_EquipWeapon_Implementation(FName ItemID, EPP
 	// 更新槽位
 	EquipmentSlots[Idx].ItemID = ItemID;
 
+	// 施加武器属性效果（旧效果在 ApplyWeaponEffect 内部移除）
+	ApplyWeaponEffect(SlotType, ItemID);
+
 	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_WeaponSlots）
 	BroadcastEquipmentUpdatedEvent();
 
@@ -700,6 +756,9 @@ void UPP_InventoryComponent::Server_UnequipWeapon_Implementation(EPP_EquipmentSl
 	}
 
 	EquipmentSlots[Idx].ItemID = NAME_None;
+
+	// 移除武器属性效果
+	RemoveWeaponEffect(SlotType);
 
 	// 通知 UI 刷新装备栏（服务端不会触发 OnRep_WeaponSlots）
 	BroadcastEquipmentUpdatedEvent();

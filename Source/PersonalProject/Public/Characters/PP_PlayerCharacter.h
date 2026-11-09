@@ -358,6 +358,12 @@ private:
 	void GrantItemToInventory(FName ItemID, int32 Count);
 
 private:
+	/** 按 PlayerState 上已复制的武器槽恢复外观与（服务端）武器 GA，用于出生 / 复活 / 重连 */
+	void RestoreEquippedWeapon();
+
+	/** 授予/替换某武器槽对应的 GA（仅服务器调用；会先移除该槽上一次授予的 GA） */
+	void GrantWeaponAbility(EPP_EquipmentSlotType SlotType, FName NewItemID);
+
 	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除） */
 	TMap<EPP_EquipmentSlotType, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
 

@@ -511,6 +511,9 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 	GiveStartupAbilities();
 	InitializeAttributes();
 
+	// 恢复 PlayerState 上已复制的武器状态（复活 / 重新进入关卡）
+	RestoreEquippedWeapon();
+
 	UPP_AttributeSet* PP_AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
 	if (!IsValid(PP_AttributeSet)) return;
 
@@ -536,6 +539,9 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 
 	GetAbilitySystemComponent()->InitAbilityActorInfo(GetPlayerState(), this);
 	OnASCInitialized.Broadcast(GetAbilitySystemComponent(), GetAttributeSet());
+
+	// 客户端按已复制的武器槽恢复外观（GA 由服务端授予并复制）
+	RestoreEquippedWeapon();
 
 	UPP_AttributeSet* PP_AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
 	if (!IsValid(PP_AttributeSet)) return;
@@ -1443,10 +1449,15 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 		return;
 	}
 
+	GrantWeaponAbility(SlotType, NewItemID);
+}
+
+void APP_PlayerCharacter::GrantWeaponAbility(EPP_EquipmentSlotType SlotType, FName NewItemID)
+{
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!IsValid(ASC))
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] OnEquipmentChanged: ASC 无效，无法切换武器 GA"));
+		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] GrantWeaponAbility: ASC 无效，无法切换武器 GA"));
 		return;
 	}
 
@@ -1497,6 +1508,33 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipmentSlotTyp
 	{
 		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] 槽 %d 装备 %s → GiveAbility 失败"),
 			static_cast<int32>(SlotType), *NewItemID.ToString());
+	}
+}
+
+void APP_PlayerCharacter::RestoreEquippedWeapon()
+{
+	APP_PlayerState* PPPlayerState = Cast<APP_PlayerState>(GetPlayerState());
+	UPP_InventoryComponent* Inventory = IsValid(PPPlayerState) ? PPPlayerState->GetInventoryComponent() : nullptr;
+	if (!IsValid(Inventory))
+	{
+		return;
+	}
+
+	// 单武器槽口径：只恢复主手
+	const FName WeaponID = Inventory->GetWeaponInSlot(EPP_EquipmentSlotType::PrimaryWeapon);
+	if (WeaponID.IsNone())
+	{
+		return;
+	}
+
+	// 外观双端恢复（SetStaticMesh 不复制，客户端必须自己补一次）
+	SetBuiltInWeaponVisible(false);
+	SetWeaponMesh(WeaponID);
+
+	// GA 只能由服务器授予；本生命周期内已授予过则跳过，避免重复实例
+	if (HasAuthority() && !WeaponAbilityHandles.Contains(EPP_EquipmentSlotType::PrimaryWeapon))
+	{
+		GrantWeaponAbility(EPP_EquipmentSlotType::PrimaryWeapon, WeaponID);
 	}
 }
 

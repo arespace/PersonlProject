@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "GameplayEffectTypes.h"
 #include "Data/PP_ItemData.h"
 #include "Data/PP_ItemTypes.h"
 #include "Query/PP_InventoryQuery.h"
@@ -235,6 +236,12 @@ private:
 	/** 服务端实际执行的脱下逻辑，返回脱下物品的ID */
 	FName ApplyUnequip(EPP_EquipSlot Slot);
 
+	/** 服务端内部：为武器槽施加 EquipEffectClass 属性效果，并记录句柄（会先移除该槽旧效果） */
+	void ApplyWeaponEffect(EPP_EquipmentSlotType SlotType, FName ItemID);
+
+	/** 服务端内部：移除武器槽的属性效果 */
+	void RemoveWeaponEffect(EPP_EquipmentSlotType SlotType);
+
 	/** 服务端内部：使用消耗品逻辑（移除物品 + 施加 GE） */
 	void ApplyConsumable(const FPP_ItemInfo& ItemInfo);
 
@@ -252,4 +259,7 @@ private:
 
 	/** 广播金币变更事件到 EventBus */
 	void BroadcastGoldUpdatedEvent(int32 NewGold);
+
+	/** 武器槽属性 GE 句柄（仅服务器持有，无需复制） */
+	TMap<EPP_EquipmentSlotType, FActiveGameplayEffectHandle> WeaponEffectHandles;
 };
