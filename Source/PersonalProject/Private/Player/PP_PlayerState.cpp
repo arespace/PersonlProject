@@ -1,4 +1,4 @@
-﻿// Chen Tianbao uses GAS to create online battle games
+// Chen Tianbao uses GAS to create online battle games
 
 
 #include "Player/PP_PlayerState.h"
@@ -38,5 +38,18 @@ void APP_PlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APP_PlayerState, SelectedCharacterId);
+	DOREPLIFETIME(APP_PlayerState, bHasCheckpoint);
+	DOREPLIFETIME(APP_PlayerState, CheckpointTransform);
 	// InventoryComponent 通过组件自身的复制机制同步内部状态，组件指针本身随 PlayerState 自动复制，无需在此再 DOREPLIFETIME
+}
+
+void APP_PlayerState::SetCheckpoint(const FTransform& InTransform)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	CheckpointTransform = InTransform;
+	bHasCheckpoint = true;
 }

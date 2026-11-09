@@ -155,11 +155,22 @@ void APP_CrashGameMode::GrantAbilitiesForCharacter(APP_PlayerState* PS)
 	{
 		for (const auto& AbilityClass : AbilityList->Abilities)
 		{
-			if (AbilityClass)
+			if (!AbilityClass)
 			{
-				FGameplayAbilitySpec AbilitySpec(AbilityClass, 1);
-				ASC->GiveAbility(AbilitySpec);
+				continue;
 			}
+
+			// 去重：角色的 StartupAbilities 可能已经授予过同一个技能，
+			// 重复授予会让一次按键激活多份实例（日志"匹配能力数=2"），体力被多扣。
+			if (ASC->FindAbilitySpecFromClass(AbilityClass))
+			{
+				UE_LOG(LogPP, Warning, TEXT("[PP_Skill] 跳过重复授予(GameMode): %s 已存在"),
+					*AbilityClass->GetName());
+				continue;
+			}
+
+			FGameplayAbilitySpec AbilitySpec(AbilityClass, 1);
+			ASC->GiveAbility(AbilitySpec);
 		}
 	}
 

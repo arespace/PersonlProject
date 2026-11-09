@@ -6,6 +6,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystem/PP_AttributeSet.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
 #include "Characters/PP_BaseCharacter.h"
@@ -19,6 +20,7 @@
 #include "Dialogue/PP_NPCActor.h"
 #include "Data/PP_DialogueData.h"
 #include "Gather/PP_GatherableActor.h"
+#include "GameObjects/PP_BonfireActor.h"
 #include "Interaction/PP_InteractableInterface.h"
 #include "Shop/PP_ShopComponent.h"
 #include "Inventory/PP_InventoryComponent.h"
@@ -63,6 +65,11 @@ void APP_PlayerController::SetupInputComponent()
 	EnhancedInputComponent->BindAction(TertiaryAction,ETriggerEvent::Started,this,&ThisClass::Tertiary);
 	EnhancedInputComponent->BindAction(FourthAction, ETriggerEvent::Started, this, &ThisClass::Fourth);
 	EnhancedInputComponent->BindAction(FifthAction, ETriggerEvent::Started, this, &ThisClass::Fifth);
+
+	// 排错：IA 资产若为空，BindAction 会静默失败，技能按键完全不会进 ActivateAbility
+	UE_LOG(LogPP, Log, TEXT("[PP_Skill] 技能按键绑定: 主=%s 次=%s 三=%s 四=%s 五=%s"),
+		*GetNameSafe(PrimaryAction), *GetNameSafe(SecondaryAction), *GetNameSafe(TertiaryAction),
+		*GetNameSafe(FourthAction), *GetNameSafe(FifthAction));
 	
 	// UI输入绑定
 	if (PauseAction)
@@ -165,11 +172,71 @@ void APP_PlayerController::Fifth()
 
 void APP_PlayerController::ActivateAbility(const FGameplayTag& AbilityTag) const
 {
-	if (!IsAlive()) return;
+	APP_BaseCharacter* BaseCharacter = Cast<APP_BaseCharacter>(GetPawn());
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetPawn());
-	if (!IsValid(ASC)) return;
-	
-	ASC->TryActivateAbilitiesByTag(AbilityTag.GetSingleTagContainer());
+
+	FGameplayTagContainer OwnedTags;
+	if (IsValid(ASC))
+	{
+		ASC->GetOwnedGameplayTags(OwnedTags);
+	}
+
+	const UPP_AttributeSet* AttributeSet = IsValid(ASC) ? ASC->GetSet<UPP_AttributeSet>() : nullptr;
+
+	// 排错：技能按键入口把拦截条件（存活/Dead 标签/ASC/控制权/体力/激活抑制）全部输出
+	UE_LOG(LogPP, Warning,
+		TEXT("[PP_Skill] 按键: 能力=%s 存活=%d bAlive=%d DeadTag=%d 本地控制=%d LocalRole=%d 体力=%.1f/%.1f 抑制=%d Pawn=%s ASC=%s 拥有标签=[%s]"),
+		*AbilityTag.ToString(), IsAlive() ? 1 : 0,
+		BaseCharacter ? (BaseCharacter->IsAlive() ? 1 : 0) : -1,
+		(IsValid(ASC) && ASC->HasMatchingGameplayTag(PPTags::Status::Dead)) ? 1 : 0,
+		IsLocalController() ? 1 : 0, static_cast<int32>(GetLocalRole()),
+		AttributeSet ? AttributeSet->GetStamina() : -1.f,
+		AttributeSet ? AttributeSet->GetMaxStamina() : -1.f,
+		(IsValid(ASC) && ASC->GetUserAbilityActivationInhibited()) ? 1 : 0,
+		*GetNameSafe(GetPawn()), *GetNameSafe(ASC), *OwnedTags.ToStringSimple());
+
+	if (!IsAlive())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Skill] 未能释放：IsAlive 为 false（角色=%s）"), *GetNameSafe(BaseCharacter));
+		return;
+	}
+	if (!IsValid(ASC))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Skill] 未能释放：ASC 无效（Pawn=%s）"), *GetNameSafe(GetPawn()));
+		return;
+	}
+
+	// 排错：无论成功与否都打印匹配到的能力数量。大于 1 说明同一技能被重复授予，
+	// 一次按键会激活多份实例、多扣体力。
+	TArray<FGameplayAbilitySpec*> MatchingSpecs;
+	ASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(
+		AbilityTag.GetSingleTagContainer(), MatchingSpecs, false);
+	UE_LOG(LogPP, Warning, TEXT("[PP_Skill] 匹配能力数=%d"), MatchingSpecs.Num());
+
+	const bool bActivated = ASC->TryActivateAbilitiesByTag(AbilityTag.GetSingleTagContainer());
+
+	if (!bActivated)
+	{
+		// 排错：列出所有匹配该标签的能力，并给出 CanActivateAbility 的失败原因标签
+		for (FGameplayAbilitySpec* Spec : MatchingSpecs)
+		{
+			FGameplayTagContainer FailureTags;
+			const bool bCanActivate = Spec && Spec->Ability && ASC->AbilityActorInfo.IsValid()
+				&& Spec->Ability->CanActivateAbility(
+					Spec->Handle, ASC->AbilityActorInfo.Get(), nullptr, nullptr, &FailureTags);
+
+			UE_LOG(LogPP, Warning,
+				TEXT("[PP_Skill]   能力=%s CanActivate=%d 失败原因=[%s] 激活中=%d 实例=%s"),
+				*GetNameSafe(Spec ? Spec->Ability : nullptr), bCanActivate ? 1 : 0,
+				*FailureTags.ToStringSimple(), Spec ? Spec->ActiveCount : -1,
+				*GetNameSafe(Spec ? Spec->GetPrimaryInstance() : nullptr));
+		}
+	}
+
+	UE_LOG(LogPP, Warning, TEXT("[PP_Skill] 激活结果: %s → %s 体力后=%.1f/%.1f"),
+		*AbilityTag.ToString(), bActivated ? TEXT("成功") : TEXT("失败"),
+		AttributeSet ? AttributeSet->GetStamina() : -1.f,
+		AttributeSet ? AttributeSet->GetMaxStamina() : -1.f);
 }
 
 bool APP_PlayerController::IsAlive() const
@@ -199,6 +266,14 @@ void APP_PlayerController::HideScoreboard()
 void APP_PlayerController::ToggleHUD()
 {
 	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestToggleMainHUD);
+}
+
+void APP_PlayerController::ServerInteractBonfire_Implementation(APP_BonfireActor* Bonfire)
+{
+	if (IsValid(Bonfire))
+	{
+		Bonfire->Rest(this);
+	}
 }
 
 void APP_PlayerController::Server_SendChatMessage_Implementation(const FString& Message)
@@ -238,6 +313,13 @@ void APP_PlayerController::Client_ReceiveChatMessage_Implementation(const FStrin
 }
 
 void APP_PlayerController::Client_NotifyQuestMessage_Implementation(const FString& Message)
+{
+	if (!IsLocalController()) return;
+
+	ForwardToUIGateway(&IPP_UIGateway::Execute_PushNotification, Message);
+}
+
+void APP_PlayerController::Client_NotifyMessage_Implementation(const FString& Message)
 {
 	if (!IsLocalController()) return;
 
@@ -536,14 +618,14 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 
 void APP_PlayerController::Interact()
 {
-	UE_LOG(LogPP, Verbose, TEXT("[PlayerController] Interact called"));
+	UE_LOG(LogPP, Log, TEXT("[PP_Interact] 按下交互键，开始相机射线检测"));
 	if (!IsLocalController()) return;
 
-	// 从相机前方做线性 trace 寻找 NPC
+	// 从相机前方做线性 trace 寻找可交互对象
 	APlayerCameraManager* CamMgr = PlayerCameraManager;
 	if (!CamMgr)
 	{
-		UE_LOG(LogPP, Warning, TEXT("[PlayerController] Interact - No CameraManager"));
+		UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 没有 PlayerCameraManager"));
 		return;
 	}
 
@@ -557,23 +639,29 @@ void APP_PlayerController::Interact()
 	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
 	if (!bHit)
 	{
-		UE_LOG(LogPP, Verbose, TEXT("[PlayerController] Interact - No hit on Visibility channel"));
+		UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 相机射线未命中任何物体（距离 %.0f cm）"), InteractTraceDistance);
 		return;
 	}
 
-	UE_LOG(LogPP, Verbose, TEXT("[PlayerController] Interact - Hit: %s"), *Hit.GetActor()->GetName());
+	UE_LOG(LogPP, Log, TEXT("[PP_Interact] 命中: %s（组件 %s）"),
+		*GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent()));
 
-	// 通过交互接口统一处理，无需关心具体类型（NPC/采集物/宝箱等）
+	// 通过交互接口统一处理，无需关心具体类型（NPC/采集物/篝火等）
 	if (IPP_Interactable* Interactable = Cast<IPP_Interactable>(Hit.GetActor()))
 	{
 		if (Interactable->CanInteract(this))
 		{
 			Interactable->Interact(this);
 		}
+		else
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 命中的 %s 当前不可交互"), *GetNameSafe(Hit.GetActor()));
+		}
 		return;
 	}
 
-	UE_LOG(LogPP, Warning, TEXT("[PlayerController] Interact - Unknown actor class=%s name=%s"), *Hit.GetActor()->GetClass()->GetName(), *Hit.GetActor()->GetName());
+	UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 命中的 Actor 没有实现交互接口: class=%s name=%s"),
+		*Hit.GetActor()->GetClass()->GetName(), *Hit.GetActor()->GetName());
 }
 
 void APP_PlayerController::Server_InteractGather_Implementation(APP_GatherableActor* Target)

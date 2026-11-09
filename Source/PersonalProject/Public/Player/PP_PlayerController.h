@@ -17,6 +17,7 @@ class UInputMappingContext;
 class UInputAction;
 class APP_NPCActor;
 class APP_GatherableActor;
+class APP_BonfireActor;
 struct FInputActionValue;
 struct FGameplayTag;
 struct FLobbyPlayerInfo;
@@ -47,6 +48,10 @@ protected:
 
 public:
 	// ===== 网络RPC =====
+
+	/** 客户端请求在篝火休息（篝火 Actor 无 owning connection，Server RPC 必须由 PC 发） */
+	UFUNCTION(Server, Reliable)
+	void ServerInteractBonfire(APP_BonfireActor* Bonfire);
 
 	/** 服务器发送聊天消息 */
 	UFUNCTION(Server, Reliable)
@@ -146,6 +151,10 @@ public:
 	 */
 	UFUNCTION(Client, Reliable, Category = "Quest")
 	void Client_NotifyQuestMessage(const FString& Message);
+
+	/** 通用通知：服务器向玩家推送一条 HUD 通知（篝火休息、拾回魂等） */
+	UFUNCTION(Client, Reliable, BlueprintCallable, Category = "PP|UI")
+	void Client_NotifyMessage(const FString& Message);
 
 	/**
 	 * 交互按键入口：从相机前方做 trace 寻找 APP_NPCActor，若命中则调用其 Interact

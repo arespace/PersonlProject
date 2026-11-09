@@ -25,6 +25,7 @@
 #include "Engine/GameInstance.h"
 #include "Framework/PP_EventBus.h"
 #include "Framework/PP_EventTypes.h"
+#include "Characters/PP_PlayerCharacter.h"
 #include "Utils/PP_BlueprintLibrary.h"
 
 APP_HUD::APP_HUD()
@@ -118,6 +119,58 @@ void APP_HUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void APP_HUD::OnQuestCompletedEvent(const FPP_QuestCompletedEvent& Event)
 {
 	AddNotification(FString::Printf(TEXT("任务完成：%s"), *Event.QuestName));
+}
+
+void APP_HUD::DrawHUD()
+{
+	Super::DrawHUD();
+
+	if (!Canvas || !PlayerOwner)
+	{
+		return;
+	}
+
+	APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(PlayerOwner->GetPawn());
+	if (!PlayerCharacter || !PlayerCharacter->IsLockedOn())
+	{
+		return;
+	}
+
+	FVector2D ScreenPosition;
+	if (!PlayerOwner->ProjectWorldLocationToScreen(PlayerCharacter->GetLockOnFocusLocation(), ScreenPosition, true))
+	{
+		return;
+	}
+
+	// 锁定标记：目标位置的四个角括号 + 中心菱形
+	constexpr float Radius = 14.f;
+	constexpr float ArmLength = 9.f;
+	constexpr float Thickness = 2.f;
+	const FLinearColor MarkerColor{1.f, 0.82f, 0.25f, 1.f};
+
+	// 左上
+	DrawLine(ScreenPosition.X - Radius, ScreenPosition.Y - Radius,
+	         ScreenPosition.X - Radius + ArmLength, ScreenPosition.Y - Radius, MarkerColor, Thickness);
+	DrawLine(ScreenPosition.X - Radius, ScreenPosition.Y - Radius,
+	         ScreenPosition.X - Radius, ScreenPosition.Y - Radius + ArmLength, MarkerColor, Thickness);
+
+	// 右上
+	DrawLine(ScreenPosition.X + Radius, ScreenPosition.Y - Radius,
+	         ScreenPosition.X + Radius - ArmLength, ScreenPosition.Y - Radius, MarkerColor, Thickness);
+	DrawLine(ScreenPosition.X + Radius, ScreenPosition.Y - Radius,
+	         ScreenPosition.X + Radius, ScreenPosition.Y - Radius + ArmLength, MarkerColor, Thickness);
+
+	// 左下
+	DrawLine(ScreenPosition.X - Radius, ScreenPosition.Y + Radius,
+	         ScreenPosition.X - Radius + ArmLength, ScreenPosition.Y + Radius, MarkerColor, Thickness);
+	DrawLine(ScreenPosition.X - Radius, ScreenPosition.Y + Radius,
+	         ScreenPosition.X - Radius, ScreenPosition.Y + Radius - ArmLength, MarkerColor, Thickness);
+
+	// 右下
+	DrawLine(ScreenPosition.X + Radius, ScreenPosition.Y + Radius,
+	         ScreenPosition.X + Radius - ArmLength, ScreenPosition.Y + Radius, MarkerColor, Thickness);
+	DrawLine(ScreenPosition.X + Radius, ScreenPosition.Y + Radius,
+	         ScreenPosition.X + Radius, ScreenPosition.Y + Radius - ArmLength, MarkerColor, Thickness);
 }
 
 void APP_HUD::InitializeViewModel()
