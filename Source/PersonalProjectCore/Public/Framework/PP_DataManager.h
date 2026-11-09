@@ -43,6 +43,12 @@ public:
 	/** 按 ItemID（= 行名）查找物品配置，行缺失不告警（沿用原 Inventory 查询行为） */
 	const FPP_ItemInfo* GetItemInfo(FName ItemID);
 
+	/**
+	 * 按 ItemID 查找武器配置（物品行内嵌的 FPP_WeaponConfig）。
+	 * 非装备、非主手/副手、或配置全空（旧数据）时返回 nullptr，调用方应回退到旧路径。
+	 */
+	const FPP_WeaponConfig* GetWeaponConfig(FName ItemID);
+
 	/** 按 QuestID（= 行名）查找任务配置，行缺失告警（沿用原 Quest 查询行为） */
 	const FPP_QuestInfo* GetQuestInfo(FName QuestID);
 
