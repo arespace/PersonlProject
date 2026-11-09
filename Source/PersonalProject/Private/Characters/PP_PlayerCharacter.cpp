@@ -71,6 +71,9 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 	Camera->SetupAttachment(GetMesh());
 	Camera->SetRelativeRotation_Direct({0.0f, 90.0f, 0.0f});
 
+	// ===== 锁定组件 =====
+	LockOnComponent = CreateDefaultSubobject<UPP_LockOnComponent>(TEXT("LockOnComponent"));
+
 	// ===== ALS 输入资产兜底（改父类后蓝图配置会被清空） =====
 	static ConstructorHelpers::FObjectFinder<UInputMappingContext> DefaultInputMappingContext(
 		TEXT("/ALS/ALS/Data/Input/IMC_Als_Default.IMC_Als_Default"));
@@ -319,6 +322,15 @@ void APP_PlayerCharacter::BeginPlay()
 	{
 		SetBuiltInWeaponVisible(false);
 	}
+
+	// ===== 锁定参数迁移：把角色上旧属性的非默认值灌入组件（过渡期） =====
+	if (LockOnComponent &&
+		LockOnComponent->ApplyLegacySettings(LockOnSearchRadius, LockOnBreakDistance, LockOnMaxScreenAngle,
+		                                     LockOnCameraInterpolationSpeed, LockOnFocusHeight))
+	{
+		UE_LOG(LogPP, Warning,
+			TEXT("[LockOn] 检测到角色蓝图里的旧锁定参数，已迁移到 LockOnComponent；请核对组件参数并清理旧值"));
+	}
 }
 
 void APP_PlayerCharacter::SetBuiltInWeaponVisible(bool bVisible)
@@ -544,7 +556,10 @@ void APP_PlayerCharacter::Tick(float DeltaTime)
 	}
 
 	// 在 ALS Tick 之前更新相机朝向，保证同一帧的视角/角色旋转直接使用锁定方向
-	UpdateLockOn(DeltaTime);
+	if (LockOnComponent)
+	{
+		LockOnComponent->UpdateLockOn(DeltaTime);
+	}
 
 	Super::Tick(DeltaTime);
 
@@ -1202,190 +1217,19 @@ void APP_PlayerCharacter::Input_OnSwitchShoulder()
 	Camera->SetRightShoulder(!Camera->IsRightShoulder());
 }
 
-// ===== 锁定系统 =====
+// ===== 锁定系统（逻辑在 UPP_LockOnComponent，这里只保留转发） =====
 
 void APP_PlayerCharacter::Input_OnLockOn()
 {
-	ToggleLockOn();
-}
-
-void APP_PlayerCharacter::ToggleLockOn()
-{
-	if (!IsLocallyControlled())
+	if (LockOnComponent)
 	{
-		return;
-	}
-
-	if (!IsAlive())
-	{
-		ReleaseLockOn();
-		return;
-	}
-
-	// 已有锁定则解锁
-	if (LockOnTarget.IsValid())
-	{
-		ReleaseLockOn();
-		return;
-	}
-
-	if (AActor* Found = FindLockOnTarget())
-	{
-		LockOnTarget = Found;
-		PreLockOnRotationMode = GetDesiredRotationMode();
-
-		// Aiming 旋转模式让角色在静止时也朝向视角（即目标），
-		// 移动时则保持下半身朝目标、可横向绕圈。
-		SetDesiredRotationMode(AlsRotationModeTags::Aiming);
-
-		UE_LOG(LogPP, Log, TEXT("[LockOn] 锁定目标: %s"), *Found->GetName());
+		LockOnComponent->ToggleLockOn();
 	}
 }
 
 FVector APP_PlayerCharacter::GetLockOnFocusLocation() const
 {
-	const AActor* Target = LockOnTarget.Get();
-	return IsValid(Target)
-		       ? Target->GetActorLocation() + FVector(0.f, 0.f, LockOnFocusHeight)
-		       : FVector::ZeroVector;
-}
-
-bool APP_PlayerCharacter::IsLockOnTargetValid(const AActor* Target) const
-{
-	if (!IsValid(Target))
-	{
-		return false;
-	}
-
-	const APP_BaseCharacter* TargetCharacter = Cast<APP_BaseCharacter>(Target);
-	if (!TargetCharacter || !TargetCharacter->IsAlive())
-	{
-		return false;
-	}
-
-	return FVector::DistSquared(GetActorLocation(), Target->GetActorLocation())
-		<= FMath::Square(LockOnBreakDistance);
-}
-
-AActor* APP_PlayerCharacter::FindLockOnTarget()
-{
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!IsValid(PC) || !IsValid(PC->PlayerCameraManager))
-	{
-		return nullptr;
-	}
-
-	const FVector CameraLocation = PC->PlayerCameraManager->GetCameraLocation();
-	const FVector CameraForward = PC->PlayerCameraManager->GetCameraRotation().Vector();
-	const float MinDot = FMath::Cos(FMath::DegreesToRadians(LockOnMaxScreenAngle));
-
-	AActor* BestTarget = nullptr;
-	float BestScore = TNumericLimits<float>::Max();
-
-	for (TActorIterator<APP_EnemyCharacter> It(GetWorld()); It; ++It)
-	{
-		APP_EnemyCharacter* Enemy = *It;
-		if (!IsValid(Enemy) || !Enemy->IsAlive() || Enemy->IsHidden())
-		{
-			continue;
-		}
-
-		const float Distance = FVector::Dist(GetActorLocation(), Enemy->GetActorLocation());
-		if (Distance > LockOnSearchRadius)
-		{
-			continue;
-		}
-
-		const FVector FocusLocation = Enemy->GetActorLocation() + FVector(0.f, 0.f, LockOnFocusHeight);
-		const FVector ToTarget = FocusLocation - CameraLocation;
-		const float Dot = FVector::DotProduct(CameraForward, ToTarget.GetSafeNormal());
-		if (Dot < MinDot)
-		{
-			continue;
-		}
-
-		// 视线校验：忽略自身与目标本身，任何遮挡都视为不可见
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(PP_LockOnTrace), false, this);
-		Params.AddIgnoredActor(this);
-		Params.AddIgnoredActor(Enemy);
-
-		FHitResult Hit;
-		if (GetWorld()->LineTraceSingleByChannel(Hit, CameraLocation, FocusLocation, ECC_Visibility, Params))
-		{
-			continue;
-		}
-
-		// 综合距离与屏幕角度：越近、越靠近画面中心分越高
-		const float AnglePenalty = FMath::Acos(FMath::Clamp(Dot, -1.f, 1.f)) / PI;
-		const float Score = Distance / LockOnSearchRadius + AnglePenalty;
-		if (Score < BestScore)
-		{
-			BestScore = Score;
-			BestTarget = Enemy;
-		}
-	}
-
-	return BestTarget;
-}
-
-void APP_PlayerCharacter::UpdateLockOn(float DeltaTime)
-{
-	if (!IsLockedOn())
-	{
-		return;
-	}
-
-	if (!IsAlive() || !IsLockOnTargetValid(LockOnTarget.Get()))
-	{
-		ReleaseLockOn();
-		return;
-	}
-
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!IsValid(PC) || !IsValid(PC->PlayerCameraManager))
-	{
-		return;
-	}
-
-	// 相机与角色朝向都由 ControlRotation 驱动：ALS 会把本地视角同步到服务端，
-	// 服务端因此能据此计算角色朝向，攻击命中判定方向与画面一致。
-	const FVector FocusLocation = GetLockOnFocusLocation();
-	const FRotator DesiredRotation = (FocusLocation - PC->PlayerCameraManager->GetCameraLocation()).Rotation();
-	const FRotator CurrentRotation = PC->GetControlRotation();
-
-	PC->SetControlRotation(FMath::RInterpTo(CurrentRotation, DesiredRotation, DeltaTime, LockOnCameraInterpolationSpeed));
-}
-
-void APP_PlayerCharacter::ReleaseLockOn()
-{
-	if (!LockOnTarget.IsValid() && !PreLockOnRotationMode.IsValid())
-	{
-		return;
-	}
-
-	const bool bWasLocked = LockOnTarget.IsValid();
-	LockOnTarget.Reset();
-
-	if (PreLockOnRotationMode.IsValid())
-	{
-		if (IsLocallyControlled())
-		{
-			UE_LOG(LogPP, Log, TEXT("[LockOn] 恢复旋转模式: %s → %s"),
-				*GetDesiredRotationMode().ToString(), *PreLockOnRotationMode.ToString());
-			SetDesiredRotationMode(PreLockOnRotationMode);
-		}
-		PreLockOnRotationMode = FGameplayTag();
-	}
-
-	if (bWasLocked)
-	{
-		UE_LOG(LogPP, Log, TEXT("[LockOn] 解除锁定"));
-	}
+	return LockOnComponent ? LockOnComponent->GetLockOnFocusLocation() : FVector::ZeroVector;
 }
 
 // ===== IPP_EquipmentUser 实现（武器装备 → GA 切换） =====

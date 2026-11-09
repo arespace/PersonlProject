@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Characters/PP_BaseCharacter.h"
 #include "Characters/PP_CharacterData.h"
+#include "Characters/PP_LockOnComponent.h"
 #include "Data/PP_ItemTypes.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
@@ -54,12 +55,12 @@ public:
 	// ===== 锁定系统（仅本地玩家生效：目标选择/相机朝向/角色朝向；服务端依靠 ALS 视角同步） =====
 
 	/** 当前锁定的敌人（无锁定时为 nullptr） */
-	AActor* GetLockOnTarget() const { return LockOnTarget.Get(); }
+	AActor* GetLockOnTarget() const { return LockOnComponent ? LockOnComponent->GetLockOnTarget() : nullptr; }
 
 	/** 锁定目标的世界坐标焦点（胸口高度，供 HUD 绘制标记） */
 	FVector GetLockOnFocusLocation() const;
 
-	bool IsLockedOn() const { return LockOnTarget.IsValid(); }
+	bool IsLockedOn() const { return LockOnComponent && LockOnComponent->IsLockedOn(); }
 
 	// ===== ALS 相机与输入（移植自 AAlsCharacterExample，避免依赖 demo 模块 ALSExtras） =====
 
@@ -230,50 +231,36 @@ private:
 
 	// ===== 锁定系统 =====
 
+	/** 锁定组件：目标选择、相机朝向、解除锁定逻辑都在组件里 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|LockOn", Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPP_LockOnComponent> LockOnComponent;
+
 	/** 锁定/解锁按键（默认 Q，可在玩家蓝图里改） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn")
 	FKey LockOnKey;
 
-	/** 搜索敌人的最大半径（cm） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (ClampMin = 0))
+	// ===== 锁定参数（过渡期旧属性，已迁移到 LockOnComponent） =====
+	// BeginPlay 时会把这里的非默认值灌入组件，确认组件配置正确后整块删除。
+
+	/** @deprecated 已迁移到 LockOnComponent.LockOnSearchRadius */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
 	float LockOnSearchRadius{1200.f};
 
-	/** 超过该距离自动解除锁定（cm，需大于搜索半径形成滞回） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (ClampMin = 0))
+	/** @deprecated 已迁移到 LockOnComponent.LockOnBreakDistance */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
 	float LockOnBreakDistance{1600.f};
 
-	/** 目标必须位于相机前方这个半角内才会被锁定（度） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (ClampMin = 0, ClampMax = 180))
+	/** @deprecated 已迁移到 LockOnComponent.LockOnMaxScreenAngle */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
 	float LockOnMaxScreenAngle{60.f};
 
-	/** 相机朝向目标的插值速度（越大转得越快） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (ClampMin = 0))
+	/** @deprecated 已迁移到 LockOnComponent.LockOnCameraInterpolationSpeed */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
 	float LockOnCameraInterpolationSpeed{10.f};
 
-	/** 目标焦点相对敌人 Actor 原点的高度偏移（cm，取胸口高度） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn")
+	/** @deprecated 已迁移到 LockOnComponent.LockOnFocusHeight */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
 	float LockOnFocusHeight{60.f};
-
-	/** 当前锁定目标（仅本地玩家维护，不参与网络复制） */
-	TWeakObjectPtr<AActor> LockOnTarget;
-
-	/** 锁定前的 ALS 期望旋转模式，解除锁定时恢复 */
-	FGameplayTag PreLockOnRotationMode;
-
-	/** 切换锁定：已锁定则解锁，否则搜索并锁定最近的敌人 */
-	void ToggleLockOn();
-
-	/** 在搜索半径/视锥内寻找最近的可见敌人 */
-	AActor* FindLockOnTarget();
-
-	/** 锁定目标是否仍然有效（存活且未超出解除距离） */
-	bool IsLockOnTargetValid(const AActor* Target) const;
-
-	/** 本地玩家每帧驱动相机朝向目标，并校验目标有效性 */
-	void UpdateLockOn(float DeltaTime);
-
-	/** 解除锁定并恢复锁定前的旋转模式 */
-	void ReleaseLockOn();
 
 	// ===== 武器装备接口（IPP_EquipmentUser 实现） =====
 
