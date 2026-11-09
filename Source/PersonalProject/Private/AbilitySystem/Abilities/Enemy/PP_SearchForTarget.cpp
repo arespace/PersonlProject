@@ -61,16 +61,22 @@ void UPP_SearchForTarget::Search()
 	const FVector SearchOrigin = GetAvatarActorFromActorInfo()->GetActorLocation();
 	if (!OwningEnemy.IsValid()) return;
 	FClosestActorWithTagResult ClosestActorResult = UPP_BlueprintLibrary::FindClosestActorWithTag(GetAvatarActorFromActorInfo(),SearchOrigin,PersonalTags::Player,OwningEnemy->SearchRange);
-	
+
 	TargetBaseCharacter = Cast<APP_BaseCharacter>(ClosestActorResult.Actor);
-	
+
 	if (!TargetBaseCharacter.IsValid())
 	{
+		if (OwningAIController.IsValid())
+		{
+			OwningAIController->ClearFocus(EAIFocusPriority::Gameplay);
+		}
 		StartSearch();
 		return;
 	}
 	if (TargetBaseCharacter->IsAlive())
 	{
+		// SetFocus 让 BaseCharacter::Tick 在敌人静止（远程站桩）时也能朝向目标
+		OwningAIController->SetFocus(TargetBaseCharacter.Get());
 		MoveToTargetAndAttack();
 	}
 	else

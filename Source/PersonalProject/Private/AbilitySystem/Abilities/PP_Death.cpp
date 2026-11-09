@@ -71,6 +71,10 @@ void UPP_Death::ApplyDeathEffect()
 
 void UPP_Death::OnDeathMontageFinished()
 {
+	// 蒙太奇回调与兜底 Timer 可能都触发，只处理第一次
+	if (bRespawnHandled) return;
+	bRespawnHandled = true;
+
 	AActor* Avatar = GetAvatarActorFromActorInfo();
 	if (!Avatar)
 	{
@@ -107,6 +111,16 @@ void UPP_Death::Respawn()
 	}
 
 	APP_BaseCharacter* Character = Cast<APP_BaseCharacter>(Avatar);
+
+	// 角色侧复活计时（玩家，服务端权威）可能已先触发，避免重复复活，仅收尾结束能力
+	if (Character && Character->IsAlive())
+	{
+		if (CachedActorInfo)
+		{
+			EndAbility(CachedHandle, CachedActorInfo, CachedActivationInfo, true, false);
+		}
+		return;
+	}
 
 	// 1. 移除授予 PPTags.Status.Dead 标签的 GE（对应 BP_RemoveGameplayEffectFromOwnerWithGrantedTags，1 层）
 	BP_RemoveGameplayEffectFromOwnerWithGrantedTags(FGameplayTagContainer(PPTags::Status::Dead), 1);

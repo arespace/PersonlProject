@@ -4,10 +4,12 @@
 #include "Characters/PP_BaseCharacter.h"
 
 #include "AlsAnimationInstance.h"
+#include "AIController.h"
 #include "Animation/AnimInstance.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameModeBase.h"
 #include "GameplayAbilitySpec.h"
 #include "AbilitySystemComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -80,7 +82,8 @@ void APP_BaseCharacter::PostInitializeComponents()
 			nullptr, TEXT("/ALS/ALS/Character/SKM_Als.SKM_Als"));
 		if (CachedAlsMesh && GetMesh()->GetSkeletalMeshAsset() != CachedAlsMesh)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[ALS_FIX] Overriding Mesh %s → SKM_Als"),
+			// 玩家强制 ALS 网格属于预期行为，不是配置错误，降级为 Verbose 避免每次 spawn 刷屏
+			UE_LOG(LogTemp, Verbose, TEXT("[ALS_FIX] Overriding Mesh %s → SKM_Als"),
 				*GetNameSafe(GetMesh()->GetSkeletalMeshAsset()));
 			GetMesh()->SetSkeletalMesh(CachedAlsMesh);
 		}
@@ -107,7 +110,8 @@ void APP_BaseCharacter::PostInitializeComponents()
 			nullptr, TEXT("/ALS/ALS/Character/AB_Als.AB_Als_C"));
 		if (CachedDefaultAnimClass && GetMesh()->GetAnimClass() != CachedDefaultAnimClass)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[ALS_FIX] Overriding AnimClass %s → AB_Als"),
+			// 同上：玩家强制 AB_Als 是预期行为，降级为 Verbose
+			UE_LOG(LogTemp, Verbose, TEXT("[ALS_FIX] Overriding AnimClass %s → AB_Als"),
 				*GetNameSafe(GetMesh()->GetAnimClass()));
 			GetMesh()->SetAnimInstanceClass(CachedDefaultAnimClass);
 		}
@@ -167,24 +171,63 @@ void APP_BaseCharacter::BeginPlay()
 	}
 }
 
+void APP_BaseCharacter::PostNetReceiveLocationAndRotation()
+{
+	// 玩家：保持 ALS 行为（模拟代理忽略服务端旋转，ALS 自行驱动）
+	if (bForceAlsAnimationBlueprint)
+	{
+		Super::PostNetReceiveLocationAndRotation();
+		return;
+	}
+
+	// 敌人：跳过 ALS 的忽略逻辑。ACharacter 版本只做位置平滑，朝向在下面显式接受。
+	ACharacter::PostNetReceiveLocationAndRotation();
+
+	// 模拟代理的朝向必须手动应用：ALS 会丢弃服务端旋转，而 ACharacter 的平滑路径在
+	// 站桩（速度为 0、位置无变化）时不会落实旋转，导致客户端敌人永远保持生成朝向。
+	if (GetLocalRole() == ROLE_SimulatedProxy)
+	{
+		const FRotator RepRotation = GetReplicatedMovement().Rotation;
+		SetActorRotation(FRotator(0.f, RepRotation.Yaw, 0.f));
+	}
+}
+
 void APP_BaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 	// 没有启用 ALS 动画的角色（敌人）：ALS Tick 因没有 UAlsAnimationInstance 提前 return，
 	// 不会驱动朝向；标准角色的 bOrientRotationToMovement 也被 ALS 强制关闭。
-	// 这里手动把 Actor Yaw 平滑对齐到 Controller 的 ControlRotation.Yaw：
-	// AI MoveTo 时 AAIController 会把 ControlRotation 对准目标方向，因此跟随它最准。
-	// （不能用 bUseControllerRotationYaw=true，会触发 ALS BeginPlay 的 ensure。）
-	if (!bForceAlsAnimationBlueprint)
+	// 这里手动驱动 Yaw：
+	//  - 移动中：对齐到水平速度方向（AIController 的 MoveTo 不更新 ControlRotation，不能用它）；
+	//  - 静止时（远程站桩攻击）：对齐到 AIController 的 Focus 目标（由 SearchForTarget 设置）。
+	// 不能用 bUseControllerRotationYaw=true，会触发 ALS BeginPlay 的 ensure。
+	// 朝向只在服务端驱动；客户端模拟代理直接采用服务端复制的旋转
+	// （见 PostNetReceiveLocationAndRotation），避免两边各转各的。
+	if (!bForceAlsAnimationBlueprint && GetLocalRole() == ROLE_Authority)
 	{
-		if (AController* OwnerController = GetController())
+		const UCharacterMovementComponent* CM = GetCharacterMovement();
+		if (!CM) return;
+
+		float TargetYaw;
+		if (CM->Velocity.Size2D() > 10.f)
 		{
-			const float TargetYaw = OwnerController->GetControlRotation().Yaw;
-			FRotator Rotation = GetActorRotation();
-			Rotation.Yaw = FMath::FInterpTo(Rotation.Yaw, TargetYaw, DeltaTime, 10.f);
-			SetActorRotation(Rotation);
+			TargetYaw = CM->Velocity.Rotation().Yaw;
 		}
+		else if (const AAIController* AICon = Cast<AAIController>(GetController()))
+		{
+			AActor* Focus = AICon->GetFocusActor();
+			if (!Focus) return;
+			TargetYaw = (Focus->GetActorLocation() - GetActorLocation()).Rotation().Yaw;
+		}
+		else
+		{
+			return;
+		}
+
+		FRotator Rotation = GetActorRotation();
+		Rotation.Yaw = FMath::FInterpTo(Rotation.Yaw, TargetYaw, DeltaTime, 10.f);
+		SetActorRotation(Rotation);
 	}
 }
 
@@ -255,6 +298,42 @@ void APP_BaseCharacter::HandleDeath()
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
 		DisableInput(PC);
+	}
+
+	// 服务端启动复活计时（复活不再走死亡 GA 的蒙太奇回调，会被 Ragdoll 卡死）
+	if (HasAuthority() && ShouldRespawn())
+	{
+		GetWorldTimerManager().SetTimer(RespawnTimerHandle, this, &ThisClass::ServerRespawn, RespawnDelay, false);
+	}
+}
+
+void APP_BaseCharacter::ServerRespawn()
+{
+	if (bAlive) return; // 已被 GA 侧复活（双保险）
+
+	// 传送回出生点（服务端权威）
+	if (UWorld* World = GetWorld())
+	{
+		if (AGameModeBase* GameMode = World->GetAuthGameMode())
+		{
+			if (AActor* PlayerStart = GameMode->FindPlayerStart(GetController()))
+			{
+				SetActorLocation(PlayerStart->GetActorLocation(), false);
+			}
+		}
+	}
+
+	HandleRespawn(); // 内含 ResetAttributes
+
+	// 通知 owning 客户端恢复输入（服务端上的 EnableInput 无效）
+	ClientOnRespawn();
+}
+
+void APP_BaseCharacter::ClientOnRespawn_Implementation()
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		EnableInput(PC);
 	}
 }
 
