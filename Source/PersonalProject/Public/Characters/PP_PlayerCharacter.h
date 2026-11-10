@@ -239,29 +239,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn")
 	FKey LockOnKey;
 
-	// ===== 锁定参数（过渡期旧属性，已迁移到 LockOnComponent） =====
-	// BeginPlay 时会把这里的非默认值灌入组件，确认组件配置正确后整块删除。
-
-	/** @deprecated 已迁移到 LockOnComponent.LockOnSearchRadius */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
-	float LockOnSearchRadius{1200.f};
-
-	/** @deprecated 已迁移到 LockOnComponent.LockOnBreakDistance */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
-	float LockOnBreakDistance{1600.f};
-
-	/** @deprecated 已迁移到 LockOnComponent.LockOnMaxScreenAngle */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
-	float LockOnMaxScreenAngle{60.f};
-
-	/** @deprecated 已迁移到 LockOnComponent.LockOnCameraInterpolationSpeed */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
-	float LockOnCameraInterpolationSpeed{10.f};
-
-	/** @deprecated 已迁移到 LockOnComponent.LockOnFocusHeight */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn", Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 LockOnComponent"))
-	float LockOnFocusHeight{60.f};
-
 	// ===== 武器装备接口（IPP_EquipmentUser 实现） =====
 
 	/** 武器装备槽变更回调 — 从 DT_Items 的 WeaponConfig 取 GA → ASC 切换 */

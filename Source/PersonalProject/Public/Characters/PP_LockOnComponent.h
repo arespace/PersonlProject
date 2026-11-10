@@ -45,13 +45,6 @@ public:
 	/** 由角色 Tick 在 ALS 之前调用，本地玩家每帧驱动相机朝向目标并校验目标有效性 */
 	void UpdateLockOn(float DeltaTime);
 
-	/**
-	 * 迁移用：用角色上旧属性里的非默认值覆盖组件参数。
-	 * @return 是否有任意一项被覆盖（有则说明蓝图里存在旧配置）
-	 */
-	bool ApplyLegacySettings(float InSearchRadius, float InBreakDistance, float InMaxScreenAngle,
-	                         float InCameraInterpolationSpeed, float InFocusHeight);
-
 	/** 搜索敌人的最大半径（cm） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|LockOn", Meta = (ClampMin = 0))
 	float LockOnSearchRadius{1200.f};

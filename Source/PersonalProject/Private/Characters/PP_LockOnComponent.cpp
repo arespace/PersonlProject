@@ -214,37 +214,3 @@ void UPP_LockOnComponent::ReleaseLockOn()
 		UE_LOG(LogPP, Log, TEXT("[LockOn] 解除锁定"));
 	}
 }
-
-bool UPP_LockOnComponent::ApplyLegacySettings(float InSearchRadius, float InBreakDistance, float InMaxScreenAngle,
-                                              float InCameraInterpolationSpeed, float InFocusHeight)
-{
-	bool bApplied = false;
-
-	if (!FMath::IsNearlyEqual(InSearchRadius, LockOnSearchRadius))
-	{
-		LockOnSearchRadius = InSearchRadius;
-		bApplied = true;
-	}
-	if (!FMath::IsNearlyEqual(InBreakDistance, LockOnBreakDistance))
-	{
-		LockOnBreakDistance = InBreakDistance;
-		bApplied = true;
-	}
-	if (!FMath::IsNearlyEqual(InMaxScreenAngle, LockOnMaxScreenAngle))
-	{
-		LockOnMaxScreenAngle = InMaxScreenAngle;
-		bApplied = true;
-	}
-	if (!FMath::IsNearlyEqual(InCameraInterpolationSpeed, LockOnCameraInterpolationSpeed))
-	{
-		LockOnCameraInterpolationSpeed = InCameraInterpolationSpeed;
-		bApplied = true;
-	}
-	if (!FMath::IsNearlyEqual(InFocusHeight, LockOnFocusHeight))
-	{
-		LockOnFocusHeight = InFocusHeight;
-		bApplied = true;
-	}
-
-	return bApplied;
-}

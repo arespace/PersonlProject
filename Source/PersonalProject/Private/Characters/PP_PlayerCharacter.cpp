@@ -322,15 +322,6 @@ void APP_PlayerCharacter::BeginPlay()
 	{
 		SetBuiltInWeaponVisible(false);
 	}
-
-	// ===== 锁定参数迁移：把角色上旧属性的非默认值灌入组件（过渡期） =====
-	if (LockOnComponent &&
-		LockOnComponent->ApplyLegacySettings(LockOnSearchRadius, LockOnBreakDistance, LockOnMaxScreenAngle,
-		                                     LockOnCameraInterpolationSpeed, LockOnFocusHeight))
-	{
-		UE_LOG(LogPP, Warning,
-			TEXT("[LockOn] 检测到角色蓝图里的旧锁定参数，已迁移到 LockOnComponent；请核对组件参数并清理旧值"));
-	}
 }
 
 void APP_PlayerCharacter::SetBuiltInWeaponVisible(bool bVisible)
