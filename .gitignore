@@ -44,7 +44,11 @@ Content/CrosshairFreePack/
 .idea/
 .qoder/
 .claude/
-_tools/
+
+# `_tools/*` 而不是 `_tools/`：只有改成「先排除目录内容」，
+# 后面的 `!_tools/SmokeChecklist.md` 才能生效，让冒烟清单进入版本控制。
+_tools/*
+!_tools/SmokeChecklist.md
 .clangd
 .ignore
 PersonalProject.code-workspace
