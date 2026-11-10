@@ -119,11 +119,12 @@ int32 UPP_EnemyRespawnManager::ResetEnemiesInRadius(const FVector& Origin, float
 	{
 		const FPP_EnemySpawnRecord& Record = EnemySpawnRecords[Index];
 
-		if (APP_EnemyCharacter* Enemy = Record.Enemy.Get())
+		// 已销毁（pending kill）的实例不再派发接口事件，落到下面的重建分支
+		if (APP_EnemyCharacter* Enemy = Record.Enemy.Get(); IsValid(Enemy))
 		{
-			if (FVector::Dist(Enemy->GetActorLocation(), Origin) <= Radius)
+			if (FVector::Dist(Enemy->GetActorLocation(), Origin) <= Radius && Enemy->Implements<UPP_Resettable>())
 			{
-				Enemy->ResetToSpawn();
+				IPP_Resettable::Execute_ResetToSpawn(Enemy);
 				++ResetCount;
 			}
 			continue;
