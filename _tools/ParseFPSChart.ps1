@@ -12,7 +12,9 @@
     本脚本只读第 2 个区块，因此可以用自定义 hitch 阈值重新统计。
 
 .PARAMETER Csv
-    指定 CSV 路径；留空则自动取 FPSChartStats 下最新的一个。
+    指定 CSV 路径。留空时只在该目录下**恰好只有一份**采样的情况下自动使用；
+    有多份时脚本会列出候选并报错，要求用 -Csv 显式指定——因为崩溃/中断的采样
+    也可能留下残缺 CSV，按时间取最新可能正好取到不完整的那份。
 
 .PARAMETER HitchMs
     hitch 判定阈值（毫秒），帧时间大于该值计为一次 hitch。默认 33.3（约 30 FPS）。
@@ -36,19 +38,28 @@ param(
 $ErrorActionPreference = 'Stop'
 $Invariant = [System.Globalization.CultureInfo]::InvariantCulture
 
-function Find-LatestChartCsv {
+function Resolve-ChartCsv {
     param([string]$Root)
 
     if (-not (Test-Path -LiteralPath $Root)) {
         throw "采样目录不存在：$Root。先运行 pp.FPSChartCapture 生成采样。"
     }
 
-    $file = Get-ChildItem -LiteralPath $Root -Recurse -File -Filter '*.csv' -ErrorAction SilentlyContinue |
-            Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $file) {
+    $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Filter '*.csv' -ErrorAction SilentlyContinue |
+               Sort-Object LastWriteTime -Descending)
+    if ($files.Count -eq 0) {
         throw "目录内没有 CSV：$Root"
     }
-    return $file.FullName
+    if ($files.Count -gt 1) {
+        $list = ($files | ForEach-Object {
+            "  {0}  ({1:N1} KB, {2:yyyy-MM-dd HH:mm:ss})" -f $_.FullName, ($_.Length / 1KB), $_.LastWriteTime
+        }) -join [Environment]::NewLine
+        $msg = "FPSChartStats 下有 {0} 份采样，无法判断哪份完整（崩溃或中断的采样也可能留下残缺 CSV）。" -f $files.Count
+        $msg += "请用 -Csv 显式指定，例如 -Csv `"<上面某个路径>`"："
+        $msg += [Environment]::NewLine + $list
+        throw $msg
+    }
+    return $files[0].FullName
 }
 
 function Get-SeriesStats {
@@ -84,7 +95,7 @@ function Get-SeriesStats {
 }
 
 if (-not $Csv) {
-    $Csv = Find-LatestChartCsv -Root (Join-Path $PSScriptRoot '..\Saved\Profiling\FPSChartStats')
+    $Csv = Resolve-ChartCsv -Root (Join-Path $PSScriptRoot '..\Saved\Profiling\FPSChartStats')
 }
 if (-not (Test-Path -LiteralPath $Csv)) {
     throw "CSV 不存在：$Csv"
