@@ -23,6 +23,7 @@ class UGameplayEffect;
 class UAnimMontage;
 class USkeletalMesh;
 class UPP_StaminaComponent;
+class UPP_WeaponVisualComponent;
 
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter, public IPP_EquipmentUser
@@ -258,39 +259,49 @@ private:
 	/** 武器装备槽变更回调 — 从 DT_Items 的 WeaponConfig 取 GA → ASC 切换 */
 	virtual void OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, FName NewItemID) override;
 
-	// ===== 武器外观（自带烘焙武器隐藏 / 装备武器网格显示） =====
+	// ===== 武器外观（薄外壳：实现已迁移到 WeaponVisualComponent） =====
+
+	/** 武器外观组件：装备武器网格显示 + 自带烘焙武器隐藏 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPP_WeaponVisualComponent> WeaponVisualComponent;
 
 	/** 切换自带（烘焙在骨骼网格上的）武器是否可见：材质槽换成隐形材质 */
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void SetBuiltInWeaponVisible(bool bVisible);
 
-	/** 把 WeaponMesh 换成 ItemID 对应的武器网格（读 DT_Items 的 WeaponConfig.Visual） */
+	/** 把武器网格换成 ItemID 对应的武器网格（读 DT_Items 的 WeaponConfig.Visual） */
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void SetWeaponMesh(FName ItemID);
 
-	/** 清空 WeaponMesh（空手） */
+	/** 清空武器网格（空手） */
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void ClearWeaponMesh();
 
+	// ===== 武器外观：已迁移到 UPP_WeaponVisualComponent 的旧属性（过渡期保留，确认蓝图后单独提交删除） =====
+
 	/** 自带武器占用的材质槽索引（如 Kwang 的 17） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
+		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
+			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 BuiltInWeaponMaterialSlots，请在组件上配置"))
 	TArray<int32> BuiltInWeaponMaterialSlots;
 
 	/** 隐藏自带武器时使用的全透明材质 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
+		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
+			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 HiddenWeaponMaterial，请在组件上配置"))
 	TObjectPtr<UMaterialInterface> HiddenWeaponMaterial;
 
 	/** 装备武器网格挂载的骨骼/socket 名；仅当武器行未配置 AttachSocket 时兜底 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
+		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
+			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 WeaponAttachSocketName，请在组件上配置"))
 	FName WeaponAttachSocketName{TEXTVIEW("VB_Kwang_weapon")};
 
 	/** BeginPlay 时是否立即隐藏自带武器（默认空手） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
+		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
+			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 bHideBuiltInWeaponOnBeginPlay，请在组件上配置"))
 	bool bHideBuiltInWeaponOnBeginPlay{true};
-
-	/** 装备武器的网格容器（默认无网格，挂在 WeaponAttachSocketName 上） */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Visual", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 
 	/** 客户端窗口执行 PPAddItem 时转发到服务器 */
 	UFUNCTION(Server, Reliable)
@@ -300,16 +311,15 @@ private:
 	void GrantItemToInventory(FName ItemID, int32 Count);
 
 private:
-	/** 按 PlayerState 上已复制的武器槽恢复外观与（服务端）武器 GA，用于出生 / 复活 / 重连 */
-	void RestoreEquippedWeapon();
+	/** 武器外观组件需要读取本类上已废弃的旧配置做一次性迁移 */
+	friend class UPP_WeaponVisualComponent;
+
+	/** 按 PlayerState 上已复制的武器槽恢复（服务端）武器 GA，用于出生 / 复活 / 重连；外观部分由组件负责 */
+	void RestoreEquippedWeaponAbility();
 
 	/** 授予/替换某武器槽对应的 GA（仅服务器调用；会先移除该槽上一次授予的 GA） */
 	void GrantWeaponAbility(EPP_EquipSlot Slot, FName NewItemID);
 
 	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除） */
 	TMap<EPP_EquipSlot, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
-
-	/** 自带武器材质槽的原始材质缓存（与 BuiltInWeaponMaterialSlots 一一对应） */
-	UPROPERTY()
-	TArray<TObjectPtr<UMaterialInterface>> CachedBuiltInWeaponMaterials;
 };
