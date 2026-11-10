@@ -1197,19 +1197,26 @@ void APP_PlayerCharacter::Input_OnRoll()
 UAnimMontage* APP_PlayerCharacter::SelectRollMontage_Implementation()
 {
 	USkeletalMesh* MeshAsset = GetMesh() ? GetMesh()->GetSkeletalMeshAsset() : nullptr;
+	const FString MeshName = MeshAsset ? MeshAsset->GetName() : TEXT("None");
+
 	if (MeshAsset)
 	{
 		if (const TObjectPtr<UAnimMontage>* FoundMontage = RollMontageByMesh.Find(MeshAsset))
 		{
 			if (IsValid(*FoundMontage))
 			{
+				UE_LOG(LogPP, Log, TEXT("[Roll] 网格 %s 命中 RollMontageByMesh，使用 %s"),
+					*MeshName, *FoundMontage->GetPathName());
 				return *FoundMontage;
 			}
 		}
 	}
 
 	// 未配置该模型的翻滚动作，沿用 ALS 默认蒙太奇
-	return Super::SelectRollMontage_Implementation();
+	UAnimMontage* DefaultMontage = Super::SelectRollMontage_Implementation();
+	UE_LOG(LogPP, Log, TEXT("[Roll] 网格 %s 未命中，回落 ALS 默认：%s"),
+		*MeshName, DefaultMontage ? *DefaultMontage->GetPathName() : TEXT("None"));
+	return DefaultMontage;
 }
 
 void APP_PlayerCharacter::Input_OnRotationMode()
