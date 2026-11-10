@@ -13,7 +13,7 @@ class UBoxComponent;
 
 /**
  * 篝火（存档点）。
- * 玩家在篝火旁按篝火键（默认 T，见 APP_PlayerController::BonfireInteractKey）休息：
+ * 玩家在篝火旁按篝火键（IA_BonfireInteract，默认数字键 8，见 APP_PlayerController::BonfireInteractAction）休息：
  *   1. 把重生点记录到该玩家的 PlayerState；
  *   2. 回满生命/法力/耐力（走 ResetAttributes）；
  *   3. 死亡后由 ServerRespawn 传送到该重生点。

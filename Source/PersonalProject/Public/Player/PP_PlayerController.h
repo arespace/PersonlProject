@@ -190,7 +190,7 @@ public:
 
 	/**
 	 * 篝火休息入口：与 Interact 相同的相机 trace，但只对篝火生效
-	 * 绑定在 BonfireInteractKey（默认 T），避免与对话推进键 E 冲突
+	 * 绑定在 BonfireInteractAction（IA_BonfireInteract，默认数字键 8），避免与对话推进键 E 冲突
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void InteractBonfire();
@@ -269,9 +269,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> PauseAction;
 
-	/** 计分板显示按键（默认数字键 6，按下显示、松开隐藏） */
+	/** 计分板输入动作（IA_Scoreboard，默认映射数字键 7；按住显示、松开隐藏） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
-	FKey ScoreboardKey = EKeys::Six;
+	TObjectPtr<UInputAction> ScoreboardAction;
 
 	/** 主界面开关输入动作 */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
@@ -281,9 +281,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> DialogueAction;
 
-	/** 篝火休息按键（默认 T；交互键 E 与对话推进冲突，篝火改用独立键） */
+	/** 篝火休息输入动作（IA_BonfireInteract，默认映射数字键 8；交互键 E 与对话推进冲突，篝火改用独立键） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|Dialogue")
-	FKey BonfireInteractKey = EKeys::T;
+	TObjectPtr<UInputAction> BonfireInteractAction;
 
 	/** 任务日志开关输入动作（J/Tab键打开任务面板） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")

@@ -249,9 +249,9 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|LockOn", Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPP_LockOnComponent> LockOnComponent;
 
-	/** 锁定/解锁按键（默认 Q，可在玩家蓝图里改） */
+	/** 锁定/解锁输入动作（IA_LockOn，默认映射数字键 6；在玩家蓝图中指定资产） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn")
-	FKey LockOnKey;
+	TObjectPtr<UInputAction> LockOnAction;
 
 	// ===== 武器装备接口（IPP_EquipmentUser 实现） =====
 

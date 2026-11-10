@@ -79,12 +79,15 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ThisClass::TogglePauseMenu);
 	}
-	// 计分板：直接绑定数字键 6（按住显示、松开隐藏）
-	// 不走 IA 资产，避免与 Tab（背包）等既有映射冲突；ScoreboardKey 可在蓝图默认值中改键
-	if (ScoreboardKey.IsValid())
+	// 计分板：IA_Scoreboard（默认数字键 7）按住显示、松开隐藏
+	if (ScoreboardAction)
 	{
-		InputComponent->BindKey(ScoreboardKey, IE_Pressed, this, &ThisClass::ShowScoreboard);
-		InputComponent->BindKey(ScoreboardKey, IE_Released, this, &ThisClass::HideScoreboard);
+		EnhancedInputComponent->BindAction(ScoreboardAction, ETriggerEvent::Started, this, &ThisClass::ShowScoreboard);
+		EnhancedInputComponent->BindAction(ScoreboardAction, ETriggerEvent::Completed, this, &ThisClass::HideScoreboard);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Input] ScoreboardAction 未指定，计分板键不会生效。请在 BP_PlayerController 的 PP|Input|UI -> ScoreboardAction 挂上 IA_Scoreboard"));
 	}
 	if (HUDToggleAction)
 	{
@@ -94,10 +97,14 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		EnhancedInputComponent->BindAction(DialogueAction, ETriggerEvent::Started, this, &ThisClass::Interact);
 	}
-	// 篝火休息：单独绑定 T，交互键 E 已被对话推进占用
-	if (BonfireInteractKey.IsValid())
+	// 篝火休息：IA_BonfireInteract（默认数字键 8），交互键 E 已被对话推进占用
+	if (BonfireInteractAction)
 	{
-		InputComponent->BindKey(BonfireInteractKey, IE_Pressed, this, &ThisClass::InteractBonfire);
+		EnhancedInputComponent->BindAction(BonfireInteractAction, ETriggerEvent::Started, this, &ThisClass::InteractBonfire);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Input] BonfireInteractAction 未指定，篝火休息键不会生效。请在 BP_PlayerController 的 PP|Input|Dialogue -> BonfireInteractAction 挂上 IA_BonfireInteract"));
 	}
 	if (QuestAction)
 	{

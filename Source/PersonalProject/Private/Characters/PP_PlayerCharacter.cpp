@@ -49,8 +49,6 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 	// 否则 AAlsCharacter::Tick 会因守卫提前 return，相机不再刷新。
 	bForceAlsAnimationBlueprint = true;
 
-	LockOnKey = EKeys::Q;
-
 	// 默认掉落魂用 C++ 占位类，蓝图里可替换成自定义 BP
 	SoulPickupClass = APP_SoulPickupActor::StaticClass();
 
@@ -1040,10 +1038,14 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 		EnhancedInput->BindAction(ViewModeAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnViewMode);
 		EnhancedInput->BindAction(SwitchShoulderAction, ETriggerEvent::Triggered, this, &ThisClass::Input_OnSwitchShoulder);
 
-		// 锁定键走 legacy BindKey：无需额外 IA/IMC 资产，按键可在玩家蓝图里改
-		if (LockOnKey.IsValid())
+		// 锁定键走 IA：按键由 IMC_Abilities 提供（IA_LockOn 默认数字键 6）
+		if (LockOnAction)
 		{
-			Input->BindKey(LockOnKey, IE_Pressed, this, &ThisClass::Input_OnLockOn);
+			EnhancedInput->BindAction(LockOnAction, ETriggerEvent::Started, this, &ThisClass::Input_OnLockOn);
+		}
+		else
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Input] LockOnAction 未指定，锁定键不会生效。请在 BP_PlayerCharacter 的 PP|LockOn -> LockOnAction 挂上 IA_LockOn"));
 		}
 	}
 	else
