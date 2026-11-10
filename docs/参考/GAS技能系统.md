@@ -1,7 +1,7 @@
 # GAS 技能体系专题文档
 
 > 状态：背景资料 · 最后更新：2026-11-06 · 取代关系：无（GAS 专题参考，标签清单已不全）
-> 本文是 [Architecture.md](../架构/Architecture.md) 的专题深入篇，聚焦 Gameplay Ability System 的完整实现细节。
+> 本文是 [架构总览.md](../架构/架构总览.md) 的专题深入篇，聚焦 Gameplay Ability System 的完整实现细节。
 > 阅读前建议先了解主文档 §2 的模块依赖与 §3 的 Core 基础设施。
 
 ---
