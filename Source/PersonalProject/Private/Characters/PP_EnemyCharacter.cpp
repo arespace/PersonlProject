@@ -188,6 +188,10 @@ void APP_EnemyCharacter::ResetToSpawn_Implementation()
 
 void APP_EnemyCharacter::HandleDeath()
 {
+	// 基类对服务端重复进入只做忽略，不会阻断本重写函数的后续逻辑；
+	// 这里记录进入前的存活状态，避免同一次死亡被重复计入击杀统计。
+	const bool bWasAlive = IsAlive();
+
 	Super::HandleDeath();
 
 	AAIController* AIController = GetController<AAIController>();
@@ -196,7 +200,7 @@ void APP_EnemyCharacter::HandleDeath()
 		AIController->StopMovement();
 	}
 
-	if (!HasAuthority())
+	if (!HasAuthority() || !bWasAlive)
 	{
 		return;
 	}
@@ -204,6 +208,16 @@ void APP_EnemyCharacter::HandleDeath()
 	// 查找击杀者：优先 GAS Instigator，失败则 fallback 取第一个 PlayerController（单人模式足够）
 	AController* KillerController = GetInstigatorController();
 	APlayerController* KillerPC = Cast<APlayerController>(KillerController);
+
+	// ★ 击杀统计：只认真正造成伤害的玩家（Instigator），不使用下面的兜底玩家，
+	// 避免无主伤害/环境击杀被记到无关玩家头上。
+	if (KillerPC)
+	{
+		if (APP_PlayerState* KillerPS = KillerPC->GetPlayerState<APP_PlayerState>())
+		{
+			KillerPS->AddKill();
+		}
+	}
 
 	if (!KillerPC)
 	{

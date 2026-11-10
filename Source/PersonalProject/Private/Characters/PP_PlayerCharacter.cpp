@@ -737,12 +737,22 @@ bool APP_PlayerCharacter::GetRespawnTransform(FTransform& OutTransform)
 
 void APP_PlayerCharacter::HandleDeath()
 {
+	// 基类对服务端重复进入只做忽略，不会阻断本重写函数的后续逻辑；
+	// 这里记录进入前的存活状态，避免同一次死亡被重复计入死亡统计。
+	const bool bWasAlive = IsAlive();
+
 	// 基类负责：置死亡标记、Ragdoll、停移动、禁输入、启动复活计时
 	Super::HandleDeath();
 
-	if (!HasAuthority() || !GetWorld())
+	if (!HasAuthority() || !bWasAlive || !GetWorld())
 	{
 		return;
+	}
+
+	// 死亡统计（服务端权威，随 PlayerState 复制到所有客户端）
+	if (APP_PlayerState* PS = GetPlayerState<APP_PlayerState>())
+	{
+		PS->AddDeath();
 	}
 
 	// 上一次死亡留下且未拾回的魂：再次死亡时直接消散（魂类规则：二次死亡丢失）

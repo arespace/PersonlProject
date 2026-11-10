@@ -39,7 +39,31 @@ void APP_PlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>
 	DOREPLIFETIME(APP_PlayerState, SelectedCharacterId);
 	DOREPLIFETIME(APP_PlayerState, bHasCheckpoint);
 	DOREPLIFETIME(APP_PlayerState, CheckpointTransform);
+	DOREPLIFETIME(APP_PlayerState, Kills);
+	DOREPLIFETIME(APP_PlayerState, Deaths);
+	// 得分使用父类 APlayerState::Score，由父类负责复制，无需在此重复注册
 	// InventoryComponent 通过组件自身的复制机制同步内部状态，组件指针本身随 PlayerState 自动复制，无需在此再 DOREPLIFETIME
+}
+
+void APP_PlayerState::AddKill(int32 ScorePoints)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	++Kills;
+	SetScore(GetScore() + static_cast<float>(ScorePoints));
+}
+
+void APP_PlayerState::AddDeath()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	++Deaths;
 }
 
 void APP_PlayerState::SetCheckpoint(const FTransform& InTransform)

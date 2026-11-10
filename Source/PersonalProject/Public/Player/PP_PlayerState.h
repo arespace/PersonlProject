@@ -50,6 +50,20 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Checkpoint")
 	FTransform GetCheckpointTransform() const { return CheckpointTransform; }
 
+	// ===== 计分板统计（服务端权威，随 PlayerState 复制到所有客户端） =====
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Stats")
+	int32 GetKills() const { return Kills; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Stats")
+	int32 GetDeaths() const { return Deaths; }
+
+	/** 记一次击杀：击杀数 +1，并累加到父类 APlayerState 的 Score（当前口径为每次 1 分） */
+	void AddKill(int32 ScorePoints = 1);
+
+	/** 记一次死亡：死亡数 +1 */
+	void AddDeath();
+
 protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
@@ -83,4 +97,14 @@ private:
 	/** 篝火重生点（玩家死亡复活时传送到的位置） */
 	UPROPERTY(Replicated)
 	FTransform CheckpointTransform{FTransform::Identity};
+
+	/** 击杀数（计分板统计） */
+	UPROPERTY(Replicated)
+	int32 Kills{0};
+
+	/** 死亡数（计分板统计） */
+	UPROPERTY(Replicated)
+	int32 Deaths{0};
+
+	// 得分直接使用父类 APlayerState::Score（float，已由父类复制），此处不再重复定义
 };

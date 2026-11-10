@@ -22,7 +22,6 @@
 #include "GameObjects/PP_BonfireActor.h"
 #include "Interfaces/PP_InteractableInterface.h"
 #include "Shop/PP_ShopComponent.h"
-#include "Inventory/PP_InventoryComponent.h"
 #include "Engine/DataTable.h"
 #include "Quest/PP_QuestComponent.h"
 #include "Quest/PP_QuestEventBridge.h"
@@ -252,7 +251,7 @@ void APP_PlayerController::ShowScoreboard()
 {
 	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestShowScoreboard);
 
-	// 计分板没有数据推送源，打开时汇总一次当前玩家数据上报（击杀/死亡暂无统计，先以金币作为分数）
+	// 打开时汇总一次所有玩家的计分板数据（击杀/死亡/得分均来自 PlayerState 的复制字段）
 	TArray<FScoreboardEntry> Entries;
 	if (UWorld* World = GetWorld())
 	{
@@ -267,10 +266,10 @@ void APP_PlayerController::ShowScoreboard()
 
 			FScoreboardEntry Entry;
 			Entry.PlayerName = OtherPS->GetPlayerName();
-			if (const UPP_InventoryComponent* Inventory = OtherPS->GetInventoryComponent())
-			{
-				Entry.Score = Inventory->GetGold();
-			}
+			Entry.Kills = OtherPS->GetKills();
+			Entry.Deaths = OtherPS->GetDeaths();
+			// 得分来自父类 APlayerState::Score（float），计分板条目仍是 int32，这里做一次取整
+			Entry.Score = FMath::RoundToInt(OtherPS->GetScore());
 			Entries.Add(Entry);
 		}
 	}
