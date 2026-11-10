@@ -1,10 +1,11 @@
-// IPP_UIGateway 接口实现（APP_HUD / APP_LobbyHUD）
+// UI 网关接口实现（APP_HUD / APP_LobbyHUD）
 //
 // 模块化拆分：主玩法模块禁止 include UI 头文件，PlayerController 对 HUD 的全部操作
-// 通过 IPP_UIGateway 接口（定义在主玩法模块）转发到本文件中的实现。
-//   - APP_HUD：战斗 HUD 的全部网关方法（暂停菜单 / 计分板 / 通知 / 对话 / 商店 UI）
-//   - APP_LobbyHUD：大厅推送方法（玩家列表 / 房间设置 / 开局倒计时 / 房主迁移 / 聊天）
-// PC 的 Client RPC 实现体位于主玩法模块，仅做 Cast<IPP_UIGateway>(GetHUD()) 转发。
+// 按上下文经三个接口（定义在主玩法模块）转发到本文件中的实现：
+//   - IPP_UICombatGateway：暂停菜单 / 计分板 / 主 HUD / 任务日志 / 背包 / 对话 / 商店
+//   - IPP_UILobbyGateway：玩家列表 / 房间设置 / 开局倒计时 / 房主迁移
+//   - IPP_UIMessagingGateway：系统通知 / 聊天（两个 HUD 都实现）
+// PC 的 Client RPC 实现体位于主玩法模块，仅做 Cast<接口>(GetHUD()) 转发。
 
 #include "HUD/PP_HUD.h"
 #include "Framework/PP_UIUserWidget.h"
@@ -82,26 +83,6 @@ void APP_HUD::RequestUpdateScoreboard_Implementation(const TArray<FScoreboardEnt
 	{
 		Scoreboard->UpdateScoreboard(Entries);
 	}
-}
-
-void APP_HUD::HandlePlayerListUpdated_Implementation(const TArray<FLobbyPlayerInfo>& Players)
-{
-	// 战斗 HUD 不处理大厅玩家列表
-}
-
-void APP_HUD::HandleRoomSettingsUpdated_Implementation(const FRoomSettings& Settings)
-{
-	// 战斗 HUD 不处理房间设置
-}
-
-void APP_HUD::HandleGameStarting_Implementation(float Countdown)
-{
-	// 战斗 HUD 不处理开局倒计时
-}
-
-void APP_HUD::HandleHostMigrating_Implementation(const FHostMigrationData& MigrationData)
-{
-	// 战斗 HUD 不处理房主迁移提示
 }
 
 void APP_HUD::RequestOpenDialogue_Implementation(UObject* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass)

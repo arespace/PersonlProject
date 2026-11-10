@@ -1,30 +1,28 @@
-// UI 网关接口 — 主玩法模块与 UI 模块的边界
-// 模块化拆分后主玩法模块禁止 include UI 头文件，PlayerController 对 HUD 的全部操作
-// 通过本接口转发：APP_HUD / APP_LobbyHUD（UI 模块）实现本接口，PC 运行时 Cast 调用。
+// UI 战斗网关接口 — 主玩法模块与 UI 模块在战斗上下文下的边界
+// 主玩法模块禁止 include UI 头文件，PlayerController 对战斗 HUD 的操作全部经本接口转发。
+// 实现方：APP_HUD（PersonalProjectUI 模块）；调用方：APP_PlayerController（主玩法模块）。
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Session/PP_ScoreboardTypes.h"
-#include "Session/PP_LobbyTypes.h"
-#include "Session/PP_SessionManager.h"
-#include "PP_UIGateway.generated.h"
+#include "PP_UICombatGateway.generated.h"
 
 class UUserWidget;
 
 UINTERFACE(BlueprintType)
-class UPP_UIGateway : public UInterface
+class UPP_UICombatGateway : public UInterface
 {
 	GENERATED_BODY()
 };
 
 /**
- * IPP_UIGateway — UI 网关接口
- * 实现方：APP_HUD（战斗 HUD）、APP_LobbyHUD（大厅 HUD），位于 PersonalProjectUI 模块
- * 调用方：APP_PlayerController（主玩法模块）
+ * IPP_UICombatGateway — 战斗期 UI 网关
+ * 实现方：APP_HUD（战斗 HUD）
+ * 消息推送不在此接口，见 IPP_UIMessagingGateway；大厅事件见 IPP_UILobbyGateway。
  */
-class PERSONALPROJECT_API IPP_UIGateway
+class PERSONALPROJECT_API IPP_UICombatGateway
 {
 	GENERATED_BODY()
 
@@ -43,11 +41,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
 	void RequestToggleInventory();
 
-	// ===== 通知与计分板 =====
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void PushNotification(const FString& Message);
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void PushChatMessage(const FString& PlayerName, const FString& Message);
+	// ===== 计分板 =====
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
 	void RequestUpdateScoreboard(const TArray<FScoreboardEntry>& Entries);
 
@@ -57,14 +51,4 @@ public:
 	void RequestOpenDialogue(UObject* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass);
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
 	void RequestOpenShop(UObject* NPC, TSubclassOf<UUserWidget> ShopWidgetClass);
-
-	// ===== 大厅推送 =====
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void HandlePlayerListUpdated(const TArray<FLobbyPlayerInfo>& Players);
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void HandleRoomSettingsUpdated(const FRoomSettings& Settings);
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void HandleGameStarting(float Countdown);
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
-	void HandleHostMigrating(const FHostMigrationData& MigrationData);
 };

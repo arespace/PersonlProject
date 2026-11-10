@@ -4,7 +4,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
 #include "Session/PP_LobbyTypes.h"
-#include "Player/PP_UIGateway.h"
+#include "Player/PP_UILobbyGateway.h"
+#include "Player/PP_UIMessagingGateway.h"
 #include "PP_LobbyHUD.generated.h"
 
 class UPP_MainMenuWidget;
@@ -22,12 +23,12 @@ class UTextureRenderTarget2D;
  * 类似战斗阶段PP_HUD的角色
  */
 UCLASS()
-class PERSONALPROJECTUI_API APP_LobbyHUD : public AHUD, public IPP_UIGateway
+class PERSONALPROJECTUI_API APP_LobbyHUD : public AHUD, public IPP_UILobbyGateway, public IPP_UIMessagingGateway
 {
 	GENERATED_BODY()
 
 public:
-	// ===== IPP_UIGateway 接口实现（实现在 PP_UICrossModule.cpp）=====
+	// ===== UI 网关接口实现（实现在 PP_UICrossModule.cpp）=====
 	virtual void PushChatMessage_Implementation(const FString& PlayerName, const FString& Message) override;
 	virtual void HandlePlayerListUpdated_Implementation(const TArray<FLobbyPlayerInfo>& Players) override;
 	virtual void HandleRoomSettingsUpdated_Implementation(const FRoomSettings& Settings) override;

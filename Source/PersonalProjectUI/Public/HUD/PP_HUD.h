@@ -3,7 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
-#include "Player/PP_UIGateway.h"
+#include "Player/PP_UICombatGateway.h"
+#include "Player/PP_UIMessagingGateway.h"
 #include "PP_HUD.generated.h"
 
 class UPP_UIViewModel;
@@ -27,12 +28,12 @@ class APP_BossCharacter;
  * 职责：Widget创建/销毁/分层、ViewModel初始化、伤害数字生成
  */
 UCLASS()
-class PERSONALPROJECTUI_API APP_HUD : public AHUD, public IPP_UIGateway
+class PERSONALPROJECTUI_API APP_HUD : public AHUD, public IPP_UICombatGateway, public IPP_UIMessagingGateway
 {
 	GENERATED_BODY()
 
 public:
-	// ===== IPP_UIGateway 接口实现（转发到同名方法；实现在 PP_UICrossModule.cpp）=====
+	// ===== UI 网关接口实现（转发到同名方法；实现在 PP_UICrossModule.cpp）=====
 	virtual void RequestTogglePauseMenu_Implementation() override;
 	virtual void RequestShowScoreboard_Implementation() override;
 	virtual void RequestHideScoreboard_Implementation() override;
@@ -44,10 +45,6 @@ public:
 	virtual void RequestUpdateScoreboard_Implementation(const TArray<FScoreboardEntry>& Entries) override;
 	virtual void RequestOpenDialogue_Implementation(UObject* NPC, FName DialogueID, TSubclassOf<UUserWidget> WidgetClass) override;
 	virtual void RequestOpenShop_Implementation(UObject* NPC, TSubclassOf<UUserWidget> ShopWidgetClass) override;
-	virtual void HandlePlayerListUpdated_Implementation(const TArray<FLobbyPlayerInfo>& Players) override;
-	virtual void HandleRoomSettingsUpdated_Implementation(const FRoomSettings& Settings) override;
-	virtual void HandleGameStarting_Implementation(float Countdown) override;
-	virtual void HandleHostMigrating_Implementation(const FHostMigrationData& MigrationData) override;
 	APP_HUD();
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

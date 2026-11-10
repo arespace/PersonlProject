@@ -1,7 +1,6 @@
 
 
 #include "Player/PP_PlayerController.h"
-#include "Player/PP_UIGateway.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
@@ -242,16 +241,16 @@ bool APP_PlayerController::IsAlive() const
 	return BaseCharacter->IsAlive();
 }
 
-// ===== UI 网关转发（实现体在 UI 模块的 APP_HUD / APP_LobbyHUD，通过 IPP_UIGateway 接口调用） =====
+// ===== UI 网关转发（实现体在 UI 模块的 APP_HUD / APP_LobbyHUD，按接口调用） =====
 
 void APP_PlayerController::TogglePauseMenu()
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestTogglePauseMenu);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestTogglePauseMenu);
 }
 
 void APP_PlayerController::ShowScoreboard()
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestShowScoreboard);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestShowScoreboard);
 
 	// 打开时汇总一次所有玩家的计分板数据（击杀/死亡/得分均来自 PlayerState 的复制字段）
 	TArray<FScoreboardEntry> Entries;
@@ -276,17 +275,17 @@ void APP_PlayerController::ShowScoreboard()
 		}
 	}
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestUpdateScoreboard, Entries);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestUpdateScoreboard, Entries);
 }
 
 void APP_PlayerController::HideScoreboard()
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestHideScoreboard);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestHideScoreboard);
 }
 
 void APP_PlayerController::ToggleHUD()
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestToggleMainHUD);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestToggleMainHUD);
 }
 
 void APP_PlayerController::ServerInteractBonfire_Implementation(APP_BonfireActor* Bonfire)
@@ -330,21 +329,21 @@ void APP_PlayerController::Server_SendChatMessage_Implementation(const FString& 
 
 void APP_PlayerController::Client_ReceiveChatMessage_Implementation(const FString& PlayerName, const FString& Message)
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_PushChatMessage, PlayerName, Message);
+	ForwardToUI<IPP_UIMessagingGateway>(&IPP_UIMessagingGateway::Execute_PushChatMessage, PlayerName, Message);
 }
 
 void APP_PlayerController::Client_NotifyQuestMessage_Implementation(const FString& Message)
 {
 	if (!IsLocalController()) return;
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_PushNotification, Message);
+	ForwardToUI<IPP_UIMessagingGateway>(&IPP_UIMessagingGateway::Execute_PushNotification, Message);
 }
 
 void APP_PlayerController::Client_NotifyMessage_Implementation(const FString& Message)
 {
 	if (!IsLocalController()) return;
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_PushNotification, Message);
+	ForwardToUI<IPP_UIMessagingGateway>(&IPP_UIMessagingGateway::Execute_PushNotification, Message);
 }
 
 // ===== IPP_DialogueRequester 接口实现（NPC 通过接口请求对话，转发到自身 RPC） =====
@@ -445,17 +444,17 @@ void APP_PlayerController::Server_StartGame_Implementation()
 
 void APP_PlayerController::Client_OnLobbyPlayerListUpdated_Implementation(const TArray<FLobbyPlayerInfo>& Players)
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_HandlePlayerListUpdated, Players);
+	ForwardToUI<IPP_UILobbyGateway>(&IPP_UILobbyGateway::Execute_HandlePlayerListUpdated, Players);
 }
 
 void APP_PlayerController::Client_OnLobbySettingsUpdated_Implementation(const FRoomSettings& Settings)
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_HandleRoomSettingsUpdated, Settings);
+	ForwardToUI<IPP_UILobbyGateway>(&IPP_UILobbyGateway::Execute_HandleRoomSettingsUpdated, Settings);
 }
 
 void APP_PlayerController::Client_OnGameStartingCountdown_Implementation(float Countdown)
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_HandleGameStarting, Countdown);
+	ForwardToUI<IPP_UILobbyGateway>(&IPP_UILobbyGateway::Execute_HandleGameStarting, Countdown);
 }
 
 // ===== 房主迁移 RPC 实现 =====
@@ -499,7 +498,7 @@ void APP_PlayerController::Client_NotifyHostMigrating_Implementation(const FHost
 		SM->SetMigrationData(MigrationData);
 	}
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_HandleHostMigrating, MigrationData);
+	ForwardToUI<IPP_UILobbyGateway>(&IPP_UILobbyGateway::Execute_HandleHostMigrating, MigrationData);
 }
 
 // ===== NPC对话系统 RPC 实现 =====
@@ -537,14 +536,14 @@ void APP_PlayerController::Client_OpenDialogueUI_Implementation(APP_NPCActor* NP
 {
 	if (!IsLocalController()) return;
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestOpenDialogue, NPC, DialogueID, DialogueWidgetClass);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestOpenDialogue, NPC, DialogueID, DialogueWidgetClass);
 }
 
 void APP_PlayerController::Client_OpenShopUI_Implementation(APP_NPCActor* NPC)
 {
 	if (!IsLocalController()) return;
 
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestOpenShop, NPC, ShopWidgetClass);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestOpenShop, NPC, ShopWidgetClass);
 }
 
 void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NPCActor* NPC, FName DialogueID, EPP_DialogueEndAction Action)
@@ -733,10 +732,10 @@ void APP_PlayerController::Server_InteractGather_Implementation(APP_GatherableAc
 
 void APP_PlayerController::ToggleQuestLog()
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestToggleQuestLog);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestToggleQuestLog);
 }
 
 void APP_PlayerController::ToggleInventory()
 {
-	ForwardToUIGateway(&IPP_UIGateway::Execute_RequestToggleInventory);
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestToggleInventory);
 }

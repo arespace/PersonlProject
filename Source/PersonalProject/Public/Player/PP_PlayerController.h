@@ -6,7 +6,9 @@
 #include "InputCoreTypes.h"
 #include "Session/PP_LobbyActions.h"
 #include "Dialogue/PP_DialogueRequester.h"
-#include "Player/PP_UIGateway.h"
+#include "Player/PP_UICombatGateway.h"
+#include "Player/PP_UILobbyGateway.h"
+#include "Player/PP_UIMessagingGateway.h"
 #include "PP_PlayerController.generated.h"
 
 class UInputMappingContext;
@@ -266,20 +268,21 @@ private:
 	// ===== UI 网关转发辅助 =====
 
 	/**
-	 * 统一转发到 IPP_UIGateway（HUD 侧实现：APP_HUD / APP_LobbyHUD）。
+	 * 按上下文转发到 UI 网关接口，TInterface 取 IPP_UICombatGateway / IPP_UILobbyGateway / IPP_UIMessagingGateway
+	 * （HUD 侧实现：APP_HUD / APP_LobbyHUD）。
 	 *
 	 * 用法：
-	 *   ForwardToUIGateway(&IPP_UIGateway::Execute_RequestTogglePauseMenu);
-	 *   ForwardToUIGateway(&IPP_UIGateway::Execute_PushChatMessage, PlayerName, Message);
+	 *   ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestTogglePauseMenu);
+	 *   ForwardToUI<IPP_UIMessagingGateway>(&IPP_UIMessagingGateway::Execute_PushChatMessage, PlayerName, Message);
 	 *
 	 * 说明：接口方法均为 BlueprintNativeEvent，C++ 侧只能经 UHT 静态分发器 Execute_Xxx 调用
 	 *      （经接口指针直接调用会命中 check(0) 桩）；Execute_Xxx 内部要求目标已实现接口，
 	 *      故此处保留 Cast 守卫。
 	 */
-	template <typename TExecuteFunc, typename... TArgs>
-	void ForwardToUIGateway(TExecuteFunc ExecuteFunc, TArgs&&... Args)
+	template <typename TInterface, typename TExecuteFunc, typename... TArgs>
+	void ForwardToUI(TExecuteFunc ExecuteFunc, TArgs&&... Args)
 	{
-		if (Cast<IPP_UIGateway>(GetHUD()) != nullptr)
+		if (Cast<TInterface>(GetHUD()) != nullptr)
 		{
 			ExecuteFunc(GetHUD(), Forward<TArgs>(Args)...);
 		}
