@@ -10,6 +10,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Characters/PP_EnemyCharacter.h"
 #include "Characters/PP_StaminaComponent.h"
+#include "Characters/PP_WeaponAbilityComponent.h"
 #include "Characters/PP_WeaponVisualComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -60,6 +61,9 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 
 	// ===== 武器外观组件（装备武器网格 + 自带烘焙武器隐藏） =====
 	WeaponVisualComponent = CreateDefaultSubobject<UPP_WeaponVisualComponent>(TEXT("WeaponVisualComponent"));
+
+	// ===== 武器技能组件（装备武器 → 授予/移除 GA，仅服务器） =====
+	WeaponAbilityComponent = CreateDefaultSubobject<UPP_WeaponAbilityComponent>(TEXT("WeaponAbilityComponent"));
 
 
 	// ===== ALS 相机组件（移自 AAlsCharacterExample） =====
@@ -1087,85 +1091,17 @@ void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, 
 		return;
 	}
 
-	GrantWeaponAbility(Slot, NewItemID);
-}
-
-void APP_PlayerCharacter::GrantWeaponAbility(EPP_EquipSlot Slot, FName NewItemID)
-{
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (!IsValid(ASC))
+	if (IsValid(WeaponAbilityComponent))
 	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] GrantWeaponAbility: ASC 无效，无法切换武器 GA"));
-		return;
-	}
-
-	// 第一步：移除该槽位上一次激活的 GA
-	if (const FGameplayAbilitySpecHandle* OldHandle = WeaponAbilityHandles.Find(Slot))
-	{
-		if (OldHandle->IsValid())
-		{
-			ASC->ClearAbility(*OldHandle);
-			WeaponAbilityHandles.Remove(Slot);
-		}
-	}
-
-	// 第二步：如果 NewItemID 有效 → 查武器配置 → Give 新 GA
-	if (NewItemID.IsNone())
-	{
-		// 卸下，到此结束
-		return;
-	}
-
-	// 唯一数据源：DT_Items 行内嵌的 WeaponConfig
-	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
-	const FPP_WeaponConfig* WeaponConfig = DataManager ? DataManager->GetWeaponConfig(NewItemID) : nullptr;
-	if (!WeaponConfig)
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] ItemID=%s 在 DT_Items 中没有 WeaponConfig，不授予武器 GA"), *NewItemID.ToString());
-		return;
-	}
-
-	const TSubclassOf<UGameplayAbility> AbilityClass = WeaponConfig->WeaponAbilityClass;
-	if (!AbilityClass)
-	{
-		// 该武器未配置 GA 类，跳过（纯属性武器）
-		return;
-	}
-
-	// GiveAbility（Level 1，无 InputBinding）
-	FGameplayAbilitySpec Spec(AbilityClass, 1, INDEX_NONE, this);
-	const FGameplayAbilitySpecHandle NewHandle = ASC->GiveAbility(Spec);
-	if (NewHandle.IsValid())
-	{
-		WeaponAbilityHandles.Add(Slot, NewHandle);
-	}
-	else
-	{
-		UE_LOG(LogPP, Warning, TEXT("[WeaponGA] 槽 %d 装备 %s → GiveAbility 失败"),
-			static_cast<int32>(Slot), *NewItemID.ToString());
+		WeaponAbilityComponent->ApplyEquippedWeapon(Slot, NewItemID);
 	}
 }
 
 void APP_PlayerCharacter::RestoreEquippedWeaponAbility()
 {
-	APP_PlayerState* PPPlayerState = Cast<APP_PlayerState>(GetPlayerState());
-	UPP_InventoryComponent* Inventory = IsValid(PPPlayerState) ? PPPlayerState->GetInventoryComponent() : nullptr;
-	if (!IsValid(Inventory))
+	if (IsValid(WeaponAbilityComponent))
 	{
-		return;
-	}
-
-	// 单武器槽口径：只恢复主手
-	const FName WeaponID = Inventory->GetEquippedItemID(EPP_EquipSlot::MainHand);
-	if (WeaponID.IsNone())
-	{
-		return;
-	}
-
-	// GA 只能由服务器授予；本生命周期内已授予过则跳过，避免重复实例
-	if (HasAuthority() && !WeaponAbilityHandles.Contains(EPP_EquipSlot::MainHand))
-	{
-		GrantWeaponAbility(EPP_EquipSlot::MainHand, WeaponID);
+		WeaponAbilityComponent->RefreshAbilityFromInventory();
 	}
 }
 

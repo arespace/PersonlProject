@@ -23,6 +23,7 @@ class UGameplayEffect;
 class UAnimMontage;
 class USkeletalMesh;
 class UPP_StaminaComponent;
+class UPP_WeaponAbilityComponent;
 class UPP_WeaponVisualComponent;
 
 UCLASS()
@@ -314,12 +315,10 @@ private:
 	/** 武器外观组件需要读取本类上已废弃的旧配置做一次性迁移 */
 	friend class UPP_WeaponVisualComponent;
 
-	/** 按 PlayerState 上已复制的武器槽恢复（服务端）武器 GA，用于出生 / 复活 / 重连；外观部分由组件负责 */
+	/** 按 PlayerState 上已复制的武器槽恢复（服务端）武器 GA（薄外壳，实现在 WeaponAbilityComponent） */
 	void RestoreEquippedWeaponAbility();
 
-	/** 授予/替换某武器槽对应的 GA（仅服务器调用；会先移除该槽上一次授予的 GA） */
-	void GrantWeaponAbility(EPP_EquipSlot Slot, FName NewItemID);
-
-	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除） */
-	TMap<EPP_EquipSlot, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
+	/** 武器技能组件：装备武器 → 授予/移除 GA（仅服务器） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Weapon|Ability", Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPP_WeaponAbilityComponent> WeaponAbilityComponent;
 };
