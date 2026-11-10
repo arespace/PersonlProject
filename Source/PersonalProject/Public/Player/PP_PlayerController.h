@@ -299,10 +299,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> DialogueAction;
 
-	/** 交互输入动作（IA_Interact，默认映射 F 键；此前由蓝图 EventGraph 绑定，现统一由 C++ 绑定） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|Dialogue")
-	TObjectPtr<UInputAction> InteractAction;
-
 	/** 篝火休息输入动作（IA_BonfireInteract，默认映射数字键 8；交互键 E 与对话推进冲突，篝火改用独立键） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|Dialogue")
 	TObjectPtr<UInputAction> BonfireInteractAction;

@@ -113,15 +113,6 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		EnhancedInputComponent->BindAction(DialogueAction, ETriggerEvent::Started, this, &ThisClass::Interact);
 	}
-	// 交互键：IA_Interact（默认 F）。此前由 PC 蓝图的 EnhancedInputAction 节点调用 Interact，现统一收到 C++
-	if (InteractAction)
-	{
-		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::Interact);
-	}
-	else
-	{
-		UE_LOG(LogPP, Warning, TEXT("[PP_Input] InteractAction 未指定，交互键不会生效。请在 BP_PlayerController 的 PP|Input|Dialogue -> InteractAction 挂上 IA_Interact"));
-	}
 	// 篝火休息：IA_BonfireInteract（默认数字键 8），交互键 E 已被对话推进占用
 	if (BonfireInteractAction)
 	{
@@ -881,11 +872,11 @@ void APP_PlayerController::Interact()
 	FHitResult Hit;
 	if (!PP_TraceInteractTarget(this, InteractTraceDistance, Hit)) return;
 
-	// 篝火改用独立按键（默认 T），避免与对话推进键 E 冲突
+	// 篝火改用独立按键（默认数字键 8），避免与对话推进键 E 冲突
 	if (Cast<APP_BonfireActor>(Hit.GetActor()) != nullptr)
 	{
 		UE_LOG(LogPP, Log, TEXT("[PP_Interact] 命中篝火，交互键不处理，提示按篝火键"));
-		Client_NotifyMessage(TEXT("在篝火旁按 T 休息"));
+		Client_NotifyMessage(TEXT("在篝火旁按 8 休息"));
 		return;
 	}
 
