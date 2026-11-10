@@ -9,6 +9,7 @@
 
 #include "HUD/PP_HUD.h"
 #include "Framework/PP_UIUserWidget.h"
+#include "Framework/PP_UIManager.h"
 #include "Lobby/PP_LobbyHUD.h"
 #include "Widgets/PP_ScoreboardWidget.h"
 #include "Dialogue/PP_DialogueWidget.h"
@@ -65,6 +66,29 @@ void APP_HUD::RequestToggleQuestLog_Implementation()
 void APP_HUD::RequestToggleInventory_Implementation()
 {
 	ToggleInventory();
+}
+
+void APP_HUD::RequestCloseTopModal_Implementation()
+{
+	// 暂停菜单由 HUD 自己持有指针，必须走 HidePauseMenu，否则 HUD 缓存的 Widget 指针会与栈不同步
+	if (IsPauseMenuVisible())
+	{
+		HidePauseMenu();
+		return;
+	}
+
+	// 其余 Modal（对话 / 对话选项 / 购买数量 / 死亡屏）统一从 UIManager 层级栈弹出
+	UPP_UIManager* UIManager = UPP_UIManager::Get(this);
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPP_UIUserWidget* TopModal = UIManager->GetTopWidgetInLayer(EPP_UILayer::Modal);
+	if (IsValid(TopModal) && TopModal->DoesConsumeAllInput())
+	{
+		UIManager->PopWidget(TopModal);
+	}
 }
 
 void APP_HUD::PushNotification_Implementation(const FString& Message)

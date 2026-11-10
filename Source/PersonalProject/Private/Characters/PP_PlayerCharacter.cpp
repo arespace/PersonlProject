@@ -964,10 +964,14 @@ void APP_PlayerCharacter::NotifyControllerChanged()
 		{
 			if (IsValid(InputMappingContext))
 			{
-				FModifyContextOptions Options;
-				Options.bNotifyUserSettings = true;
-				// 和 ALS 源码 AAlsCharacterExample::NotifyControllerChanged 保持一致（priority=0）
-				InputSubsystem->AddMappingContext(InputMappingContext, 0, Options);
+				// 处于 Modal / FrontEnd 时不要把移动 IMC 加回来，否则重生会让角色重新能动
+				if (bLocomotionInputEnabled)
+				{
+					FModifyContextOptions Options;
+					Options.bNotifyUserSettings = true;
+					// 和 ALS 源码 AAlsCharacterExample::NotifyControllerChanged 保持一致（priority=0）
+					InputSubsystem->AddMappingContext(InputMappingContext, 0, Options);
+				}
 			}
 			else
 			{
@@ -981,6 +985,33 @@ void APP_PlayerCharacter::NotifyControllerChanged()
 	}
 
 	Super::NotifyControllerChanged();
+}
+
+void APP_PlayerCharacter::SetLocomotionInputEnabled(bool bEnabled)
+{
+	if (bLocomotionInputEnabled == bEnabled)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+		PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr;
+	if (!IsValid(InputSubsystem) || !IsValid(InputMappingContext))
+	{
+		return;
+	}
+
+	if (bEnabled)
+	{
+		InputSubsystem->AddMappingContext(InputMappingContext, 0);
+	}
+	else
+	{
+		InputSubsystem->RemoveMappingContext(InputMappingContext);
+	}
+
+	bLocomotionInputEnabled = bEnabled;
 }
 
 void APP_PlayerCharacter::CalcCamera(const float DeltaTime, FMinimalViewInfo& ViewInfo)

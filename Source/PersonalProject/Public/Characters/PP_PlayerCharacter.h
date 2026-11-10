@@ -132,6 +132,12 @@ protected:
 public:
 	virtual void NotifyControllerChanged() override;
 
+	/**
+	 * 开关 ALS 移动 IMC（priority 0）。
+	 * Modal / FrontEnd 下关闭，避免 GameAndUI 时角色仍能走动、技能仍能被触发。
+	 */
+	void SetLocomotionInputEnabled(bool bEnabled);
+
 	// Camera
 
 protected:
@@ -252,6 +258,9 @@ private:
 	/** 锁定/解锁输入动作（IA_LockOn，默认映射数字键 6；在玩家蓝图中指定资产） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn")
 	TObjectPtr<UInputAction> LockOnAction;
+
+	/** ALS 移动 IMC 当前是否激活，避免重复 Add/Remove，并让重生时保持上下文一致 */
+	bool bLocomotionInputEnabled = true;
 
 	// ===== 武器装备接口（IPP_EquipmentUser 实现） =====
 

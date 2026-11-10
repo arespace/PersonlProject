@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
 	void RequestToggleInventory();
 
+	/** 关闭最上层 Modal（Esc 统一返回）：暂停菜单优先，其次弹出 UI 层级栈顶 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
+	void RequestCloseTopModal();
+
 	// ===== 计分板 =====
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "PP|UI")
 	void RequestUpdateScoreboard(const TArray<FScoreboardEntry>& Entries);

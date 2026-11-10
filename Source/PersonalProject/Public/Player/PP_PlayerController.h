@@ -72,6 +72,9 @@ public:
 
 	EPP_InputContext GetInputContext() const { return CurrentInputContext; }
 
+	/** 新 Pawn 接管时按当前上下文同步角色移动 IMC（重生、换人都会走这里） */
+	virtual void SetPawn(APawn* InPawn) override;
+
 	// ===== 网络RPC =====
 
 	/** 客户端请求在篝火休息（篝火 Actor 无 owning connection，Server RPC 必须由 PC 发） */
@@ -224,17 +227,28 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input")
 	TArray<TObjectPtr<UInputMappingContext>> InputMappingContexts;
 
+	/** UI 上下文（IMC_UIInterface）：Modal / FrontEnd 只保留这一个 IMC，保证关闭键仍能被 Enhanced Input 派发 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input")
+	TSoftObjectPtr<UInputMappingContext> UIInputContext;
+
 	/** 当前输入上下文 */
 	EPP_InputContext CurrentInputContext = EPP_InputContext::Gameplay;
 
 	/** 是否已至少应用过一次上下文（首次调用即使值相同也要执行清理与模式设置） */
 	bool bInputContextInitialized = false;
 
-	/** 项目 IMC 当前是否处于激活状态，避免 Gameplay ↔ Overlay 反复增删上下文 */
-	bool bProjectInputContextsActive = true;
+	/** 已加入 LocalPlayer 子系统、由本类负责增删的项目 IMC */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputMappingContext>> ActiveProjectInputContexts;
 
-	/** 按需整体增删 InputMappingContexts（priority = 1） */
-	void SetProjectInputContextsActive(bool bActive);
+	/** 按上下文重算项目 IMC：Gameplay/Overlay 全开（priority=1），Modal/FrontEnd 仅 UI（priority=2） */
+	void ApplyProjectInputContexts(EPP_InputContext Context);
+
+	/** 解析 UI 上下文，蓝图为空时回退到默认资产路径 */
+	UInputMappingContext* ResolveUIInputContext() const;
+
+	/** 关闭最上层 Modal（IA_UICancel → UI 网关） */
+	void CloseTopModal();
 
 	/** 大厅选择的角色ID，跨 ServerTravel 携带到战斗地图 */
 	FName PendingCharacterId;
@@ -268,6 +282,10 @@ private:
 	/** 暂停/恢复菜单输入动作 */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> PauseAction;
+
+	/** 统一返回/关闭输入动作（IA_UICancel，默认映射 Escape；关闭最上层 Modal） */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
+	TObjectPtr<UInputAction> UICancelAction;
 
 	/** 计分板输入动作（IA_Scoreboard，默认映射数字键 7；按住显示、松开隐藏） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")

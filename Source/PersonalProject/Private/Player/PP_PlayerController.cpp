@@ -9,6 +9,7 @@
 #include "EnhancedInputComponent.h"
 #include "InputMappingContext.h"
 #include "Characters/PP_BaseCharacter.h"
+#include "Characters/PP_PlayerCharacter.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameSession.h"
@@ -39,17 +40,23 @@ void APP_PlayerController::SetupInputComponent()
 	
 	// PC 侧旧 IMC 恢复——ALS IMC（priority=0）处理视角/移动，PC 侧旧 IMC（priority=1）处理技能/UI。
 	// 两者按键不冲突（ALS 用鼠标XY/WASD，PC侧用鼠标1-5键/功能键），priority 设 1 保证 ALS 鼠标路由优先。
-	for (UInputMappingContext* Context : InputMappingContexts)
+	// 具体激活哪些 IMC 由当前输入上下文决定：Gameplay/Overlay 全开，Modal/FrontEnd 只留 IMC_UIInterface。
+	for (const TObjectPtr<UInputMappingContext>& Context : ActiveProjectInputContexts)
 	{
-		InputSubsystem->AddMappingContext(Context, 1);
+		if (IsValid(Context))
+		{
+			InputSubsystem->RemoveMappingContext(Context);
+		}
 	}
-	bProjectInputContextsActive = true;
+	ActiveProjectInputContexts.Reset();
+	ApplyProjectInputContexts(CurrentInputContext);
 
-	// 重新 Possess / 重设输入组件时，若当前已处于模态或前厅，立即移除项目 IMC
-	if (bInputContextInitialized &&
-		(CurrentInputContext == EPP_InputContext::Modal || CurrentInputContext == EPP_InputContext::FrontEnd))
+	// 新 Pawn 的 ALS 移动 IMC 也要与上下文一致（重生发生在 Modal/FrontEnd 时不能恢复移动）
+	if (APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(GetPawn()))
 	{
-		SetProjectInputContextsActive(false);
+		PlayerCharacter->SetLocomotionInputEnabled(
+			CurrentInputContext == EPP_InputContext::Gameplay ||
+			CurrentInputContext == EPP_InputContext::Overlay);
 	}
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
@@ -78,6 +85,15 @@ void APP_PlayerController::SetupInputComponent()
 	if (PauseAction)
 	{
 		EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ThisClass::TogglePauseMenu);
+	}
+	// Esc 统一返回：关闭最上层 Modal（暂停菜单 / 对话 / 对话选项等）
+	if (UICancelAction)
+	{
+		EnhancedInputComponent->BindAction(UICancelAction, ETriggerEvent::Started, this, &ThisClass::CloseTopModal);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Input] UICancelAction 未指定，Esc 关闭界面不会生效。请在 BP_PlayerController 的 PP|Input|UI -> UICancelAction 挂上 IA_UICancel"));
 	}
 	// 计分板：IA_Scoreboard（默认数字键 7）按住显示、松开隐藏
 	if (ScoreboardAction)
@@ -116,13 +132,19 @@ void APP_PlayerController::SetupInputComponent()
 	}
 }
 
-void APP_PlayerController::SetProjectInputContextsActive(bool bActive)
+UInputMappingContext* APP_PlayerController::ResolveUIInputContext() const
 {
-	if (bProjectInputContextsActive == bActive)
+	if (UInputMappingContext* Loaded = UIInputContext.LoadSynchronous())
 	{
-		return;
+		return Loaded;
 	}
 
+	// 蓝图为空时的兜底（与 IMC_UIInterface 的资产路径保持一致）
+	return LoadObject<UInputMappingContext>(nullptr, TEXT("/Game/PersonalProject/Input/IMC_UIInterface.IMC_UIInterface"));
+}
+
+void APP_PlayerController::ApplyProjectInputContexts(EPP_InputContext Context)
+{
 	UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
 		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 	if (!IsValid(InputSubsystem))
@@ -130,24 +152,51 @@ void APP_PlayerController::SetProjectInputContextsActive(bool bActive)
 		return;
 	}
 
-	for (UInputMappingContext* Context : InputMappingContexts)
-	{
-		if (!IsValid(Context))
-		{
-			continue;
-		}
+	// Gameplay / Overlay：全部项目 IMC（移动、技能、UI），priority = 1
+	// Modal / FrontEnd：只保留 IMC_UIInterface，priority = 2（保证暂停、背包、Esc 等 UI 键仍然可派发）
+	const bool bGameplayLike =
+		Context == EPP_InputContext::Gameplay || Context == EPP_InputContext::Overlay;
+	const int32 Priority = bGameplayLike ? 1 : 2;
 
-		if (bActive)
+	TArray<UInputMappingContext*> Desired;
+	if (bGameplayLike)
+	{
+		for (const TObjectPtr<UInputMappingContext>& ProjectContext : InputMappingContexts)
 		{
-			InputSubsystem->AddMappingContext(Context, 1);
+			if (IsValid(ProjectContext))
+			{
+				Desired.AddUnique(ProjectContext);
+			}
 		}
-		else
+	}
+	if (UInputMappingContext* UIContext = ResolveUIInputContext())
+	{
+		Desired.AddUnique(UIContext);
+	}
+
+	// 先摘掉不在目标集合里的
+	for (int32 Index = ActiveProjectInputContexts.Num() - 1; Index >= 0; --Index)
+	{
+		UInputMappingContext* Active = ActiveProjectInputContexts[Index];
+		if (!Desired.Contains(Active))
 		{
-			InputSubsystem->RemoveMappingContext(Context);
+			if (IsValid(Active))
+			{
+				InputSubsystem->RemoveMappingContext(Active);
+			}
+			ActiveProjectInputContexts.RemoveAt(Index);
 		}
 	}
 
-	bProjectInputContextsActive = bActive;
+	// 再补齐缺失的
+	for (UInputMappingContext* ContextToAdd : Desired)
+	{
+		if (!ActiveProjectInputContexts.Contains(ContextToAdd))
+		{
+			InputSubsystem->AddMappingContext(ContextToAdd, Priority);
+			ActiveProjectInputContexts.Add(ContextToAdd);
+		}
+	}
 }
 
 void APP_PlayerController::ApplyInputContext(EPP_InputContext NewContext)
@@ -163,10 +212,15 @@ void APP_PlayerController::ApplyInputContext(EPP_InputContext NewContext)
 	CurrentInputContext = NewContext;
 	bInputContextInitialized = true;
 
-	// Gameplay 与 Overlay 使用同一套项目 IMC，只有 Modal / FrontEnd 移除
-	const bool bGameplayLike =
-		NewContext == EPP_InputContext::Gameplay || NewContext == EPP_InputContext::Overlay;
-	SetProjectInputContextsActive(bGameplayLike);
+	// 按上下文重算项目 IMC：Modal/FrontEnd 只留 IMC_UIInterface，UI 键（暂停/背包/Esc）仍然有效
+	ApplyProjectInputContexts(NewContext);
+
+	// 移动由 ALS IMC 提供：Modal/FrontEnd 关掉它，GameAndUI 下角色才不会继续走动
+	if (APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(GetPawn()))
+	{
+		PlayerCharacter->SetLocomotionInputEnabled(
+			NewContext == EPP_InputContext::Gameplay || NewContext == EPP_InputContext::Overlay);
+	}
 
 	switch (NewContext)
 	{
@@ -187,9 +241,8 @@ void APP_PlayerController::ApplyInputContext(EPP_InputContext NewContext)
 		break;
 
 	case EPP_InputContext::Modal:
-	case EPP_InputContext::FrontEnd:
-		SetIgnoreMoveInput(true);
-		SetIgnoreLookInput(true);
+		// 不再用 UIOnly：UIOnly 会让 Enhanced Input 一起失效，暂停菜单/对话就无法用同一套 IA 关闭
+		ResetIgnoreInputFlags();
 		if (APawn* ControlledPawn = GetPawn())
 		{
 			if (UCharacterMovementComponent* Movement = ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
@@ -197,10 +250,41 @@ void APP_PlayerController::ApplyInputContext(EPP_InputContext NewContext)
 				Movement->StopMovementImmediately();
 			}
 		}
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			InputMode.SetHideCursorDuringCapture(false);
+			SetInputMode(InputMode);
+		}
+		bShowMouseCursor = true;
+		break;
+
+	case EPP_InputContext::FrontEnd:
+		// 大厅/登录没有 Pawn 要控制，保留 UIOnly
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
 		SetInputMode(FInputModeUIOnly());
 		bShowMouseCursor = true;
 		break;
 	}
+}
+
+void APP_PlayerController::SetPawn(APawn* InPawn)
+{
+	Super::SetPawn(InPawn);
+
+	// 重生/换 Pawn 时按当前上下文同步移动能力（Modal/FrontEnd 下不能把 ALS 移动 IMC 加回来）
+	if (APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(InPawn))
+	{
+		PlayerCharacter->SetLocomotionInputEnabled(
+			CurrentInputContext == EPP_InputContext::Gameplay ||
+			CurrentInputContext == EPP_InputContext::Overlay);
+	}
+}
+
+void APP_PlayerController::CloseTopModal()
+{
+	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestCloseTopModal);
 }
 
 void APP_PlayerController::Jump()

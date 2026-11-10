@@ -40,6 +40,7 @@ public:
 	virtual void RequestToggleMainHUD_Implementation() override;
 	virtual void RequestToggleQuestLog_Implementation() override;
 	virtual void RequestToggleInventory_Implementation() override;
+	virtual void RequestCloseTopModal_Implementation() override;
 	virtual void PushNotification_Implementation(const FString& Message) override;
 	virtual void PushChatMessage_Implementation(const FString& PlayerName, const FString& Message) override;
 	virtual void RequestUpdateScoreboard_Implementation(const TArray<FScoreboardEntry>& Entries) override;
