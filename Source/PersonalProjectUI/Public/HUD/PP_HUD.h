@@ -19,6 +19,7 @@ class UPP_QuestListWidget;
 class UPP_QuestTrackerWidget;
 class UPP_InventoryWidget;
 class UPP_SettlementWidget;
+class APP_BossCharacter;
 
 /**
  * APP_HUD - UI总调度器
@@ -217,6 +218,18 @@ private:
 	/** Boss 结算界面（首次收到结算事件时创建） */
 	UPROPERTY()
 	TObjectPtr<UPP_SettlementWidget> SettlementWidget;
+
+	// ===== Boss 血条缓存 =====
+
+	/** 缓存的 Boss（DrawHUD 每帧读取；失效或未找到时按间隔重查，不再每帧遍历 Actor） */
+	UPROPERTY()
+	TObjectPtr<APP_BossCharacter> CachedBoss;
+
+	/** 下次允许重查 Boss 的世界时间（秒） */
+	double NextBossSearchTime = 0.0;
+
+	/** 无有效 Boss 时的重查间隔（秒）：Boss 出现最多延迟这个时长被检测到 */
+	static constexpr double BossSearchInterval = 0.25;
 
 	/** 初始化ViewModel */
 	void InitializeViewModel();

@@ -166,17 +166,31 @@ void APP_HUD::DrawHUD()
 
 	// ===== Boss 血条（独立于锁定标记，始终在顶部显示）=====
 	{
-		TArray<AActor*> FoundBosses;
-		UGameplayStatics::GetAllActorsOfClass(this, APP_BossCharacter::StaticClass(), FoundBosses);
-		APP_BossCharacter* Boss = nullptr;
-		for (AActor* Actor : FoundBosses)
+		// 缓存指针：命中则直接用；失效或从未找到时才按间隔重查，避免每帧 GetAllActorsOfClass
+		if (!IsValid(CachedBoss.Get()))
 		{
-			if (APP_BossCharacter* B = Cast<APP_BossCharacter>(Actor))
+			CachedBoss = nullptr;
+
+			const UWorld* World = GetWorld();
+			const double Now = World ? World->GetTimeSeconds() : 0.0;
+			if (Now >= NextBossSearchTime)
 			{
-				Boss = B;
-				break; // 只取第一个 Boss（同时只支持一个 Boss）
+				NextBossSearchTime = Now + BossSearchInterval;
+
+				TArray<AActor*> FoundBosses;
+				UGameplayStatics::GetAllActorsOfClass(this, APP_BossCharacter::StaticClass(), FoundBosses);
+				for (AActor* Actor : FoundBosses)
+				{
+					if (APP_BossCharacter* B = Cast<APP_BossCharacter>(Actor))
+					{
+						CachedBoss = B;
+						break; // 只取第一个 Boss（同时只支持一个 Boss）
+					}
+				}
 			}
 		}
+
+		APP_BossCharacter* Boss = CachedBoss;
 
 		if (Boss && Boss->GetBossHealthPercent() > 0.f)
 		{
