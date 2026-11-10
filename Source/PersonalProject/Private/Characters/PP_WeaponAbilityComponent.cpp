@@ -22,17 +22,6 @@ UAbilitySystemComponent* UPP_WeaponAbilityComponent::GetOwnerAbilitySystemCompon
 	return AbilitySystemInterface ? AbilitySystemInterface->GetAbilitySystemComponent() : nullptr;
 }
 
-void UPP_WeaponAbilityComponent::ApplyEquippedWeapon(const EPP_EquipSlot Slot, const FName NewItemID)
-{
-	// GA 的授予/移除必须由权威端执行
-	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
-	{
-		return;
-	}
-
-	GrantWeaponAbility(Slot, NewItemID);
-}
-
 void UPP_WeaponAbilityComponent::RefreshAbilityFromInventory()
 {
 	// 客户端不授予 GA，由服务器授予后复制
@@ -49,18 +38,17 @@ void UPP_WeaponAbilityComponent::RefreshAbilityFromInventory()
 		return;
 	}
 
-	// 单武器槽口径：只恢复主手
+	// 单武器槽口径：只看主手；空手时 WeaponID 为 None，用于清掉旧 GA
 	const FName WeaponID = Inventory->GetEquippedItemID(EPP_EquipSlot::MainHand);
-	if (WeaponID.IsNone())
+
+	// 幂等：上次已按同一件装备同步过，直接返回（不会重复 GiveAbility，也不会重复挂载）
+	const FName* GrantedID = GrantedItemIDs.Find(EPP_EquipSlot::MainHand);
+	if ((GrantedID ? *GrantedID : NAME_None) == WeaponID)
 	{
 		return;
 	}
 
-	// 本生命周期内已授予过则跳过，避免重复实例
-	if (!WeaponAbilityHandles.Contains(EPP_EquipSlot::MainHand))
-	{
-		GrantWeaponAbility(EPP_EquipSlot::MainHand, WeaponID);
-	}
+	GrantWeaponAbility(EPP_EquipSlot::MainHand, WeaponID);
 }
 
 void UPP_WeaponAbilityComponent::GrantWeaponAbility(const EPP_EquipSlot Slot, const FName NewItemID)
@@ -78,9 +66,10 @@ void UPP_WeaponAbilityComponent::GrantWeaponAbility(const EPP_EquipSlot Slot, co
 		if (OldHandle->IsValid())
 		{
 			ASC->ClearAbility(*OldHandle);
-			WeaponAbilityHandles.Remove(Slot);
 		}
 	}
+	WeaponAbilityHandles.Remove(Slot);
+	GrantedItemIDs.Remove(Slot);
 
 	// 第二步：如果 NewItemID 有效 → 查武器配置 → Give 新 GA
 	if (NewItemID.IsNone())
@@ -88,6 +77,9 @@ void UPP_WeaponAbilityComponent::GrantWeaponAbility(const EPP_EquipSlot Slot, co
 		// 卸下，到此结束
 		return;
 	}
+
+	// 记录本次同步的目标装备：即使该武器没有 GA 类（纯属性武器），同 ID 刷新也不再重复尝试
+	GrantedItemIDs.Add(Slot, NewItemID);
 
 	// 唯一数据源：DT_Items 行内嵌的 WeaponConfig
 	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());

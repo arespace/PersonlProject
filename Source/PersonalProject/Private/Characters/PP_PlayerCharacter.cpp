@@ -1076,24 +1076,24 @@ FVector APP_PlayerCharacter::GetLockOnFocusLocation() const
 
 // ===== IPP_EquipmentUser 实现（武器装备 → GA 切换） =====
 
-void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, FName NewItemID)
+void APP_PlayerCharacter::OnEquipmentChanged_Implementation(EPP_EquipSlot Slot, FName /*NewItemID*/)
 {
-	// 先同步武器外观：主手枪位为空 → 露出自带武器；有武器 → 隐藏自带武器并显示对应网格
-	if (Slot == EPP_EquipSlot::MainHand && IsValid(WeaponVisualComponent))
-	{
-		// 外观完全交给组件：空手 → 清网格并显示自带武器；有武器 → 隐藏自带武器并显示对应网格
-		WeaponVisualComponent->ApplyEquippedWeapon(NewItemID);
-	}
-
-	// 以下只属于服务器：GA 的授予/移除必须由权威端执行（外观部分已在上方双端完成）
-	if (!HasAuthority())
+	// 只做转发：外观与 GA 各自从背包的装备数据拉取（不再把 NewItemID 往下传，避免两份数据源）
+	// 当前只有主手武器槽参与外观 / 技能切换
+	if (Slot != EPP_EquipSlot::MainHand)
 	{
 		return;
 	}
 
+	if (IsValid(WeaponVisualComponent))
+	{
+		WeaponVisualComponent->RefreshVisualFromInventory();
+	}
+
+	// GA 的授予/移除由组件内部判服务器权威，客户端调用直接返回
 	if (IsValid(WeaponAbilityComponent))
 	{
-		WeaponAbilityComponent->ApplyEquippedWeapon(Slot, NewItemID);
+		WeaponAbilityComponent->RefreshAbilityFromInventory();
 	}
 }
 

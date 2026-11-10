@@ -71,16 +71,9 @@ void UPP_WeaponVisualComponent::RefreshVisualFromInventory()
 	APP_PlayerState* PPPlayerState = IsValid(Character) ? Character->GetPlayerState<APP_PlayerState>() : nullptr;
 	UPP_InventoryComponent* Inventory = IsValid(PPPlayerState) ? PPPlayerState->GetInventoryComponent() : nullptr;
 
-	// 单武器槽口径：只看主手
+	// 单武器槽口径：只看主手；空手 → 清网格并露出自带武器
 	const FName WeaponID = IsValid(Inventory) ? Inventory->GetEquippedItemID(EPP_EquipSlot::MainHand) : NAME_None;
-	ApplyEquippedWeapon(WeaponID);
-}
-
-void UPP_WeaponVisualComponent::ApplyEquippedWeapon(const FName ItemID)
-{
-	MigrateDeprecatedSettings();
-
-	if (ItemID.IsNone())
+	if (WeaponID.IsNone())
 	{
 		ClearWeaponMesh();
 		SetBuiltInWeaponVisible(true);
@@ -88,7 +81,7 @@ void UPP_WeaponVisualComponent::ApplyEquippedWeapon(const FName ItemID)
 	}
 
 	SetBuiltInWeaponVisible(false);
-	SetWeaponMesh(ItemID);
+	SetWeaponMesh(WeaponID);
 }
 
 void UPP_WeaponVisualComponent::SetWeaponMesh(const FName ItemID)
@@ -308,8 +301,15 @@ void UPP_WeaponVisualComponent::AttachToSocket(USkeletalMeshComponent* SkeletalM
 		}
 	}
 
-	WeaponMeshComponent->AttachToComponent(SkeletalMesh,
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale, ResolvedSocket);
+	// 已经挂在同一 socket / 骨骼上就不重复挂载（刷新入口可能被多次调用）
+	const bool bAlreadyAttached = WeaponMeshComponent->GetAttachParent() == SkeletalMesh &&
+		WeaponMeshComponent->GetAttachSocketName() == ResolvedSocket;
+	if (!bAlreadyAttached)
+	{
+		WeaponMeshComponent->AttachToComponent(SkeletalMesh,
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale, ResolvedSocket);
+	}
+
 	// 模型枢轴与骨骼方向不一致时，用相对变换做修正
 	WeaponMeshComponent->SetRelativeLocationAndRotation(RelativeLocation, RelativeRotation);
 	WeaponMeshComponent->SetRelativeScale3D(RelativeScale);

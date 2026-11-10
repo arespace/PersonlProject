@@ -33,10 +33,7 @@ public:
 
 	virtual void BeginPlay() override;
 
-	/** 装备栏变化入口：空手 → 清网格并显示自带武器；有武器 → 隐藏自带武器并显示对应网格 */
-	void ApplyEquippedWeapon(FName ItemID);
-
-	/** 按 PlayerState 上已复制的装备恢复外观（出生 / 复活 / 重连 / 客户端收到复制都能调，结果一致） */
+	/** 唯一的刷新入口：读 PlayerState 上已复制的装备，按主手武器同步外观（出生 / 复活 / 重连 / 装备变化都调它，结果一致） */
 	void RefreshVisualFromInventory();
 
 	/** 把武器网格换成 ItemID 对应的静态网格（读 DT_Items 的 WeaponConfig.Visual） */

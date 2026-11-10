@@ -32,10 +32,7 @@ class PERSONALPROJECT_API UPP_WeaponAbilityComponent : public UActorComponent
 public:
 	UPP_WeaponAbilityComponent();
 
-	/** 装备栏变化入口：移除该槽旧 GA，再按 NewItemID 授予新 GA（仅服务器） */
-	void ApplyEquippedWeapon(EPP_EquipSlot Slot, FName NewItemID);
-
-	/** 按 PlayerState 上已复制的装备恢复 GA；已授予过则跳过，重复调用结果一致（仅服务器） */
+	/** 唯一的刷新入口：按 PlayerState 上已复制的装备同步 GA（已授予同一件则跳过，重复调用结果一致；仅服务器） */
 	void RefreshAbilityFromInventory();
 
 private:
@@ -47,4 +44,7 @@ private:
 
 	/** 每个武器槽位当前激活的 AbilitySpecHandle（卸下/替换时用于精确移除；仅服务器维护） */
 	TMap<EPP_EquipSlot, FGameplayAbilitySpecHandle> WeaponAbilityHandles;
+
+	/** 每个武器槽位上一次同步的 ItemID（用于判断"装备没变"从而跳过重复授予；仅服务器维护） */
+	TMap<EPP_EquipSlot, FName> GrantedItemIDs;
 };
