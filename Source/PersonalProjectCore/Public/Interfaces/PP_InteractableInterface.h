@@ -4,8 +4,6 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "Data/PP_ItemTypes.h"
-// 兼容既有引用：装备接口已拆到独立头文件
-#include "Interfaces/PP_EquipmentUserInterface.h"
 #include "PP_InteractableInterface.generated.h"
 
 class APlayerController;

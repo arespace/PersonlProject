@@ -11,6 +11,7 @@
 #include "Events/PP_EventTypes.h"
 #include "Framework/PP_Log.h"
 #include "GameplayTags/PPTags.h"
+#include "Interfaces/PP_EquipmentUserInterface.h"
 #include "Interfaces/PP_InteractableInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
