@@ -49,6 +49,7 @@ Content/CrosshairFreePack/
 # 后面的 `!_tools/SmokeChecklist.md` 才能生效，让冒烟清单进入版本控制。
 _tools/*
 !_tools/SmokeChecklist.md
+!_tools/ParseFPSChart.ps1
 .clangd
 .ignore
 PersonalProject.code-workspace
