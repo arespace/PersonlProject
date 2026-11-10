@@ -113,6 +113,15 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		EnhancedInputComponent->BindAction(DialogueAction, ETriggerEvent::Started, this, &ThisClass::Interact);
 	}
+	// 交互键：IA_Interact（默认 F）。此前由 PC 蓝图的 EnhancedInputAction 节点调用 Interact，现统一收到 C++
+	if (InteractAction)
+	{
+		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ThisClass::Interact);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Input] InteractAction 未指定，交互键不会生效。请在 BP_PlayerController 的 PP|Input|Dialogue -> InteractAction 挂上 IA_Interact"));
+	}
 	// 篝火休息：IA_BonfireInteract（默认数字键 8），交互键 E 已被对话推进占用
 	if (BonfireInteractAction)
 	{

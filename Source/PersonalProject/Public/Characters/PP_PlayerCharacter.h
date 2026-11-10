@@ -163,6 +163,9 @@ protected:
 	virtual void Input_OnSwitchShoulder();
 	virtual void Input_OnLockOn();
 
+	/** 装备长剑：从背包穿戴 Longsword（原蓝图 F 键原生事件，现由 IA_EquipLongsword 驱动） */
+	void EquipLongsword();
+
 	/** ALS 翻滚蒙太奇选择：按当前骨骼网格查表，未命中时回退到 ALS 默认蒙太奇 */
 	virtual UAnimMontage* SelectRollMontage_Implementation() override;
 
@@ -258,6 +261,10 @@ private:
 	/** 锁定/解锁输入动作（IA_LockOn，默认映射数字键 6；在玩家蓝图中指定资产） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|LockOn")
 	TObjectPtr<UInputAction> LockOnAction;
+
+	/** 装备长剑输入动作（IA_EquipLongsword；原为蓝图 EventGraph 里的 F 键原生事件，现统一走 IA） */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|Debug")
+	TObjectPtr<UInputAction> EquipLongswordAction;
 
 	/** ALS 移动 IMC 当前是否激活，避免重复 Add/Remove，并让重生时保持上下文一致 */
 	bool bLocomotionInputEnabled = true;

@@ -1078,6 +1078,16 @@ void APP_PlayerCharacter::SetupPlayerInputComponent(UInputComponent* Input)
 		{
 			UE_LOG(LogPP, Warning, TEXT("[PP_Input] LockOnAction 未指定，锁定键不会生效。请在 BP_PlayerCharacter 的 PP|LockOn -> LockOnAction 挂上 IA_LockOn"));
 		}
+
+		// 装备长剑走 IA：原来由蓝图 EventGraph 的 F 键原生事件调 Server_EquipItem，现统一收到 C++
+		if (EquipLongswordAction)
+		{
+			EnhancedInput->BindAction(EquipLongswordAction, ETriggerEvent::Started, this, &ThisClass::EquipLongsword);
+		}
+		else
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Input] EquipLongswordAction 未指定，装备长剑键不会生效。请在 BP_PlayerCharacter 的 PP|Input|Debug -> EquipLongswordAction 挂上 IA_EquipLongsword"));
+		}
 	}
 	else
 	{
@@ -1283,6 +1293,19 @@ void APP_PlayerCharacter::Input_OnLockOn()
 	if (LockOnComponent)
 	{
 		LockOnComponent->ToggleLockOn();
+	}
+}
+
+void APP_PlayerCharacter::EquipLongsword()
+{
+	APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
+	if (!PS)
+	{
+		return;
+	}
+	if (UPP_InventoryComponent* Inventory = PS->GetInventoryComponent())
+	{
+		Inventory->Server_EquipItem(TEXT("Longsword"));
 	}
 }
 
