@@ -22,6 +22,7 @@ class UMaterialInterface;
 class UGameplayEffect;
 class UAnimMontage;
 class USkeletalMesh;
+class UPP_StaminaComponent;
 
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter, public IPP_EquipmentUser
@@ -188,60 +189,43 @@ private:
 
 	// ===== 耐力系统 =====
 
-	/** 耐力下降时施加回复延迟 GE（覆盖奔跑/翻滚/技能所有消耗来源） */
-	void OnStaminaChanged(const FOnAttributeChangeData& AttributeChangeData);
-
-	/** 服务端每帧轮询 ALS Gait/LocomotionAction，维护 PP.Status.Sprinting loose tag */
-	void UpdateStaminaStateTags();
-
-	/** 施加常驻的耐力回复/奔跑消耗 GE（Infinite 周期型，由 OngoingTagRequirements 开关） */
-	void ApplyStaminaPassiveEffects();
-
-	/** 服务端检测 ALS 进入翻滚瞬间，扣除翻滚体力 */
-	void UpdateRollStaminaCost();
-
 	/** 服务端同步 ALS 翻滚状态到 Status.Invulnerable（i-frames 无敌窗口），跟随 Rolling 起止 */
 	void UpdateRollInvulnerability();
 
-	/** 通过 StaminaCostEffect 扣除指定体力（SetByCaller 传 -Amount） */
-	void ApplyStaminaCost(float Amount);
-
 	/**
-	 * 耐力回复 GE（Infinite + Period 0.1s，Modifier = StaminaRegenRate × 0.1）。
-	 * OngoingTagRequirements 禁止 PPTags.Status.Sprinting / PPTags.Status.StaminaRegenBlocked，
-	 * 实现"奔跑中不回体、消耗后 0.8s 内不回体"，无需 C++ 手写计时器。
+	 * 把旧的"角色级"耐力配置迁移到 StaminaComponent（过渡保护）。
+	 * PossessedBy / OnRep_PlayerState / BeginPlay 都会调用，内部只执行一次，只覆盖与组件默认值不同的项。
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	void TransferDeprecatedStaminaSettings();
+
+	/** 耐力组件：消耗 / 恢复 / 恢复延迟 / 冲刺与翻滚扣费都在组件里 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Stamina", Meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPP_StaminaComponent> StaminaComponent;
+
+	// ===== 耐力系统：已迁移到 UPP_StaminaComponent 的旧属性（过渡期保留，确认蓝图后单独提交删除） =====
+
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
+		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaRegenEffect，请在组件上配置"))
 	TSubclassOf<UGameplayEffect> StaminaRegenEffect;
 
-	/**
-	 * 奔跑消耗 GE（Infinite + Period 0.1s，Modifier = -0.8）。
-	 * OngoingTagRequirements 要求 PPTags.Status.Sprinting，只有真的在冲刺时才跳。
-	 */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
+		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaSprintDrainEffect，请在组件上配置"))
 	TSubclassOf<UGameplayEffect> StaminaSprintDrainEffect;
 
-	/**
-	 * 耐力回复延迟 GE（Duration 型，固定 0.8s，GrantedTag = PPTags.Status.StaminaRegenBlocked）。
-	 * 任何一次耐力下降都会刷新它，从而抑制常驻的 GE_StaminaRegen。
-	 * 留空则耐力回复没有延迟窗口（仅用于分批调试）。
-	 */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
+		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaRegenDelayEffect，请在组件上配置"))
 	TSubclassOf<UGameplayEffect> StaminaRegenDelayEffect;
 
-	/** 翻滚体力消耗值（体力不足时不触发翻滚） */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina", Meta = (ClampMin = 0))
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
+		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 RollStaminaCost，请在组件上配置"))
 	float RollStaminaCost{20.f};
 
-	/**
-	 * 翻滚的体力扣除 GE（Instant，SetByCaller = PPTags.SetByCaller.StaminaCost）。
-	 * 和技能共用同一个资产（GE_Cost_Stamina）。
-	 */
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina")
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
+		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaCostEffect，请在组件上配置"))
 	TSubclassOf<UGameplayEffect> StaminaCostEffect;
 
-	/** 上一帧是否处于翻滚状态（用于检测翻滚起始瞬间） */
-	bool bWasRolling = false;
+	/** 旧属性是否已迁移到组件（避免重复灌值与重复告警） */
+	bool bDeprecatedStaminaTransferred{false};
 
 	// ===== 翻滚蒙太奇 =====
 

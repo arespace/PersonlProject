@@ -9,6 +9,7 @@
 #include "Animation/AnimInstance.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Characters/PP_EnemyCharacter.h"
+#include "Characters/PP_StaminaComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -71,6 +72,9 @@ APP_PlayerCharacter::APP_PlayerCharacter()
 
 	// ===== 锁定组件 =====
 	LockOnComponent = CreateDefaultSubobject<UPP_LockOnComponent>(TEXT("LockOnComponent"));
+
+	// ===== 耐力组件 =====
+	StaminaComponent = CreateDefaultSubobject<UPP_StaminaComponent>(TEXT("StaminaComponent"));
 
 	// ===== ALS 输入资产兜底（改父类后蓝图配置会被清空） =====
 	static ConstructorHelpers::FObjectFinder<UInputMappingContext> DefaultInputMappingContext(
@@ -296,6 +300,9 @@ void APP_PlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 蓝图里可能还没把耐力配置挪到组件上，这里做一次过渡迁移
+	TransferDeprecatedStaminaSettings();
+
 	// 把武器网格容器挂到配置的骨骼/socket 上（蓝图里改 WeaponAttachSocketName 后运行时生效）
 	PP_AttachWeaponMeshToSocket(GetMesh(), WeaponMesh, WeaponAttachSocketName,
 		FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector);
@@ -469,6 +476,9 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
+	// 先把旧的角色级耐力配置灌进组件，避免后续 ApplyPassiveEffects 用到空配置
+	TransferDeprecatedStaminaSettings();
+
 	// 角色外观恢复（不依赖 ASC，必须在 ASC 检查之前执行）
 	RestoreCharacterSelection();
 
@@ -490,15 +500,20 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 	// （日志里出现 "bAlive=1" 和 "bAlive=0" 两条服务端死亡记录）。
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).RemoveAll(this);
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
-	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).RemoveAll(this);
-	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
 
-	ApplyStaminaPassiveEffects();
+	// 耐力委托与常驻 GE 由组件负责（组件内部同样先 RemoveAll 再 Add）
+	if (StaminaComponent)
+	{
+		StaminaComponent->BindToAbilitySystem();
+		StaminaComponent->ApplyPassiveEffects();
+	}
 }
 
 void APP_PlayerCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
+
+	TransferDeprecatedStaminaSettings();
 
 	// 客户端角色外观恢复（ASC 检查之前执行）
 	RestoreCharacterSelection();
@@ -517,8 +532,11 @@ void APP_PlayerCharacter::OnRep_PlayerState()
 	// 同上：避免 PossessedBy / OnRep_PlayerState 重复绑定
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).RemoveAll(this);
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
-	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).RemoveAll(this);
-	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetStaminaAttribute()).AddUObject(this, &ThisClass::OnStaminaChanged);
+
+	if (StaminaComponent)
+	{
+		StaminaComponent->BindToAbilitySystem();
+	}
 }
 
 void APP_PlayerCharacter::Tick(float DeltaTime)
@@ -552,88 +570,20 @@ void APP_PlayerCharacter::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
-	UpdateStaminaStateTags();
-	UpdateRollStaminaCost();
+	// 耐力：冲刺 tag 维护 + 翻滚起始扣费（顺序与迁移前一致，仍在 i-frames 之前）
+	if (StaminaComponent)
+	{
+		StaminaComponent->UpdateStamina();
+	}
+
 	UpdateRollInvulnerability();
-}
-
-void APP_PlayerCharacter::UpdateStaminaStateTags()
-{
-	// 耐力消耗由服务端权威 GE 执行，状态 tag 只在服务端维护
-	if (!HasAuthority() || !IsValid(GetAbilitySystemComponent()))
-	{
-		return;
-	}
-
-	// "真的在冲刺"才算：ALS 的 Gait 在速度为 0 时仍可能保持 Sprinting，
-	// 必须叠加"在地面 + 无翻滚/倒地等动作"判断，避免站着不动或翻滚时掉耐力。
-	const UCharacterMovementComponent* Movement = GetCharacterMovement();
-	const bool bNowSprinting =
-		IsAlive()
-		&& GetGait() == AlsGaitTags::Sprinting
-		&& !GetLocomotionAction().IsValid()
-		&& Movement && Movement->IsMovingOnGround();
-
-	const bool bHasSprintingTag = GetAbilitySystemComponent()->HasMatchingGameplayTag(PPTags::Status::Sprinting);
-	if (bNowSprinting && !bHasSprintingTag)
-	{
-		GetAbilitySystemComponent()->AddLooseGameplayTag(PPTags::Status::Sprinting);
-	}
-	else if (!bNowSprinting && bHasSprintingTag)
-	{
-		GetAbilitySystemComponent()->RemoveLooseGameplayTag(PPTags::Status::Sprinting);
-	}
-}
-
-void APP_PlayerCharacter::ApplyStaminaPassiveEffects()
-{
-	if (!IsValid(GetAbilitySystemComponent()))
-	{
-		return;
-	}
-
-	// 两个常驻 Infinite 周期 GE：是否真正生效由 OngoingTagRequirements 决定
-	const TSubclassOf<UGameplayEffect> PassiveEffects[] = {StaminaRegenEffect, StaminaSprintDrainEffect};
-	for (const TSubclassOf<UGameplayEffect>& EffectClass : PassiveEffects)
-	{
-		if (!EffectClass)
-		{
-			continue;
-		}
-
-		FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponent()->MakeEffectContext();
-		ContextHandle.AddSourceObject(this);
-		FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponent()->MakeOutgoingSpec(EffectClass, 1.f, ContextHandle);
-		if (SpecHandle.IsValid())
-		{
-			GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-		}
-	}
-}
-
-void APP_PlayerCharacter::UpdateRollStaminaCost()
-{
-	// 翻滚是 ALS 动作状态，只在服务端扣体力
-	if (!HasAuthority() || !IsValid(GetAbilitySystemComponent()))
-	{
-		bWasRolling = false;
-		return;
-	}
-
-	const bool bRolling = GetLocomotionAction() == AlsLocomotionActionTags::Rolling;
-	if (bRolling && !bWasRolling)
-	{
-		ApplyStaminaCost(RollStaminaCost);
-	}
-
-	bWasRolling = bRolling;
 }
 
 void APP_PlayerCharacter::UpdateRollInvulnerability()
 {
 	// i-frames：跟随 ALS Rolling 状态给/移 Status.Invulnerable，
 	// 伤害入口在 PP_BaseCharacter::CanBeDamaged 统一读取该标签。
-	// 与 UpdateStaminaStateTags 同一模式：loose tag 仅服务端维护。
+	// 与组件的冲刺 tag 同一模式：loose tag 仅服务端维护。
 	if (!HasAuthority() || !IsValid(GetAbilitySystemComponent()))
 	{
 		return;
@@ -652,46 +602,54 @@ void APP_PlayerCharacter::UpdateRollInvulnerability()
 	}
 }
 
-void APP_PlayerCharacter::ApplyStaminaCost(float Amount)
+void APP_PlayerCharacter::TransferDeprecatedStaminaSettings()
 {
-	if (Amount <= 0.f || !StaminaCostEffect || !IsValid(GetAbilitySystemComponent()))
+	if (bDeprecatedStaminaTransferred || !StaminaComponent)
 	{
 		return;
 	}
+	bDeprecatedStaminaTransferred = true;
 
-	FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponent()->MakeEffectContext();
-	ContextHandle.AddSourceObject(this);
-	FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponent()->MakeOutgoingSpec(StaminaCostEffect, 1.f, ContextHandle);
-	if (!SpecHandle.IsValid())
+	// 只把"与组件默认值不同"的旧配置灌进组件，并把迁移项一次性告警出来
+	const UPP_StaminaComponent* ComponentDefaults = GetDefault<UPP_StaminaComponent>();
+	TArray<FString> MigratedFields;
+
+	if (StaminaRegenEffect != ComponentDefaults->StaminaRegenEffect)
 	{
-		return;
+		StaminaComponent->StaminaRegenEffect = StaminaRegenEffect;
+		MigratedFields.Add(TEXT("StaminaRegenEffect"));
 	}
 
-	// SetByCaller 传负值，Instant GE 用加法扣减
-	SpecHandle.Data->SetSetByCallerMagnitude(PPTags::SetByCaller::StaminaCost, -Amount);
-	GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-}
-
-void APP_PlayerCharacter::OnStaminaChanged(const FOnAttributeChangeData& AttributeChangeData)
-{
-	// 只处理"消耗"（耐力下降）；回复不触发延迟
-	if (AttributeChangeData.NewValue >= AttributeChangeData.OldValue || !IsAlive())
+	if (StaminaSprintDrainEffect != ComponentDefaults->StaminaSprintDrainEffect)
 	{
-		return;
+		StaminaComponent->StaminaSprintDrainEffect = StaminaSprintDrainEffect;
+		MigratedFields.Add(TEXT("StaminaSprintDrainEffect"));
 	}
 
-	if (!IsValid(GetAbilitySystemComponent()) || !StaminaRegenDelayEffect)
+	if (StaminaRegenDelayEffect != ComponentDefaults->StaminaRegenDelayEffect)
 	{
-		return;
+		StaminaComponent->StaminaRegenDelayEffect = StaminaRegenDelayEffect;
+		MigratedFields.Add(TEXT("StaminaRegenDelayEffect"));
 	}
 
-	// 每次消耗都刷新延迟窗口（GE 使用 Aggregate + Refresh 叠加策略，不会叠加堆栈）
-	FGameplayEffectContextHandle ContextHandle = GetAbilitySystemComponent()->MakeEffectContext();
-	ContextHandle.AddSourceObject(this);
-	FGameplayEffectSpecHandle SpecHandle = GetAbilitySystemComponent()->MakeOutgoingSpec(StaminaRegenDelayEffect, 1.f, ContextHandle);
-	if (SpecHandle.IsValid())
+	if (StaminaCostEffect != ComponentDefaults->StaminaCostEffect)
 	{
-		GetAbilitySystemComponent()->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		StaminaComponent->StaminaCostEffect = StaminaCostEffect;
+		MigratedFields.Add(TEXT("StaminaCostEffect"));
+	}
+
+	if (!FMath::IsNearlyEqual(RollStaminaCost, ComponentDefaults->RollStaminaCost))
+	{
+		StaminaComponent->RollStaminaCost = RollStaminaCost;
+		MigratedFields.Add(TEXT("RollStaminaCost"));
+	}
+
+	if (MigratedFields.Num() > 0)
+	{
+		UE_LOG(LogPP, Warning,
+			TEXT("[PP_Stamina] 已把旧的角色级耐力配置迁移到 StaminaComponent：%s。")
+			TEXT("请在 BP_PP_PlayerCharacter 的 StaminaComponent 上重新配置，并删除角色上的旧属性"),
+			*FString::Join(MigratedFields, TEXT("、")));
 	}
 }
 
@@ -1226,12 +1184,9 @@ void APP_PlayerCharacter::Input_OnRoll()
 	static constexpr auto PlayRate{1.3f};
 
 	// 体力不足以支付翻滚消耗时不翻滚（客户端用复制过来的体力值判断，服务端 Tick 里扣费）
-	if (const UPP_AttributeSet* AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet()))
+	if (StaminaComponent && !StaminaComponent->HasEnoughStamina(StaminaComponent->RollStaminaCost))
 	{
-		if (AttributeSet->GetStamina() < RollStaminaCost)
-		{
-			return;
-		}
+		return;
 	}
 
 	StartRollingGrounded(PlayRate);
