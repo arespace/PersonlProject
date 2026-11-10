@@ -20,6 +20,8 @@ class UStaticMesh;
 class UStaticMeshComponent;
 class UMaterialInterface;
 class UGameplayEffect;
+class UAnimMontage;
+class USkeletalMesh;
 
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerCharacter : public APP_BaseCharacter, public IPP_EquipmentUser
@@ -155,6 +157,9 @@ protected:
 	virtual void Input_OnSwitchShoulder();
 	virtual void Input_OnLockOn();
 
+	/** ALS 翻滚蒙太奇选择：按当前骨骼网格查表，未命中时回退到 ALS 默认蒙太奇 */
+	virtual UAnimMontage* SelectRollMontage_Implementation() override;
+
 private:
 	/** 从 PlayerState/PlayerController/GameInstance 恢复角色选择并应用外观 */
 	void RestoreCharacterSelection();
@@ -228,6 +233,15 @@ private:
 
 	/** 上一帧是否处于翻滚状态（用于检测翻滚起始瞬间） */
 	bool bWasRolling = false;
+
+	// ===== 翻滚蒙太奇 =====
+
+	/**
+	 * 按骨骼网格指定翻滚蒙太奇：角色换皮/换模型时自动使用对应动作。
+	 * 未命中时回退到 ALS 的 Settings->Rolling.Montage，留空即为纯 ALS 行为。
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Roll")
+	TMap<TObjectPtr<USkeletalMesh>, TObjectPtr<UAnimMontage>> RollMontageByMesh;
 
 	// ===== 锁定系统 =====
 

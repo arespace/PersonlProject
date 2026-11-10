@@ -1194,6 +1194,24 @@ void APP_PlayerCharacter::Input_OnRoll()
 	StartRollingGrounded(PlayRate);
 }
 
+UAnimMontage* APP_PlayerCharacter::SelectRollMontage_Implementation()
+{
+	USkeletalMesh* MeshAsset = GetMesh() ? GetMesh()->GetSkeletalMeshAsset() : nullptr;
+	if (MeshAsset)
+	{
+		if (const TObjectPtr<UAnimMontage>* FoundMontage = RollMontageByMesh.Find(MeshAsset))
+		{
+			if (IsValid(*FoundMontage))
+			{
+				return *FoundMontage;
+			}
+		}
+	}
+
+	// 未配置该模型的翻滚动作，沿用 ALS 默认蒙太奇
+	return Super::SelectRollMontage_Implementation();
+}
+
 void APP_PlayerCharacter::Input_OnRotationMode()
 {
 	// 锁定期间强制 Aiming 旋转模式，切换按键暂不生效
