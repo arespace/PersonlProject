@@ -10,6 +10,7 @@
 #include "Framework/PP_DataManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/PP_UIManager.h"
 
 UPP_DialogueChoiceWidget::UPP_DialogueChoiceWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

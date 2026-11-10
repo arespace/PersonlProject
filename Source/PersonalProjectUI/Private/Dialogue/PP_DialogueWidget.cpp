@@ -12,6 +12,7 @@
 #include "Query/PP_ShopQuery.h"
 #include "Dialogue/PP_DialogueChoiceWidget.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/PP_UIManager.h"
 #include "Framework/PP_Log.h"
 
 UPP_DialogueWidget::UPP_DialogueWidget(const FObjectInitializer& ObjectInitializer)
