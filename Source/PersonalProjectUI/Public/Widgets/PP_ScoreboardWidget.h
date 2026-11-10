@@ -7,6 +7,8 @@
 #include "Session/PP_ScoreboardTypes.h"
 #include "PP_ScoreboardWidget.generated.h"
 
+class UPP_ScoreboardRowWidget;
+
 /**
  * UPP_ScoreboardWidget - 计分板Widget
  * Tab键按住显示，展示所有玩家的击杀/死亡/得分
@@ -28,9 +30,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UPanelWidget> ScoreboardContainer;
 
-	/** 计分板条目Widget类 */
+	/** 计分板条目Widget类（必须继承 UPP_ScoreboardRowWidget） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Scoreboard")
-	TSubclassOf<UUserWidget> ScoreboardEntryClass;
+	TSubclassOf<UPP_ScoreboardRowWidget> ScoreboardEntryClass;
 
 	/** 蓝图实现事件 - 计分板更新 */
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On Scoreboard Updated"))
