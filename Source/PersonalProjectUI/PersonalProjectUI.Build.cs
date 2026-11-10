@@ -23,7 +23,11 @@ public class PersonalProjectUI : ModuleRules
 			"GameplayTags",
 			"EnhancedInput",
 			"PersonalProjectCore",
+			// 不能删：UPP_DialogueRequester 定义在 PersonalProjectQuest，对话 Widget 与 PP_UICrossModule.cpp 直接 include
+			// Dialogue/PP_DialogueRequester.h；删掉会编译/链接失败（QuestData、QuestQuery 实际都在 Core）
 			"PersonalProjectQuest",
+			// 不能删：Public 头 PP_UIGateway.h 定义在本模块；PP_HUD.cpp 需要 APP_BossCharacter / APP_PlayerCharacter 完整类型，
+			// PP_WidgetComponent.cpp 需要 APP_BaseCharacter，PP_LobbyHUD.cpp 需要 APP_CharacterPreviewActor
 			"PersonalProject"
 		});
 
