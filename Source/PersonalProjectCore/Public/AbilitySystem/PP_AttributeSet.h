@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "AttributeSet.h"
+// 必须保留：下列 ATTRIBUTE_ACCESSORS 展开的 GAMEPLAYATTRIBUTE_VALUE_* 宏会直接调用 UAbilitySystemComponent 的成员，
+// 只前向声明会因类型不完整报 C2027（已踩过），不要再改成前向声明
 #include "AbilitySystemComponent.h"
 
 #include "PP_AttributeSet.generated.h"
