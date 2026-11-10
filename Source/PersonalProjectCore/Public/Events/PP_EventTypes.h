@@ -11,6 +11,11 @@ class APlayerController;
  * 事件总线使用的事件类型集合。
  * 所有跨系统通信通过事件结构体传递，避免直接依赖。
  * 新增事件时在此文件追加 USTRUCT，并在 EventBus 中使用 Subscribe/Broadcast。
+ *
+ * 与 GameplayTag 的分工（两者不要混用）：
+ *   1. GameplayTag 用于 GAS / AI 的状态门控：挂在 ASC、技能、GE 或 Actor 上表示"当前具备什么条件"，由引擎按标签查询，不携带负载数据。
+ *   2. EventBus 用于跨系统的一次性通知：谁发生了什么（任务完成、Boss 死亡、UI 刷新），结构体可携带数据，发布方不关心订阅方是谁。
+ *   3. 判据：需要"持续状态、可被查询/阻断"用 Tag；需要"发生了一次、要通知多方"用 EventBus。
  */
 
 /** 任务完成事件：QuestComponent -> HUD/UI/其他监听者 */
