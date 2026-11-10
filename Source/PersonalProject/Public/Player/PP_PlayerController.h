@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "Session/PP_ScoreboardTypes.h"
 #include "Session/PP_SessionManager.h"
 #include "Session/PP_LobbyActions.h"
@@ -224,9 +225,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> PauseAction;
 
-	/** 计分板显示输入动作 */
+	/** 计分板显示按键（默认数字键 6，按下显示、松开隐藏） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
-	TObjectPtr<UInputAction> ScoreboardAction;
+	FKey ScoreboardKey = EKeys::Six;
 
 	/** 主界面开关输入动作 */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")

@@ -70,10 +70,12 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &ThisClass::TogglePauseMenu);
 	}
-	if (ScoreboardAction)
+	// 计分板：直接绑定数字键 6（按住显示、松开隐藏）
+	// 不走 IA 资产，避免与 Tab（背包）等既有映射冲突；ScoreboardKey 可在蓝图默认值中改键
+	if (ScoreboardKey.IsValid())
 	{
-		EnhancedInputComponent->BindAction(ScoreboardAction, ETriggerEvent::Started, this, &ThisClass::ShowScoreboard);
-		EnhancedInputComponent->BindAction(ScoreboardAction, ETriggerEvent::Completed, this, &ThisClass::HideScoreboard);
+		InputComponent->BindKey(ScoreboardKey, IE_Pressed, this, &ThisClass::ShowScoreboard);
+		InputComponent->BindKey(ScoreboardKey, IE_Released, this, &ThisClass::HideScoreboard);
 	}
 	if (HUDToggleAction)
 	{
