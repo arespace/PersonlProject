@@ -181,9 +181,7 @@ void UPP_DialogueWidget::ShowEndChoices()
 
 void UPP_DialogueWidget::CloseDialogue()
 {
-	APlayerController* PC = OwnerPC.Get();
-
-	// 通过 UIManager 统一弹出，避免 RemoveFromParent 与 PopWidget 重复调用
+	// 通过 UIManager 统一弹出，输入模式由其 RecalculateInputMode → ApplyInputContext 负责
 	bool bPoppedViaManager = false;
 	if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
 	{
@@ -196,16 +194,12 @@ void UPP_DialogueWidget::CloseDialogue()
 	if (!bPoppedViaManager)
 	{
 		RemoveFromParent();
-	}
 
-	// 强制恢复游戏输入（在 RecalculateInputMode 之后执行，确保最终状态正确）
-	if (PC)
-	{
-		PC->ResetIgnoreInputFlags();
-		PC->SetInputMode(FInputModeGameOnly());
-		PC->bShowMouseCursor = false;
-		FSlateApplication::Get().SetUserFocusToGameViewport(0);
-		FSlateApplication::Get().ReleaseAllPointerCapture();
+		// 未经过栈时也要让 UIManager 重新计算输入模式
+		if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
+		{
+			Mgr->RefreshInputMode();
+		}
 	}
 }
 

@@ -3,6 +3,7 @@
 
 #include "HUD/PP_HUD.h"
 #include "Framework/PP_GameFlowRequest.h"
+#include "Framework/PP_UIManager.h"
 #include "Session/PP_SessionManager.h"
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -90,10 +91,15 @@ void UPP_PauseMenuWidget::OnQuitClicked()
 	UWorld* World = GetWorld();
 	if (!World) return;
 
-	// 先隐藏暂停菜单，恢复输入模式
-	SetVisibility(ESlateVisibility::Collapsed);
-	PC->SetShowMouseCursor(false);
-	PC->SetInputMode(FInputModeGameOnly());
+	// 通过 HUD 统一出栈，输入模式由 UIManager → ApplyInputContext 重算
+	if (APP_HUD* HUD = Cast<APP_HUD>(PC->GetHUD()))
+	{
+		HUD->HidePauseMenu();
+	}
+	else if (UPP_UIManager* Mgr = UPP_UIManager::Get(this))
+	{
+		Mgr->PopWidget(this);
+	}
 
 	const ENetMode NetMode = World->GetNetMode();
 	UE_LOG(LogPP, Verbose, TEXT("[PauseMenu] OnQuitClicked - NetMode: %d"), static_cast<int32>(NetMode));
