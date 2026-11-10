@@ -560,7 +560,7 @@ void UPP_InventoryComponent::ApplyConsumable(const FPP_ItemInfo& ItemInfo)
 
 FPP_EquippedItem UPP_InventoryComponent::GetEquippedItemInSlot(EPP_EquipSlot Slot) const
 {
-	// B2 起唯一数据源为 EquippedItems；武器槽也由双写写入这里
+	// 唯一数据源为 EquippedItems，武器与护甲同表
 	for (const FPP_EquippedItem& E : EquippedItems)
 	{
 		if (E.Slot == Slot)

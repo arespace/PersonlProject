@@ -200,10 +200,10 @@ protected:
 private:
 	// ===== 服务器内部实现 =====
 
-	/** 统一装备写入口：校验 → 解析槽位 → 同槽替换 → 双写两轨 → 施加 GE → 通知 → 广播 */
+	/** 统一装备写入口：校验 → 解析槽位 → 同槽替换 → 写入 EquippedItems → 施加 GE → 通知 → 广播 */
 	void EquipItemInternal(FName ItemID, EPP_EquipSlot PreferredSlot);
 
-	/** 统一卸下写入口：回包 → 移除 GE → 清两轨 → 通知 → 广播 */
+	/** 统一卸下写入口：回包 → 移除 GE → 从 EquippedItems 移除 → 通知 → 广播 */
 	void UnequipItemInternal(EPP_EquipSlot Slot);
 
 	/** 解析最终装备槽：None 表示配置非法或与 PreferredSlot 冲突（内部已打 Warning） */
