@@ -23,6 +23,23 @@ struct FLobbyPlayerInfo;
 struct FRoomSettings;
 struct FHostMigrationData;
 
+/** 输入上下文：唯一决定当前 IMC 组合、Slate 输入模式与鼠标光标状态 */
+UENUM(BlueprintType)
+enum class EPP_InputContext : uint8
+{
+	/** 正常战斗：ALS + 项目玩法 IMC 全开，GameOnly，隐藏鼠标 */
+	Gameplay,
+
+	/** 背包/商店/任务等覆盖层：保持当前 IMC 组合，GameAndUI，显示鼠标 */
+	Overlay,
+
+	/** 暂停/对话等模态界面：移除项目 IMC，UIOnly，显示鼠标 */
+	Modal,
+
+	/** 大厅/登录：移除项目 IMC，UIOnly，显示鼠标 */
+	FrontEnd
+};
+
 UCLASS()
 class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester, public IPP_LobbyActions
 {
@@ -46,6 +63,15 @@ protected:
 	virtual void SetupInputComponent() override;
 
 public:
+	/**
+	 * 应用输入上下文：唯一的 IMC / 输入模式 / 鼠标光标切换入口。
+	 * 每次切换会 FlushPressedKeys，避免按键残留与“关闭 UI 后立刻重复触发”。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PP|Input")
+	void ApplyInputContext(EPP_InputContext NewContext);
+
+	EPP_InputContext GetInputContext() const { return CurrentInputContext; }
+
 	// ===== 网络RPC =====
 
 	/** 客户端请求在篝火休息（篝火 Actor 无 owning connection，Server RPC 必须由 PC 发） */
@@ -197,6 +223,18 @@ private:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input")
 	TArray<TObjectPtr<UInputMappingContext>> InputMappingContexts;
+
+	/** 当前输入上下文 */
+	EPP_InputContext CurrentInputContext = EPP_InputContext::Gameplay;
+
+	/** 是否已至少应用过一次上下文（首次调用即使值相同也要执行清理与模式设置） */
+	bool bInputContextInitialized = false;
+
+	/** 项目 IMC 当前是否处于激活状态，避免 Gameplay ↔ Overlay 反复增删上下文 */
+	bool bProjectInputContextsActive = true;
+
+	/** 按需整体增删 InputMappingContexts（priority = 1） */
+	void SetProjectInputContextsActive(bool bActive);
 
 	/** 大厅选择的角色ID，跨 ServerTravel 携带到战斗地图 */
 	FName PendingCharacterId;

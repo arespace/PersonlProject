@@ -2,6 +2,7 @@
 
 #include "Framework/PP_UIManager.h"
 #include "Framework/PP_UIUserWidget.h"
+#include "Player/PP_PlayerController.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -119,57 +120,81 @@ bool UPP_UIManager::IsWidgetInStack(UPP_UIUserWidget* Widget) const
 
 void UPP_UIManager::SetInputModeGameplay()
 {
-    if (APlayerController* PC = GetPlayerController())
-    {
-        // 强制清零 ignore 计数器（SetIgnoreMoveInput(false) 是递减，若之前被多次加过会残留）
-        PC->ResetIgnoreInputFlags();
-        PC->SetInputMode(FInputModeGameOnly());
-        PC->bShowMouseCursor = false;
+	if (APlayerController* PC = GetPlayerController())
+	{
+		if (APP_PlayerController* PPController = Cast<APP_PlayerController>(PC))
+		{
+			PPController->ApplyInputContext(EPP_InputContext::Gameplay);
+		}
+		else
+		{
+			// 非项目 PlayerController 的兜底：保持旧行为
+			PC->ResetIgnoreInputFlags();
+			PC->SetInputMode(FInputModeGameOnly());
+			PC->bShowMouseCursor = false;
+		}
 
-        // 显式将 Slate 焦点交还给 GameViewport，防止 RemoveFromParent 后 Slate 仍持有捕获
-        FSlateApplication::Get().SetUserFocusToGameViewport(0);
-        FSlateApplication::Get().ReleaseAllPointerCapture();
+		// Slate 焦点属于 UI 层职责：显式交还 GameViewport 并释放捕获
+		FSlateApplication::Get().SetUserFocusToGameViewport(0);
+		FSlateApplication::Get().ReleaseAllPointerCapture();
 
-        CurrentInputMode = TEXT("Gameplay");
-        OnInputModeChanged.Broadcast(CurrentInputMode);
-    }
+		CurrentInputMode = TEXT("Gameplay");
+		OnInputModeChanged.Broadcast(CurrentInputMode);
+	}
 }
 
 void UPP_UIManager::SetInputModeUI()
 {
-    if (APlayerController* PC = GetPlayerController())
-    {
-        // 停住角色并禁止移动/视角输入，防止 UIOnly 模式下按键释放事件丢失导致角色继续移动
-        PC->SetIgnoreMoveInput(true);
-        PC->SetIgnoreLookInput(true);
-        if (APawn* Pawn = PC->GetPawn())
-        {
-            if (UCharacterMovementComponent* CMC = Pawn->FindComponentByClass<UCharacterMovementComponent>())
-            {
-                CMC->StopMovementImmediately();
-            }
-        }
+	if (APlayerController* PC = GetPlayerController())
+	{
+		if (APP_PlayerController* PPController = Cast<APP_PlayerController>(PC))
+		{
+			PPController->ApplyInputContext(EPP_InputContext::Modal);
+		}
+		else
+		{
+			// 非项目 PlayerController 的兜底：保持旧行为
+			PC->SetIgnoreMoveInput(true);
+			PC->SetIgnoreLookInput(true);
+			if (APawn* Pawn = PC->GetPawn())
+			{
+				if (UCharacterMovementComponent* CMC = Pawn->FindComponentByClass<UCharacterMovementComponent>())
+				{
+					CMC->StopMovementImmediately();
+				}
+			}
 
-        PC->SetInputMode(FInputModeUIOnly());
-        PC->bShowMouseCursor = true;
-        CurrentInputMode = TEXT("UI");
-        OnInputModeChanged.Broadcast(CurrentInputMode);
-    }
+			PC->SetInputMode(FInputModeUIOnly());
+			PC->bShowMouseCursor = true;
+		}
+
+		CurrentInputMode = TEXT("UI");
+		OnInputModeChanged.Broadcast(CurrentInputMode);
+	}
 }
 
 void UPP_UIManager::SetInputModeGameAndUI()
 {
-    if (APlayerController* PC = GetPlayerController())
-    {
-        PC->SetIgnoreMoveInput(false);
-        PC->SetIgnoreLookInput(false);
-        FInputModeGameAndUI InputMode;
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        PC->SetInputMode(InputMode);
-        PC->bShowMouseCursor = true;
-        CurrentInputMode = TEXT("GameAndUI");
-        OnInputModeChanged.Broadcast(CurrentInputMode);
-    }
+	if (APlayerController* PC = GetPlayerController())
+	{
+		if (APP_PlayerController* PPController = Cast<APP_PlayerController>(PC))
+		{
+			PPController->ApplyInputContext(EPP_InputContext::Overlay);
+		}
+		else
+		{
+			// 非项目 PlayerController 的兜底：保持旧行为
+			PC->SetIgnoreMoveInput(false);
+			PC->SetIgnoreLookInput(false);
+			FInputModeGameAndUI InputMode;
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PC->SetInputMode(InputMode);
+			PC->bShowMouseCursor = true;
+		}
+
+		CurrentInputMode = TEXT("GameAndUI");
+		OnInputModeChanged.Broadcast(CurrentInputMode);
+	}
 }
 
 void UPP_UIManager::RefreshInputMode()

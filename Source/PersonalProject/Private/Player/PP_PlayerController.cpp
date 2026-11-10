@@ -7,8 +7,10 @@
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "EnhancedInputSubsystems.h"
 #include "EnhancedInputComponent.h"
+#include "InputMappingContext.h"
 #include "Characters/PP_BaseCharacter.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/HUD.h"
 #include "GameplayTags/PPTags.h"
@@ -40,6 +42,14 @@ void APP_PlayerController::SetupInputComponent()
 	for (UInputMappingContext* Context : InputMappingContexts)
 	{
 		InputSubsystem->AddMappingContext(Context, 1);
+	}
+	bProjectInputContextsActive = true;
+
+	// 重新 Possess / 重设输入组件时，若当前已处于模态或前厅，立即移除项目 IMC
+	if (bInputContextInitialized &&
+		(CurrentInputContext == EPP_InputContext::Modal || CurrentInputContext == EPP_InputContext::FrontEnd))
+	{
+		SetProjectInputContextsActive(false);
 	}
 
 	UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
@@ -96,6 +106,93 @@ void APP_PlayerController::SetupInputComponent()
 	if (InventoryAction)
 	{
 		EnhancedInputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &ThisClass::ToggleInventory);
+	}
+}
+
+void APP_PlayerController::SetProjectInputContextsActive(bool bActive)
+{
+	if (bProjectInputContextsActive == bActive)
+	{
+		return;
+	}
+
+	UEnhancedInputLocalPlayerSubsystem* InputSubsystem =
+		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (!IsValid(InputSubsystem))
+	{
+		return;
+	}
+
+	for (UInputMappingContext* Context : InputMappingContexts)
+	{
+		if (!IsValid(Context))
+		{
+			continue;
+		}
+
+		if (bActive)
+		{
+			InputSubsystem->AddMappingContext(Context, 1);
+		}
+		else
+		{
+			InputSubsystem->RemoveMappingContext(Context);
+		}
+	}
+
+	bProjectInputContextsActive = bActive;
+}
+
+void APP_PlayerController::ApplyInputContext(EPP_InputContext NewContext)
+{
+	if (bInputContextInitialized && CurrentInputContext == NewContext)
+	{
+		return;
+	}
+
+	// 先清掉切换前按住的键，防止 UI 关闭瞬间同一按键再次触发玩法逻辑
+	FlushPressedKeys();
+
+	CurrentInputContext = NewContext;
+	bInputContextInitialized = true;
+
+	// Gameplay 与 Overlay 使用同一套项目 IMC，只有 Modal / FrontEnd 移除
+	const bool bGameplayLike =
+		NewContext == EPP_InputContext::Gameplay || NewContext == EPP_InputContext::Overlay;
+	SetProjectInputContextsActive(bGameplayLike);
+
+	switch (NewContext)
+	{
+	case EPP_InputContext::Gameplay:
+		ResetIgnoreInputFlags();
+		SetInputMode(FInputModeGameOnly());
+		bShowMouseCursor = false;
+		break;
+
+	case EPP_InputContext::Overlay:
+		ResetIgnoreInputFlags();
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(InputMode);
+		}
+		bShowMouseCursor = true;
+		break;
+
+	case EPP_InputContext::Modal:
+	case EPP_InputContext::FrontEnd:
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+		if (APawn* ControlledPawn = GetPawn())
+		{
+			if (UCharacterMovementComponent* Movement = ControlledPawn->FindComponentByClass<UCharacterMovementComponent>())
+			{
+				Movement->StopMovementImmediately();
+			}
+		}
+		SetInputMode(FInputModeUIOnly());
+		bShowMouseCursor = true;
+		break;
 	}
 }
 
