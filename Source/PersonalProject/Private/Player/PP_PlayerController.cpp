@@ -84,6 +84,11 @@ void APP_PlayerController::SetupInputComponent()
 	{
 		EnhancedInputComponent->BindAction(DialogueAction, ETriggerEvent::Started, this, &ThisClass::Interact);
 	}
+	// 篝火休息：单独绑定 T，交互键 E 已被对话推进占用
+	if (BonfireInteractKey.IsValid())
+	{
+		InputComponent->BindKey(BonfireInteractKey, IE_Pressed, this, &ThisClass::InteractBonfire);
+	}
 	if (QuestAction)
 	{
 		EnhancedInputComponent->BindAction(QuestAction, ETriggerEvent::Started, this, &ThisClass::ToggleQuestLog);
@@ -636,37 +641,58 @@ void APP_PlayerController::Server_ConfirmDialogueEndAction_Implementation(APP_NP
 	}
 }
 
+namespace
+{
+	/** 从相机前方做交互 trace（Interact / InteractBonfire 共用） */
+	bool PP_TraceInteractTarget(APlayerController* Controller, float MaxDistance, FHitResult& OutHit)
+	{
+		if (!Controller)
+		{
+			return false;
+		}
+
+		APlayerCameraManager* CamMgr = Controller->PlayerCameraManager;
+		if (!CamMgr)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 没有 PlayerCameraManager"));
+			return false;
+		}
+
+		const FVector Start = CamMgr->GetCameraLocation();
+		const FVector End = Start + CamMgr->GetCameraRotation().Vector() * MaxDistance;
+
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(Controller->GetPawn());
+
+		if (!Controller->GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, Params))
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 相机射线未命中任何物体（距离 %.0f cm）"), MaxDistance);
+			return false;
+		}
+
+		UE_LOG(LogPP, Log, TEXT("[PP_Interact] 命中: %s（组件 %s）"),
+			*GetNameSafe(OutHit.GetActor()), *GetNameSafe(OutHit.GetComponent()));
+		return true;
+	}
+}
+
 void APP_PlayerController::Interact()
 {
 	UE_LOG(LogPP, Log, TEXT("[PP_Interact] 按下交互键，开始相机射线检测"));
 	if (!IsLocalController()) return;
 
-	// 从相机前方做线性 trace 寻找可交互对象
-	APlayerCameraManager* CamMgr = PlayerCameraManager;
-	if (!CamMgr)
-	{
-		UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 没有 PlayerCameraManager"));
-		return;
-	}
-
-	FVector Start = CamMgr->GetCameraLocation();
-	FVector End = Start + CamMgr->GetCameraRotation().Vector() * InteractTraceDistance;
-
 	FHitResult Hit;
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(GetPawn());
+	if (!PP_TraceInteractTarget(this, InteractTraceDistance, Hit)) return;
 
-	bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params);
-	if (!bHit)
+	// 篝火改用独立按键（默认 T），避免与对话推进键 E 冲突
+	if (Cast<APP_BonfireActor>(Hit.GetActor()) != nullptr)
 	{
-		UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 相机射线未命中任何物体（距离 %.0f cm）"), InteractTraceDistance);
+		UE_LOG(LogPP, Log, TEXT("[PP_Interact] 命中篝火，交互键不处理，提示按篝火键"));
+		Client_NotifyMessage(TEXT("在篝火旁按 T 休息"));
 		return;
 	}
 
-	UE_LOG(LogPP, Log, TEXT("[PP_Interact] 命中: %s（组件 %s）"),
-		*GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent()));
-
-	// 通过交互接口统一处理，无需关心具体类型（NPC/采集物/篝火等）
+	// 通过交互接口统一处理，无需关心具体类型（NPC/采集物等）
 	if (IPP_Interactable* Interactable = Cast<IPP_Interactable>(Hit.GetActor()))
 	{
 		if (Interactable->CanInteract(this))
@@ -682,6 +708,30 @@ void APP_PlayerController::Interact()
 
 	UE_LOG(LogPP, Warning, TEXT("[PP_Interact] 命中的 Actor 没有实现交互接口: class=%s name=%s"),
 		*Hit.GetActor()->GetClass()->GetName(), *Hit.GetActor()->GetName());
+}
+
+void APP_PlayerController::InteractBonfire()
+{
+	UE_LOG(LogPP, Log, TEXT("[PP_Bonfire] 按下篝火键，开始相机射线检测"));
+	if (!IsLocalController()) return;
+
+	FHitResult Hit;
+	if (!PP_TraceInteractTarget(this, InteractTraceDistance, Hit)) return;
+
+	APP_BonfireActor* Bonfire = Cast<APP_BonfireActor>(Hit.GetActor());
+	if (Bonfire == nullptr)
+	{
+		UE_LOG(LogPP, Verbose, TEXT("[PP_Bonfire] 命中对象不是篝火: %s"), *GetNameSafe(Hit.GetActor()));
+		return;
+	}
+
+	if (!Bonfire->CanInteract(this))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 篝火当前不可交互: %s"), *GetNameSafe(Bonfire));
+		return;
+	}
+
+	Bonfire->Interact(this);
 }
 
 void APP_PlayerController::Server_InteractGather_Implementation(APP_GatherableActor* Target)

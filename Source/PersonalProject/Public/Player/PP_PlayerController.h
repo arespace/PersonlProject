@@ -162,6 +162,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dialogue")
 	void Interact();
 
+	/**
+	 * 篝火休息入口：与 Interact 相同的相机 trace，但只对篝火生效
+	 * 绑定在 BonfireInteractKey（默认 T），避免与对话推进键 E 冲突
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dialogue")
+	void InteractBonfire();
+
 	// ===== 对话 UI 配置 =====
 
 	/** 对话框 Widget 蓝图类（在 PC 蓝图子类中指定；类型用 UUserWidget 基类避免主玩法模块反向依赖 UI 模块，UI 模块内 Cast 使用） */
@@ -235,6 +242,10 @@ private:
 	/** 对话/交互输入动作（E键触发NPC对话） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
 	TObjectPtr<UInputAction> DialogueAction;
+
+	/** 篝火休息按键（默认 T；交互键 E 与对话推进冲突，篝火改用独立键） */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|Dialogue")
+	FKey BonfireInteractKey = EKeys::T;
 
 	/** 任务日志开关输入动作（J/Tab键打开任务面板） */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Input|UI")
