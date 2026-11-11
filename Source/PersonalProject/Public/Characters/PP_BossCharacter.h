@@ -46,6 +46,9 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void HandleDeath() override;
 
+	/** 应用 DT_Enemies 里的 Boss 专属字段（名称/阶段阈值/无敌时长/金币倍率/索敌 GA） */
+	virtual void ApplyEnemyExtraData(const FPP_EnemyInfo& Row) override;
+
 	/** 监听 Health 属性变化，服务器驱动阶段切换与血量广播（C++ AddUObject 绑定，非反射） */
 	void OnBossHealthChanged(const FOnAttributeChangeData& Data);
 

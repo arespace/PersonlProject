@@ -10,6 +10,7 @@ class UAbilitySystemComponent;
 class UAttributeSet;
 class UPP_InventoryComponent;
 class UPP_AIPerceptionComponent;
+struct FPP_EnemyInfo;
 
 UCLASS()
 class PERSONALPROJECT_API APP_EnemyCharacter : public APP_BaseCharacter, public IPP_Resettable
@@ -49,9 +50,17 @@ public:
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Replicated)
 	bool bIsBeingLaunched{false};
 
-	/** 死亡时掉落的金币数量 */
+	/** 死亡时掉落的金币数量（DT_Enemies.GoldDropAmount 有行时覆盖） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
 	int32 GoldDropAmount = 10;
+
+	/** 死亡时直接放入击杀者背包的物品 ID（DT_Enemies.DropItemID 有行时覆盖，空表示不发物品） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	FName DropItemID;
+
+	/** 上述物品的发放数量 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loot")
+	int32 DropItemCount = 1;
 
 	/** 死亡后是否复活（对应 GA_PP_Death 蓝图里的 ShouldRespawn 变量） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Death")
@@ -78,7 +87,13 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void HandleDeath() override;
-	
+
+	/** 按 EnemyID 从 DT_Enemies 取行并覆盖本类数值；无行时保持蓝图配置不变 */
+	virtual void ApplyEnemyDataConfig();
+
+	/** 子类扩展的表格字段（Boss 阶段/名称等），基类不处理 */
+	virtual void ApplyEnemyExtraData(const FPP_EnemyInfo& Row);
+
 private:
 	
 	UFUNCTION()

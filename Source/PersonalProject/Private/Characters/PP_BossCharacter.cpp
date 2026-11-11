@@ -5,6 +5,7 @@
 #include "AbilitySystem/Abilities/Enemy/PP_SearchForTarget.h"
 #include "AbilitySystem/PP_AttributeSet.h"
 #include "Components/CapsuleComponent.h"
+#include "Data/PP_EnemyData.h"
 #include "Events/PP_EventBus.h"
 #include "Events/PP_EventTypes.h"
 #include "Framework/PP_Log.h"
@@ -64,6 +65,26 @@ void APP_BossCharacter::BeginPlay()
 		CurrentPhase = 1;
 		GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_Attr->GetHealthAttribute()).AddUObject(this, &ThisClass::OnBossHealthChanged);
 	}
+}
+
+void APP_BossCharacter::ApplyEnemyExtraData(const FPP_EnemyInfo& Row)
+{
+	// 留空表示沿用蓝图配置，避免表里少填一列就把 Boss 配置清掉
+	if (!Row.BossName.IsNone())
+	{
+		BossName = Row.BossName;
+	}
+	if (Row.BossPhaseThresholds.Num() > 0)
+	{
+		BossPhaseThresholds = Row.BossPhaseThresholds;
+	}
+	if (Row.SearchForTargetAbilityClass)
+	{
+		SearchForTargetAbilityClass = Row.SearchForTargetAbilityClass;
+	}
+
+	PhaseTransitionInvulnerableTime = Row.PhaseTransitionInvulnerableTime;
+	BossGoldMultiplier = Row.BossGoldMultiplier;
 }
 
 void APP_BossCharacter::OnBossArenaArmedTagEvent(const FGameplayTag Tag, int32 NewCount)

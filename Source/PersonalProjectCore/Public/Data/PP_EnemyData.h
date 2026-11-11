@@ -48,7 +48,7 @@ struct FPP_EnemyInfo : public FTableRowBase
 
 	// ===== 死亡与掉落 =====
 
-	/** 死亡时直接发放给击杀者的金币数量（Boss 会再乘 BossGoldMultiplier） */
+	/** 死亡时直接发放给击杀者的金币数量（Boss 行填 500，再乘 BossGoldMultiplier） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Loot", meta = (ClampMin = "0"))
 	int32 GoldDropAmount{10};
 

@@ -17,6 +17,8 @@
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_CrashGameMode.h"
 #include "Game/PP_EnemyRespawnManager.h"
+#include "Data/PP_EnemyData.h"
+#include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
 
 
@@ -83,6 +85,9 @@ void APP_EnemyCharacter::BeginPlay()
 	SpawnLocation = GetActorLocation();
 	SpawnRotation = GetActorRotation();
 
+	// 先把 DT_Enemies 的数值灌进来，后续索敌/攻击 GA 读到的就是表里的值
+	ApplyEnemyDataConfig();
+
 	// 蓝图未给 AIController 挂感知组件时运行时补建，避免敌人彻底失去索敌能力
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
 	{
@@ -123,6 +128,48 @@ void APP_EnemyCharacter::BeginPlay()
 	if (!IsValid(PP_AttributeSet)) return;
 
 	GetAbilitySystemComponent()->GetGameplayAttributeValueChangeDelegate(PP_AttributeSet->GetHealthAttribute()).AddUObject(this, &ThisClass::OnHealthChanged);
+}
+
+void APP_EnemyCharacter::ApplyEnemyDataConfig()
+{
+	// 未配 EnemyID 的敌人不参与数据表驱动，完全沿用蓝图配置
+	if (EnemyID.IsNone())
+	{
+		return;
+	}
+
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	if (!IsValid(DataManager))
+	{
+		return;
+	}
+
+	const FPP_EnemyInfo* Row = DataManager->GetEnemyInfo(EnemyID);
+	if (!Row)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Enemy] %s 的 EnemyID=%s 在 DT_Enemies 中无对应行，沿用蓝图配置"),
+			*GetName(), *EnemyID.ToString());
+		return;
+	}
+
+	AcceptanceRadius = Row->AcceptanceRadius;
+	MinAttackDelay = Row->MinAttackDelay;
+	MaxAttackDelay = Row->MaxAttackDelay;
+	AttackCooldownMin = Row->AttackCooldownMin;
+	AttackCooldownMax = Row->AttackCooldownMax;
+	GoldDropAmount = Row->GoldDropAmount;
+	DropItemID = Row->DropItemID;
+	DropItemCount = Row->DropItemCount;
+	bShouldRespawn = Row->bShouldRespawn;
+
+	ApplyEnemyExtraData(*Row);
+
+	UE_LOG(LogPP, Log, TEXT("[Enemy] %s 已应用 DT_Enemies 行 %s"), *GetName(), *EnemyID.ToString());
+}
+
+void APP_EnemyCharacter::ApplyEnemyExtraData(const FPP_EnemyInfo& /*Row*/)
+{
+	// 基类没有额外字段，Boss 等子类覆盖
 }
 
 void APP_EnemyCharacter::ResetToSpawn_Implementation()
@@ -253,8 +300,7 @@ void APP_EnemyCharacter::HandleDeath()
 			KillerPC ? *KillerPC->GetName() : TEXT("null"), *EnemyID.ToString());
 	}
 
-	// 金币掉落（可选）
-	if (GoldDropAmount <= 0 || !KillerPC)
+	if (!KillerPC)
 	{
 		return;
 	}
@@ -271,7 +317,19 @@ void APP_EnemyCharacter::HandleDeath()
 		return;
 	}
 
-	KillerInventory->AddGold(GoldDropAmount);
-	UE_LOG(LogPP, Log, TEXT("[Enemy] HandleDeath: 向击杀者 %s 发放金币 %d"),
-		*KillerPC->GetName(), GoldDropAmount);
+	// 金币掉落（可选）
+	if (GoldDropAmount > 0)
+	{
+		KillerInventory->AddGold(GoldDropAmount);
+		UE_LOG(LogPP, Log, TEXT("[Enemy] HandleDeath: 向击杀者 %s 发放金币 %d"),
+			*KillerPC->GetName(), GoldDropAmount);
+	}
+
+	// 物品掉落（可选，DT_Enemies.DropItemID 有配才发）
+	if (!DropItemID.IsNone() && DropItemCount > 0)
+	{
+		KillerInventory->AddItem(DropItemID, DropItemCount);
+		UE_LOG(LogPP, Log, TEXT("[Enemy] HandleDeath: 向击杀者 %s 发放物品 %s x%d"),
+			*KillerPC->GetName(), *DropItemID.ToString(), DropItemCount);
+	}
 }
