@@ -193,9 +193,6 @@ void APP_PlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 蓝图里可能还没把耐力配置挪到组件上，这里做一次过渡迁移
-	TransferDeprecatedStaminaSettings();
-
 	// 武器外观（挂 socket / 识别材质槽 / 隐藏自带武器）已由 WeaponVisualComponent::BeginPlay 负责
 }
 
@@ -273,9 +270,6 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	// 先把旧的角色级耐力配置灌进组件，避免后续 ApplyPassiveEffects 用到空配置
-	TransferDeprecatedStaminaSettings();
-
 	// 角色外观恢复（不依赖 ASC，必须在 ASC 检查之前执行）
 	RestoreCharacterSelection();
 
@@ -313,8 +307,6 @@ void APP_PlayerCharacter::PossessedBy(AController* NewController)
 void APP_PlayerCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
-
-	TransferDeprecatedStaminaSettings();
 
 	// 客户端角色外观恢复（ASC 检查之前执行）
 	RestoreCharacterSelection();
@@ -404,57 +396,6 @@ void APP_PlayerCharacter::UpdateRollInvulnerability()
 	else if (!bRolling && bHasInvulnerableTag)
 	{
 		GetAbilitySystemComponent()->RemoveLooseGameplayTag(PPTags::Status::Invulnerable);
-	}
-}
-
-void APP_PlayerCharacter::TransferDeprecatedStaminaSettings()
-{
-	if (bDeprecatedStaminaTransferred || !StaminaComponent)
-	{
-		return;
-	}
-	bDeprecatedStaminaTransferred = true;
-
-	// 只把"与组件默认值不同"的旧配置灌进组件，并把迁移项一次性告警出来
-	const UPP_StaminaComponent* ComponentDefaults = GetDefault<UPP_StaminaComponent>();
-	TArray<FString> MigratedFields;
-
-	if (StaminaRegenEffect != ComponentDefaults->StaminaRegenEffect)
-	{
-		StaminaComponent->StaminaRegenEffect = StaminaRegenEffect;
-		MigratedFields.Add(TEXT("StaminaRegenEffect"));
-	}
-
-	if (StaminaSprintDrainEffect != ComponentDefaults->StaminaSprintDrainEffect)
-	{
-		StaminaComponent->StaminaSprintDrainEffect = StaminaSprintDrainEffect;
-		MigratedFields.Add(TEXT("StaminaSprintDrainEffect"));
-	}
-
-	if (StaminaRegenDelayEffect != ComponentDefaults->StaminaRegenDelayEffect)
-	{
-		StaminaComponent->StaminaRegenDelayEffect = StaminaRegenDelayEffect;
-		MigratedFields.Add(TEXT("StaminaRegenDelayEffect"));
-	}
-
-	if (StaminaCostEffect != ComponentDefaults->StaminaCostEffect)
-	{
-		StaminaComponent->StaminaCostEffect = StaminaCostEffect;
-		MigratedFields.Add(TEXT("StaminaCostEffect"));
-	}
-
-	if (!FMath::IsNearlyEqual(RollStaminaCost, ComponentDefaults->RollStaminaCost))
-	{
-		StaminaComponent->RollStaminaCost = RollStaminaCost;
-		MigratedFields.Add(TEXT("RollStaminaCost"));
-	}
-
-	if (MigratedFields.Num() > 0)
-	{
-		UE_LOG(LogPP, Warning,
-			TEXT("[PP_Stamina] 已把旧的角色级耐力配置迁移到 StaminaComponent：%s。")
-			TEXT("请在 BP_PP_PlayerCharacter 的 StaminaComponent 上重新配置，并删除角色上的旧属性"),
-			*FString::Join(MigratedFields, TEXT("、")));
 	}
 }
 

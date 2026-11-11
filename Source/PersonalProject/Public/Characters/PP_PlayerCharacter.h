@@ -194,40 +194,9 @@ private:
 	/** 服务端同步 ALS 翻滚状态到 Status.Invulnerable（i-frames 无敌窗口），跟随 Rolling 起止 */
 	void UpdateRollInvulnerability();
 
-	/**
-	 * 把旧的"角色级"耐力配置迁移到 StaminaComponent（过渡保护）。
-	 * PossessedBy / OnRep_PlayerState / BeginPlay 都会调用，内部只执行一次，只覆盖与组件默认值不同的项。
-	 */
-	void TransferDeprecatedStaminaSettings();
-
 	/** 耐力组件：消耗 / 恢复 / 恢复延迟 / 冲刺与翻滚扣费都在组件里 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Stamina", Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPP_StaminaComponent> StaminaComponent;
-
-	// ===== 耐力系统：已迁移到 UPP_StaminaComponent 的旧属性（过渡期保留，确认蓝图后单独提交删除） =====
-
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
-		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaRegenEffect，请在组件上配置"))
-	TSubclassOf<UGameplayEffect> StaminaRegenEffect;
-
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
-		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaSprintDrainEffect，请在组件上配置"))
-	TSubclassOf<UGameplayEffect> StaminaSprintDrainEffect;
-
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
-		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaRegenDelayEffect，请在组件上配置"))
-	TSubclassOf<UGameplayEffect> StaminaRegenDelayEffect;
-
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
-		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 RollStaminaCost，请在组件上配置"))
-	float RollStaminaCost{20.f};
-
-	UPROPERTY(EditDefaultsOnly, Category = "PP|Stamina",
-		Meta = (DeprecatedProperty, DeprecationMessage = "已迁移到 StaminaComponent 的 StaminaCostEffect，请在组件上配置"))
-	TSubclassOf<UGameplayEffect> StaminaCostEffect;
-
-	/** 旧属性是否已迁移到组件（避免重复灌值与重复告警） */
-	bool bDeprecatedStaminaTransferred{false};
 
 	// ===== 翻滚蒙太奇 =====
 
@@ -278,32 +247,6 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "PP|Weapon|Visual")
 	void ClearWeaponMesh();
 
-	// ===== 武器外观：已迁移到 UPP_WeaponVisualComponent 的旧属性（过渡期保留，确认蓝图后单独提交删除） =====
-
-	/** 自带武器占用的材质槽索引（如 Kwang 的 17） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
-		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
-			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 BuiltInWeaponMaterialSlots，请在组件上配置"))
-	TArray<int32> BuiltInWeaponMaterialSlots;
-
-	/** 隐藏自带武器时使用的全透明材质 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
-		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
-			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 HiddenWeaponMaterial，请在组件上配置"))
-	TObjectPtr<UMaterialInterface> HiddenWeaponMaterial;
-
-	/** 装备武器网格挂载的骨骼/socket 名；仅当武器行未配置 AttachSocket 时兜底 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
-		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
-			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 WeaponAttachSocketName，请在组件上配置"))
-	FName WeaponAttachSocketName{TEXTVIEW("VB_Kwang_weapon")};
-
-	/** BeginPlay 时是否立即隐藏自带武器（默认空手） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual",
-		Meta = (AllowPrivateAccess = "true", DeprecatedProperty,
-			DeprecationMessage = "已迁移到 WeaponVisualComponent 的 bHideBuiltInWeaponOnBeginPlay，请在组件上配置"))
-	bool bHideBuiltInWeaponOnBeginPlay{true};
-
 	/** 客户端窗口执行 PPAddItem 时转发到服务器 */
 	UFUNCTION(Server, Reliable)
 	void ServerPPAddItem(FName ItemID, int32 Count);
@@ -312,9 +255,6 @@ private:
 	void GrantItemToInventory(FName ItemID, int32 Count);
 
 private:
-	/** 武器外观组件需要读取本类上已废弃的旧配置做一次性迁移 */
-	friend class UPP_WeaponVisualComponent;
-
 	/** 按 PlayerState 上已复制的武器槽恢复（服务端）武器 GA（薄外壳，实现在 WeaponAbilityComponent） */
 	void RestoreEquippedWeaponAbility();
 

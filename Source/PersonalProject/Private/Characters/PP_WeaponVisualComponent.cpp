@@ -27,8 +27,6 @@ void UPP_WeaponVisualComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 蓝图里旧属性可能还没搬到组件上，先做一次过渡迁移再初始化
-	MigrateDeprecatedSettings();
 	InitializeVisual();
 }
 
@@ -64,9 +62,6 @@ void UPP_WeaponVisualComponent::InitializeVisual()
 
 void UPP_WeaponVisualComponent::RefreshVisualFromInventory()
 {
-	// 可能早于组件 BeginPlay（PossessedBy / OnRep_PlayerState），先确保旧配置已迁移
-	MigrateDeprecatedSettings();
-
 	APP_PlayerCharacter* Character = IsValid(GetOwner()) ? Cast<APP_PlayerCharacter>(GetOwner()) : nullptr;
 	APP_PlayerState* PPPlayerState = IsValid(Character) ? Character->GetPlayerState<APP_PlayerState>() : nullptr;
 	UPP_InventoryComponent* Inventory = IsValid(PPPlayerState) ? PPPlayerState->GetInventoryComponent() : nullptr;
@@ -180,58 +175,6 @@ void UPP_WeaponVisualComponent::SetBuiltInWeaponVisible(const bool bVisible)
 
 		UMaterialInterface* AppliedMaterial = bVisible ? RestoreMaterial : HiddenWeaponMaterial.Get();
 		SkeletalMesh->SetMaterial(SlotIndex, AppliedMaterial);
-	}
-}
-
-void UPP_WeaponVisualComponent::MigrateDeprecatedSettings()
-{
-	APP_PlayerCharacter* Character = IsValid(GetOwner()) ? Cast<APP_PlayerCharacter>(GetOwner()) : nullptr;
-	if (!IsValid(Character) || bDeprecatedSettingsMigrated)
-	{
-		return;
-	}
-	bDeprecatedSettingsMigrated = true;
-
-	// 只把"与组件默认值不同"的旧配置灌进来，并把迁移项一次性告警
-	const UPP_WeaponVisualComponent* ComponentDefaults = GetDefault<UPP_WeaponVisualComponent>();
-	TArray<FString> MigratedFields;
-
-	if (Character->WeaponAttachSocketName != ComponentDefaults->WeaponAttachSocketName)
-	{
-		WeaponAttachSocketName = Character->WeaponAttachSocketName;
-		MigratedFields.Add(FString::Printf(TEXT("WeaponAttachSocketName='%s'"), *WeaponAttachSocketName.ToString()));
-	}
-
-	if (Character->BuiltInWeaponMaterialSlots != ComponentDefaults->BuiltInWeaponMaterialSlots)
-	{
-		BuiltInWeaponMaterialSlots = Character->BuiltInWeaponMaterialSlots;
-		MigratedFields.Add(FString::Printf(TEXT("BuiltInWeaponMaterialSlots=[%s]"),
-			*FString::JoinBy(BuiltInWeaponMaterialSlots, TEXT(","),
-				[](const int32 SlotIndex) { return FString::FromInt(SlotIndex); })));
-	}
-
-	if (Character->HiddenWeaponMaterial != ComponentDefaults->HiddenWeaponMaterial)
-	{
-		HiddenWeaponMaterial = Character->HiddenWeaponMaterial;
-		MigratedFields.Add(FString::Printf(TEXT("HiddenWeaponMaterial='%s'"),
-			IsValid(HiddenWeaponMaterial) ? *HiddenWeaponMaterial->GetPathName() : TEXT("None")));
-	}
-
-	if (Character->bHideBuiltInWeaponOnBeginPlay != ComponentDefaults->bHideBuiltInWeaponOnBeginPlay)
-	{
-		bHideBuiltInWeaponOnBeginPlay = Character->bHideBuiltInWeaponOnBeginPlay;
-		MigratedFields.Add(FString::Printf(TEXT("bHideBuiltInWeaponOnBeginPlay=%s"),
-			bHideBuiltInWeaponOnBeginPlay ? TEXT("true") : TEXT("false")));
-	}
-
-	if (MigratedFields.Num() > 0)
-	{
-		// 这些旧属性已被 DeprecatedProperty 标记，细节面板看不到，只能靠日志把值抄进组件模板
-		UE_LOG(LogPP, Warning,
-			TEXT("[WeaponVisual] 已把旧的角色级武器外观配置迁移到 WeaponVisualComponent：")
-			TEXT("%s。请按上面的实际值在 BP_PP_PlayerCharacter 的 WeaponVisualComponent（Details 分类 PP|Weapon|Visual）上重新配置，")
-			TEXT("并删除角色上的旧属性"),
-			*FString::Join(MigratedFields, TEXT("；")));
 	}
 }
 

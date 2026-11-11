@@ -74,9 +74,6 @@ private:
 	/** BeginPlay 初始化：挂 socket、识别材质槽、缓存原始材质、按配置隐藏自带武器 */
 	void InitializeVisual();
 
-	/** 把角色上已废弃的同名配置灌进组件（只灌与默认值不同的项，打一条汇总 Warning） */
-	void MigrateDeprecatedSettings();
-
 	/** 把武器网格挂到 socket 上，socket 不存在时按 Paragon 通用挂点顺序回退 */
 	static void AttachToSocket(USkeletalMeshComponent* SkeletalMesh, UStaticMeshComponent* WeaponMeshComponent,
 		FName SocketName, const FVector& RelativeLocation, const FRotator& RelativeRotation, const FVector& RelativeScale);
@@ -90,7 +87,4 @@ private:
 	/** 自带武器材质槽的原始材质缓存（与 BuiltInWeaponMaterialSlots 一一对应） */
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInterface>> CachedBuiltInWeaponMaterials;
-
-	/** 旧配置是否已完成迁移（避免重复灌值与重复告警） */
-	bool bDeprecatedSettingsMigrated{false};
 };
