@@ -94,6 +94,12 @@ protected:
 	/** 子类扩展的表格字段（Boss 阶段/名称等），基类不处理 */
 	virtual void ApplyEnemyExtraData(const FPP_EnemyInfo& Row);
 
+	/** 把 DT_Enemies 行的生命上限写入属性集；未配置（<=0）时保留 GE 初始化值 */
+	void ApplyTableMaxHealth();
+
+	/** DT_Enemies 行的生命上限，<=0 表示未配置 */
+	float TableMaxHealthOverride{0.f};
+
 private:
 	
 	UFUNCTION()

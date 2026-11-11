@@ -123,6 +123,7 @@ void APP_EnemyCharacter::BeginPlay()
 
 	GiveStartupAbilities();
 	InitializeAttributes();
+	ApplyTableMaxHealth();
 
 	UPP_AttributeSet* PP_AttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
 	if (!IsValid(PP_AttributeSet)) return;
@@ -162,6 +163,8 @@ void APP_EnemyCharacter::ApplyEnemyDataConfig()
 	DropItemID = Row->DropItemID;
 	DropItemCount = Row->DropItemCount;
 	bShouldRespawn = Row->bShouldRespawn;
+	// 生命上限要等 InitializeAttributes 之后才能置值，这里先记下来
+	TableMaxHealthOverride = Row->MaxHealth;
 
 	// 感知参数挂在 AIController 的组件上，需要主动推送过去
 	if (UPP_AIPerceptionComponent* PerceptionComponent = GetAIPerceptionComponent())
@@ -183,6 +186,32 @@ void APP_EnemyCharacter::ApplyEnemyDataConfig()
 void APP_EnemyCharacter::ApplyEnemyExtraData(const FPP_EnemyInfo& /*Row*/)
 {
 	// 基类没有额外字段，Boss 等子类覆盖
+}
+
+void APP_EnemyCharacter::ApplyTableMaxHealth()
+{
+	// 未配置时完全沿用 GE_InitializeAttributes 的初始化结果
+	if (TableMaxHealthOverride <= 0.f)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	UPP_AttributeSet* PPAttributeSet = Cast<UPP_AttributeSet>(GetAttributeSet());
+	if (!IsValid(ASC) || !IsValid(PPAttributeSet))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Enemy] %s 配置了 DT_Enemies 生命上限 %.0f，但 ASC/AttributeSet 无效，沿用 GE 初始化值"),
+			*GetName(), TableMaxHealthOverride);
+		return;
+	}
+
+	// 置值而非加法：GE 初始化已经把生命写成默认值，这里直接覆盖成表值。
+	// 只在 BeginPlay 的初始化链路里执行一次，重生走 ResetAttributes（按 MaxHealth 置满），
+	// 因此不会随重生 / Possession 重进而叠加。
+	ASC->SetNumericAttributeBase(PPAttributeSet->GetMaxHealthAttribute(), TableMaxHealthOverride);
+	ASC->SetNumericAttributeBase(PPAttributeSet->GetHealthAttribute(), TableMaxHealthOverride);
+
+	UE_LOG(LogPP, Log, TEXT("[Enemy] %s 生命上限按 DT_Enemies 置为 %.0f"), *GetName(), TableMaxHealthOverride);
 }
 
 void APP_EnemyCharacter::ResetToSpawn_Implementation()
