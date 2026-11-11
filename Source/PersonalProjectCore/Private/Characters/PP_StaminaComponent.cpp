@@ -44,6 +44,20 @@ void UPP_StaminaComponent::ApplyPassiveEffects()
 		return;
 	}
 
+	// 配置缺失时原先会静默跳过，表现为"耐力不回复 / 奔跑不掉"这种难查的功能缺口，这里显式告警
+	TArray<FString> MissingEffects;
+	if (!StaminaRegenEffect) { MissingEffects.Add(TEXT("StaminaRegenEffect")); }
+	if (!StaminaSprintDrainEffect) { MissingEffects.Add(TEXT("StaminaSprintDrainEffect")); }
+	if (!StaminaRegenDelayEffect) { MissingEffects.Add(TEXT("StaminaRegenDelayEffect")); }
+	if (!StaminaCostEffect) { MissingEffects.Add(TEXT("StaminaCostEffect")); }
+	if (MissingEffects.Num() > 0)
+	{
+		UE_LOG(LogPP, Warning,
+			TEXT("[PP_Stamina] StaminaComponent 未配置：%s。缺失回复 GE 会导致耐力不自动恢复，")
+			TEXT("缺失消耗 GE 会导致奔跑不扣体力。请在 BP_PP_PlayerCharacter 的 StaminaComponent（Details 分类 PP|Stamina）上补齐"),
+			*FString::Join(MissingEffects, TEXT("、")));
+	}
+
 	// 两个常驻 Infinite 周期 GE：是否真正生效由 OngoingTagRequirements 决定
 	const TSubclassOf<UGameplayEffect> PassiveEffects[] = {StaminaRegenEffect, StaminaSprintDrainEffect};
 	for (const TSubclassOf<UGameplayEffect>& EffectClass : PassiveEffects)

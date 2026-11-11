@@ -66,12 +66,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual")
 	TObjectPtr<UMaterialInterface> HiddenWeaponMaterial;
 
-	/** BeginPlay 时是否立即隐藏自带武器（默认空手） */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PP|Weapon|Visual")
-	bool bHideBuiltInWeaponOnBeginPlay{true};
-
 private:
-	/** BeginPlay 初始化：挂 socket、识别材质槽、缓存原始材质、按配置隐藏自带武器 */
+	/** BeginPlay 初始化：挂 socket、识别材质槽、缓存原始材质 */
 	void InitializeVisual();
 
 	/** 把武器网格挂到 socket 上，socket 不存在时按 Paragon 通用挂点顺序回退 */

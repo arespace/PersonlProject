@@ -28,6 +28,11 @@ void UPP_WeaponVisualComponent::BeginPlay()
 	Super::BeginPlay();
 
 	InitializeVisual();
+
+	// 组件的 BeginPlay 在角色 PossessedBy 之后才跑，这里必须按背包的实际装备刷新一次：
+	// 空手 → 露出自带武器；已装备 → 隐藏自带武器并显示武器网格。不能再无条件隐藏，
+	// 否则会把 PossessedBy 里刚恢复好的"空手显示自带武器"覆盖掉。
+	RefreshVisualFromInventory();
 }
 
 void UPP_WeaponVisualComponent::InitializeVisual()
@@ -52,11 +57,6 @@ void UPP_WeaponVisualComponent::InitializeVisual()
 		{
 			CachedBuiltInWeaponMaterials.Add(SkeletalMesh->GetMaterial(SlotIndex));
 		}
-	}
-
-	if (bHideBuiltInWeaponOnBeginPlay)
-	{
-		SetBuiltInWeaponVisible(false);
 	}
 }
 
