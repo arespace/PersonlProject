@@ -12,9 +12,9 @@ void UPP_DataManager::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	// Config 属性由引擎在 CDO 加载时自动从 DefaultGame.ini 读取，此处仅打印状态便于排查配置缺失
-	UE_LOG(LogPP, Log, TEXT("[DataManager] Subsystem Initialized - Item=%s, Quest=%s, Character=%s, Enemy=%s"),
+	UE_LOG(LogPP, Log, TEXT("[DataManager] Subsystem Initialized - Item=%s, Quest=%s, Character=%s, Enemy=%s, Gatherable=%s"),
 		*ItemDataTable.ToString(), *QuestDataTable.ToString(), *CharacterDataTable.ToString(),
-		*EnemyDataTable.ToString());
+		*EnemyDataTable.ToString(), *GatherableDataTable.ToString());
 }
 
 void UPP_DataManager::Deinitialize()
@@ -24,6 +24,7 @@ void UPP_DataManager::Deinitialize()
 	LoadedQuestTable = nullptr;
 	LoadedCharacterTable = nullptr;
 	LoadedEnemyTable = nullptr;
+	LoadedGatherableTable = nullptr;
 	Super::Deinitialize();
 }
 
@@ -101,6 +102,13 @@ const FPP_EnemyInfo* UPP_DataManager::GetEnemyInfo(FName EnemyID)
 	// 敌人表允许稀疏：未配行的敌人沿用蓝图配置，缺行由调用方决定是否告警
 	return FindRowFromTable<FPP_EnemyInfo>(EnemyDataTable, LoadedEnemyTable, TEXT("EnemyDataTable"),
 		EnemyID, TEXT("DataManager.GetEnemyInfo"), false);
+}
+
+const FPP_GatherableInfo* UPP_DataManager::GetGatherableInfo(FName GatherableID)
+{
+	// 采集点表允许稀疏：未配行的采集物沿用蓝图配置，缺行由调用方决定是否告警
+	return FindRowFromTable<FPP_GatherableInfo>(GatherableDataTable, LoadedGatherableTable, TEXT("GatherableDataTable"),
+		GatherableID, TEXT("DataManager.GetGatherableInfo"), false);
 }
 
 TArray<FName> UPP_DataManager::GetCharacterRowNames()

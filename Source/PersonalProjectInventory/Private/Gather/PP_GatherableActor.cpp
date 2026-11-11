@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
 
 APP_GatherableActor::APP_GatherableActor()
@@ -40,6 +41,9 @@ void APP_GatherableActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 先按数据表行覆盖配置，再初始化剩余次数（顺序不能反）
+	ApplyGatherableConfig();
+
 	// 服务器初始化剩余采集次数
 	if (HasAuthority())
 	{
@@ -52,6 +56,59 @@ void APP_GatherableActor::BeginPlay()
 		InteractionRange->OnComponentBeginOverlap.AddDynamic(this, &APP_GatherableActor::OnInteractionRangeBeginOverlap);
 		InteractionRange->OnComponentEndOverlap.AddDynamic(this, &APP_GatherableActor::OnInteractionRangeEndOverlap);
 	}
+}
+
+void APP_GatherableActor::ApplyGatherableConfig()
+{
+	// 未配 GatherableID 的采集物不参与数据表驱动，完全沿用蓝图配置
+	if (GatherableID.IsNone())
+	{
+		return;
+	}
+
+	UPP_DataManager* DataManager = UPP_DataManager::Get(GetWorld());
+	if (!IsValid(DataManager))
+	{
+		return;
+	}
+
+	const FPP_GatherableInfo* Row = DataManager->GetGatherableInfo(GatherableID);
+	if (!Row)
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Gather] %s 的 GatherableID=%s 在 DT_Gatherables 中无对应行，沿用蓝图配置"),
+			*GetName(), *GatherableID.ToString());
+		return;
+	}
+
+	// 字段为 0 / 空表示未配置，保留蓝图现值（默认值等于现值，不改变现有平衡）
+	if (!Row->ItemID.IsNone())
+	{
+		ItemID = Row->ItemID;
+	}
+	if (Row->GatherCount > 0)
+	{
+		GatherCount = Row->GatherCount;
+	}
+	if (Row->GatherTime > 0.f)
+	{
+		GatherTime = Row->GatherTime;
+	}
+	if (Row->MaxGatherTimes > 0)
+	{
+		MaxGatherTimes = Row->MaxGatherTimes;
+	}
+	if (Row->RespawnTime > 0.f)
+	{
+		RespawnTime = Row->RespawnTime;
+	}
+	if (Row->InteractionRadius > 0.f && InteractionRange)
+	{
+		InteractionRange->SetSphereRadius(Row->InteractionRadius);
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[Gather] %s 已应用 DT_Gatherables 行 %s（ItemID=%s Count=%d Time=%.1f MaxTimes=%d Respawn=%.1f Radius=%.0f）"),
+		*GetName(), *GatherableID.ToString(), *ItemID.ToString(), GatherCount, GatherTime, MaxGatherTimes,
+		RespawnTime, InteractionRange ? InteractionRange->GetUnscaledSphereRadius() : 0.f);
 }
 
 void APP_GatherableActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

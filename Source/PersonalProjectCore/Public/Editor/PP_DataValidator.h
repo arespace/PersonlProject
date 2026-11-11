@@ -44,6 +44,11 @@ struct FPP_DataValidationReport
  *   3. 攻击距离/延迟/冷却/掉落数量等数值范围合法；
  *   4. Boss 阶段阈值必须落在 0~1。
  *
+ * 校验项（DT_Gatherables）：
+ *   1. RowName 与 GatherableID 一致且非空、全表唯一；
+ *   2. ItemID 非空时必须存在于 DT_Items；
+ *   3. 采集数量/耗时/次数/重生时间/交互半径等数值范围合法（0 表示沿用蓝图现值）。
+ *
  * 说明：DT_WeaponData 已在武器装备改造中并入 DT_Items.WeaponConfig，
  *      现行工程内不应存在该资产；校验器只在资产仍存在时给出提示，不存在则跳过。
  */
@@ -58,6 +63,10 @@ public:
 
 	/** 校验敌人表；ItemTable 用于校验 DropItemID 外键，为空时按 Config 路径懒加载 */
 	static FPP_DataValidationReport ValidateEnemyTable(UDataTable* EnemyTable, UDataTable* ItemTable = nullptr,
+		const FString& TableLabel = FString());
+
+	/** 校验采集点表；ItemTable 用于校验 ItemID 外键 */
+	static FPP_DataValidationReport ValidateGatherableTable(UDataTable* GatherableTable, UDataTable* ItemTable = nullptr,
 		const FString& TableLabel = FString());
 
 	/** 按 Config/DefaultGame.ini 的表路径校验全部目标表，返回错误总数 */

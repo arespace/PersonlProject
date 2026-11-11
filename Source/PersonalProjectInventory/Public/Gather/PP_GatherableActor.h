@@ -54,6 +54,10 @@ public:
 
 	// ===== 配置属性 =====
 
+	/** 采集点唯一标识（= DT_Gatherables 行名）；留空表示不查表，完全沿用本蓝图配置 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Config")
+	FName GatherableID;
+
 	/** 采集产出的物品ID（对应 DataTable 中的行名） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gather|Config")
 	FName ItemID;
@@ -152,6 +156,12 @@ protected:
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 private:
+	/**
+	 * 按 DT_Gatherables 行覆盖配置（字段为 0/空表示沿用本蓝图现值）。
+	 * 必须在 BeginPlay 初始化 RemainingGatherTimes 之前调用。
+	 */
+	void ApplyGatherableConfig();
+
 	/** 剩余可采集次数 */
 	UPROPERTY(Replicated)
 	int32 RemainingGatherTimes;

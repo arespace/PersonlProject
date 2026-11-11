@@ -13,6 +13,7 @@
 #include "UObject/Package.h"
 
 #include "Data/PP_EnemyData.h"
+#include "Data/PP_GatherableData.h"
 #include "Data/PP_ItemData.h"
 #include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
@@ -318,6 +319,128 @@ FPP_DataValidationReport FPP_DataValidator::ValidateEnemyTable(UDataTable* Enemy
 	return Report;
 }
 
+FPP_DataValidationReport FPP_DataValidator::ValidateGatherableTable(UDataTable* GatherableTable, UDataTable* ItemTable, const FString& TableLabel)
+{
+	FPP_DataValidationReport Report;
+	const FString Label = !TableLabel.IsEmpty()
+		? TableLabel
+		: (GatherableTable ? GatherableTable->GetName() : FString(TEXT("<未加载>")));
+
+	if (!GatherableTable)
+	{
+		Report.AddError(TEXT("数据表未加载（配置路径为空或资产不存在），无法校验"));
+		Report.Log(Label);
+		return Report;
+	}
+
+	if (GatherableTable->GetRowStruct() != FPP_GatherableInfo::StaticStruct())
+	{
+		Report.AddError(FString::Printf(TEXT("行结构不是 FPP_GatherableInfo（当前：%s），无法按采集点表校验"),
+			GatherableTable->GetRowStruct() ? *GatherableTable->GetRowStruct()->GetName() : TEXT("None")));
+		Report.Log(Label);
+		return Report;
+	}
+
+	const TArray<FName> RowNames = GatherableTable->GetRowNames();
+	Report.RowCount = RowNames.Num();
+	if (RowNames.IsEmpty())
+	{
+		Report.AddWarning(TEXT("表内没有任何行：所有采集点仍按蓝图上的原值运行"));
+	}
+
+	TMap<FName, FName> GatherableIDOwner;
+
+	for (const FName& RowName : RowNames)
+	{
+		const FPP_GatherableInfo* Row = GatherableTable->FindRow<FPP_GatherableInfo>(RowName, TEXT("PP_DataValidator"), false);
+		if (!Row)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s' 无法按 FPP_GatherableInfo 解析（行数据损坏或行结构不匹配）"), *RowName.ToString()));
+			continue;
+		}
+
+		// 1. GatherableID 非空且与行名一致
+		if (Row->GatherableID.IsNone())
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：GatherableID 为空（必须与 RowName 一致且非空）"), *RowName.ToString()));
+		}
+		else
+		{
+			if (Row->GatherableID != RowName)
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：RowName 与 GatherableID 不一致（RowName='%s'，GatherableID='%s'）"),
+					*RowName.ToString(), *RowName.ToString(), *Row->GatherableID.ToString()));
+			}
+
+			// 2. GatherableID 全表唯一
+			if (const FName* FirstRow = GatherableIDOwner.Find(Row->GatherableID))
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：GatherableID '%s' 重复（已在行 '%s' 使用）"),
+					*RowName.ToString(), *Row->GatherableID.ToString(), *FirstRow->ToString()));
+			}
+			else
+			{
+				GatherableIDOwner.Add(Row->GatherableID, RowName);
+			}
+		}
+
+		// 3. 数值范围（0 表示沿用蓝图现值，允许；负值非法）
+		if (Row->GatherCount < 0)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：GatherCount(%d) 不能为负（0 表示沿用蓝图原值）"),
+				*RowName.ToString(), Row->GatherCount));
+		}
+		if (Row->GatherTime < 0.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：GatherTime(%.2f) 不能为负（0 表示沿用蓝图原值）"),
+				*RowName.ToString(), Row->GatherTime));
+		}
+		else if (Row->GatherTime > 0.f && Row->GatherTime < 0.1f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：GatherTime(%.2f) 小于 0.1 秒，采集会瞬间完成（Actor 侧 ClampMin=0.1）"),
+				*RowName.ToString(), Row->GatherTime));
+		}
+		if (Row->MaxGatherTimes < 0)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：MaxGatherTimes(%d) 不能为负（0 表示沿用蓝图原值）"),
+				*RowName.ToString(), Row->MaxGatherTimes));
+		}
+		if (Row->RespawnTime < 0.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：RespawnTime(%.2f) 不能为负（0 表示沿用蓝图原值）"),
+				*RowName.ToString(), Row->RespawnTime));
+		}
+		if (Row->InteractionRadius < 0.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：InteractionRadius(%.1f) 不能为负（0 表示沿用蓝图原值）"),
+				*RowName.ToString(), Row->InteractionRadius));
+		}
+		else if (Row->InteractionRadius > 0.f && Row->InteractionRadius < 1.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：InteractionRadius(%.2f) 小于 1cm，玩家无法进入交互范围"),
+				*RowName.ToString(), Row->InteractionRadius));
+		}
+
+		// 4. ItemID 外键必须命中 DT_Items
+		if (!Row->ItemID.IsNone())
+		{
+			if (!ItemTable)
+			{
+				Report.AddWarning(FString::Printf(TEXT("行 '%s'：ItemID '%s' 无法校验（DT_Items 未加载）"),
+					*RowName.ToString(), *Row->ItemID.ToString()));
+			}
+			else if (!ItemTable->FindRow<FPP_ItemInfo>(Row->ItemID, TEXT("PP_DataValidator"), false))
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：ItemID '%s' 在 DT_Items 中不存在"),
+					*RowName.ToString(), *Row->ItemID.ToString()));
+			}
+		}
+	}
+
+	Report.Log(Label);
+	return Report;
+}
+
 FPP_DataValidationReport FPP_DataValidator::ValidateLegacyWeaponTable()
 {
 	FPP_DataValidationReport Report;
@@ -404,6 +527,33 @@ int32 FPP_DataValidator::ValidateAll()
 		}
 	}
 
+	// DT_Gatherables（可缺省：资产不存在时只提示，不计错误，便于分批落地）
+	const FString GatherablePath = ReadDataManagerTablePath(TEXT("GatherableDataTable"));
+	if (GatherablePath.IsEmpty())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[DataValidator] DT_Gatherables 路径未配置，跳过采集点表校验"));
+	}
+	else if (!FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(GatherablePath)))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[DataValidator] DT_Gatherables 资产不存在（%s），采集点仍走蓝图配置，跳过校验"), *GatherablePath);
+	}
+	else
+	{
+		UDataTable* GatherableTable = LoadObject<UDataTable>(nullptr, *GatherablePath);
+		if (!GatherableTable)
+		{
+			UE_LOG(LogPP, Error, TEXT("[DataValidator] DT_Gatherables 加载失败：%s"), *GatherablePath);
+			++TotalErrors;
+		}
+		else
+		{
+			const FPP_DataValidationReport Report = ValidateGatherableTable(GatherableTable, LoadedItemTable,
+				FString::Printf(TEXT("DT_Gatherables(%s)"), *GatherablePath));
+			TotalErrors += Report.ErrorCount;
+			TotalWarnings += Report.WarningCount;
+		}
+	}
+
 	// 遗留 DT_WeaponData（已并入 DT_Items）
 	{
 		const FPP_DataValidationReport Report = ValidateLegacyWeaponTable();
@@ -462,7 +612,7 @@ int32 FPP_DataValidator::RunSelfTest()
 
 static FAutoConsoleCommand GPPValidateDataCommand(
 	TEXT("pp.ValidateData"),
-	TEXT("校验 DT_Items、DT_Enemies 与遗留 DT_WeaponData 的数据配置（只读，不修改数据）"),
+	TEXT("校验 DT_Items、DT_Enemies、DT_Gatherables 与遗留 DT_WeaponData 的数据配置（只读，不修改数据）"),
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		FPP_DataValidator::ValidateAll();
