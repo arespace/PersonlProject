@@ -6,6 +6,10 @@
 #include "Session/PP_LobbyTypes.h"
 #include "PP_LobbyGameMode.generated.h"
 
+class APlayerController;
+class APlayerState;
+class AHUD;
+
 /**
  * APP_LobbyGameMode - 大厅阶段GameMode
  * 管理玩家加入/离开、Ready检查、房间设置同步、开始游戏
@@ -52,6 +56,21 @@ public:
 	void BroadcastPlayerListUpdate();
 
 protected:
+
+	// ===== 大厅类配置（由 BP_LobbyGameMode 的 Class Defaults 覆盖） =====
+	// 未配置时 InitGame 回退到原 C++ 资产路径，保证行为不变。
+
+	/** 大厅玩家控制器类；为空时回退到默认资产路径 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby")
+	TSubclassOf<APlayerController> LobbyPlayerControllerClass;
+
+	/** 大厅玩家状态类；为空时回退到默认资产路径 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby")
+	TSubclassOf<APlayerState> LobbyPlayerStateClass;
+
+	/** 大厅 HUD 类；仅在 HUDClass 未配置时兜底，为空时回退到默认资产路径 */
+	UPROPERTY(EditDefaultsOnly, Category = "PP|Lobby")
+	TSubclassOf<AHUD> LobbyHUDClass;
 
 	/** 房间设置 */
 	UPROPERTY(ReplicatedUsing = OnRep_RoomSettings)

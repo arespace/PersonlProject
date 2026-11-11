@@ -40,24 +40,65 @@ void APP_LobbyGameMode::InitGame(const FString& MapName, const FString& Options,
 	Super::InitGame(MapName, Options, ErrorMessage);
 
 	// 运行时按路径加载蓝图类：此时所有模块（含 UI）均已注册，蓝图引用可正常解析。
-	// 这里刻意使用字符串路径而非 CDO 默认值，避免把 UI 资产拖进模块加载期的同步加载。
-	if (UClass* LobbyPCClass = LoadClass<APlayerController>(nullptr, TEXT("/Game/PersonalProject/Player/BP_PP_PlayerController.BP_PP_PlayerController_C")))
+	// 优先使用蓝图配置的 TSubclassOf（给烘焙器真实引用）；未配置时回退到原资产路径，
+	// 保证升级前的行为完全一致。资产缺失只打日志，不崩溃。
+	if (LobbyPlayerControllerClass)
 	{
-		PlayerControllerClass = LobbyPCClass;
+		PlayerControllerClass = LobbyPlayerControllerClass;
 	}
-	if (UClass* LobbyPSClass = LoadClass<APlayerState>(nullptr, TEXT("/Game/PersonalProject/UI/LobbyInterface/Components/BP_LobbyPlayerState.BP_LobbyPlayerState_C")))
+	else
 	{
-		PlayerStateClass = LobbyPSClass;
+		UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] LobbyPlayerControllerClass 未配置，回退到默认资产路径"));
+		if (UClass* LobbyPCClass = LoadClass<APlayerController>(nullptr, TEXT("/Game/PersonalProject/Player/BP_PP_PlayerController.BP_PP_PlayerController_C")))
+		{
+			PlayerControllerClass = LobbyPCClass;
+		}
+		else
+		{
+			UE_LOG(LogPP, Error, TEXT("[LobbyGameMode] 大厅 PlayerController 类不可用：请配置 LobbyPlayerControllerClass；沿用 %s"),
+				*GetNameSafe(PlayerControllerClass));
+		}
+	}
+
+	if (LobbyPlayerStateClass)
+	{
+		PlayerStateClass = LobbyPlayerStateClass;
+	}
+	else
+	{
+		UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] LobbyPlayerStateClass 未配置，回退到默认资产路径"));
+		if (UClass* LobbyPSClass = LoadClass<APlayerState>(nullptr, TEXT("/Game/PersonalProject/UI/LobbyInterface/Components/BP_LobbyPlayerState.BP_LobbyPlayerState_C")))
+		{
+			PlayerStateClass = LobbyPSClass;
+		}
+		else
+		{
+			UE_LOG(LogPP, Error, TEXT("[LobbyGameMode] 大厅 PlayerState 类不可用：请配置 LobbyPlayerStateClass；沿用 %s"),
+				*GetNameSafe(PlayerStateClass));
+		}
 	}
 
 	// HUD 兜底：蓝图（BP_LobbyGameMode）未配置 HUDClass 时，基类默认是 AHUD::StaticClass()，
 	// 大厅会生成默认 AHUD，APP_LobbyHUD 不会生成，导致主菜单/大厅界面为空。
-	// 这里仅在仍是默认 AHUD（或空）时，运行时加载 BP_LobbyHUD 兜底。
+	// 这里仅在仍是默认 AHUD（或空）时，优先用配置类，否则运行时加载 BP_LobbyHUD 兜底。
 	if (HUDClass == nullptr || HUDClass == AHUD::StaticClass())
 	{
-		if (UClass* LobbyHUDClass = LoadClass<AHUD>(nullptr, TEXT("/Game/PersonalProject/UI/LobbyInterface/Core/BP_LobbyHUD.BP_LobbyHUD_C")))
+		if (LobbyHUDClass)
 		{
 			HUDClass = LobbyHUDClass;
+		}
+		else
+		{
+			UE_LOG(LogPP, Verbose, TEXT("[LobbyGameMode] LobbyHUDClass 未配置，回退到默认资产路径"));
+			if (UClass* LoadedHUDClass = LoadClass<AHUD>(nullptr, TEXT("/Game/PersonalProject/UI/LobbyInterface/Core/BP_LobbyHUD.BP_LobbyHUD_C")))
+			{
+				HUDClass = LoadedHUDClass;
+			}
+			else
+			{
+				UE_LOG(LogPP, Error, TEXT("[LobbyGameMode] 大厅 HUD 类不可用：请配置 LobbyHUDClass；沿用 %s"),
+					*GetNameSafe(HUDClass));
+			}
 		}
 	}
 }
