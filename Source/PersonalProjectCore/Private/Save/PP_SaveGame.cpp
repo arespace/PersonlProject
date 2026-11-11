@@ -128,6 +128,20 @@ bool UPP_SaveGame::Validate(FString& OutError) const
 		}
 	}
 
+	// 防御性上限：损坏文件可能带出超大数组，逐条跳过发生在组件侧，这里只拦明显异常
+	if (Inventory.Items.Num() > 200 || Inventory.Equipped.Num() > 16)
+	{
+		OutError = FString::Printf(TEXT("背包条目数异常（物品=%d 装备=%d）"),
+			Inventory.Items.Num(), Inventory.Equipped.Num());
+		return false;
+	}
+
+	if (Inventory.Gold < 0)
+	{
+		OutError = FString::Printf(TEXT("金币数量非法（%d）"), Inventory.Gold);
+		return false;
+	}
+
 	return true;
 }
 

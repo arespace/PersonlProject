@@ -5,6 +5,7 @@
 #include "Characters/PP_PlayerCharacter.h"
 #include "Framework/PP_Log.h"
 #include "GameFramework/PlayerController.h"
+#include "Inventory/PP_InventoryComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/PP_PlayerState.h"
 #include "Save/PP_SaveGame.h"
@@ -86,6 +87,23 @@ bool UPP_SaveSubsystem::SavePlayer(APlayerController* PC, FString& OutError)
 	SaveData->Character.CharacterId = PS->GetSelectedCharacterId();
 	CaptureAttributes(PS->GetAbilitySystemComponent(), SaveData->Character.BaseAttributes);
 
+	if (const UPP_InventoryComponent* Inventory = PS->GetInventoryComponent())
+	{
+		SaveData->Inventory.Items = Inventory->GetItems();
+		SaveData->Inventory.Gold = Inventory->GetGold();
+
+		// 装备只落盘 ItemID + Slot；EffectHandle 是运行时句柄，读档时重新解析重建
+		SaveData->Inventory.Equipped = Inventory->GetEquippedItems();
+		for (FPP_EquippedItem& Equipped : SaveData->Inventory.Equipped)
+		{
+			Equipped.EffectHandle = FActiveGameplayEffectHandle();
+		}
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 保存时未找到 InventoryComponent，背包数据未写入"));
+	}
+
 	return UPP_SaveGame::Save(SaveData, OutError);
 }
 
@@ -137,6 +155,16 @@ bool UPP_SaveSubsystem::ApplyPendingToPlayer(APlayerController* PC, FString& Out
 	if (APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(PC->GetPawn()))
 	{
 		PlayerCharacter->ApplyCharacterAppearance(Character.CharacterId);
+	}
+
+	// 先恢复背包/装备：装备 GE 的加成先挂上去，最后再写属性 base，避免加成被 base 覆盖或双算
+	if (UPP_InventoryComponent* Inventory = PS->GetInventoryComponent())
+	{
+		Inventory->RestoreFromSave(PendingSave->Inventory);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 读档时未找到 InventoryComponent，背包数据未应用"));
 	}
 
 	ApplyAttributes(PS->GetAbilitySystemComponent(), Character.BaseAttributes);

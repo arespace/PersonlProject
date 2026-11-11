@@ -354,6 +354,132 @@ void UPP_InventoryComponent::RemoveEquippedSlot(EPP_EquipSlot Slot)
 	}
 }
 
+bool UPP_InventoryComponent::RestoreFromSave(const FPP_SaveInventoryData& InData)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Inventory] RestoreFromSave 只能在服务端执行"));
+		return false;
+	}
+
+	// 1. 先撤掉当前所有装备提供的 GE：读档时角色可能已经穿着默认装备，不撤会叠两层
+	const TArray<FPP_EquippedItem> OldEquipped = EquippedItems;
+	for (const FPP_EquippedItem& Old : OldEquipped)
+	{
+		if (Old.EffectHandle.IsValid())
+		{
+			if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+			{
+				ASC->RemoveActiveGameplayEffect(Old.EffectHandle);
+			}
+		}
+	}
+	EquippedItems.Reset();
+
+	// 2. 背包：逐条校验，行名找不到或数量非法的条目跳过，不影响其余数据
+	Items.Reset();
+	for (const FPP_ItemInstance& Entry : InData.Items)
+	{
+		if (Entry.ItemID.IsNone() || Entry.Count <= 0)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档跳过非法物品条目：ID=%s 数量=%d"),
+				*Entry.ItemID.ToString(), Entry.Count);
+			continue;
+		}
+
+		const FPP_ItemInfo* ItemInfo = FindItemInfo(Entry.ItemID);
+		if (!ItemInfo)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档跳过未知物品：%s（DT_Items 无此行）"), *Entry.ItemID.ToString());
+			continue;
+		}
+
+		if (MaxInventorySlots > 0 && Items.Num() >= MaxInventorySlots)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档背包已达上限 %d，跳过剩余物品（从 %s 起）"),
+				MaxInventorySlots, *Entry.ItemID.ToString());
+			break;
+		}
+
+		const int32 ClampedCount = FMath::Clamp(Entry.Count, 1, FMath::Max(1, ItemInfo->MaxStackCount));
+		if (ClampedCount != Entry.Count)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档修正 %s 堆叠数量：%d -> %d"),
+				*Entry.ItemID.ToString(), Entry.Count, ClampedCount);
+		}
+		Items.Add(FPP_ItemInstance(Entry.ItemID, ClampedCount));
+	}
+
+	// 3. 金币：非法值归零
+	Gold = FMath::Max(0, InData.Gold);
+
+	// 4. 装备：只按 ItemID + Slot 还原，EquipEffectClass 从 DT_Items 重新解析并施加（句柄重建）
+	for (const FPP_EquippedItem& Entry : InData.Equipped)
+	{
+		if (Entry.ItemID.IsNone() || Entry.Slot == EPP_EquipSlot::None)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档跳过非法装备条目：ID=%s 槽位=%d"),
+				*Entry.ItemID.ToString(), static_cast<int32>(Entry.Slot));
+			continue;
+		}
+
+		const FPP_ItemInfo* ItemInfo = FindItemInfo(Entry.ItemID);
+		if (!ItemInfo || ItemInfo->ItemType != EPP_ItemType::Equipment)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档跳过未知或非装备物品：%s"), *Entry.ItemID.ToString());
+			continue;
+		}
+
+		const EPP_EquipSlot TargetSlot = ResolveEquipSlot(*ItemInfo, Entry.Slot);
+		if (TargetSlot == EPP_EquipSlot::None)
+		{
+			continue; // ResolveEquipSlot 内部已打 Warning
+		}
+
+		if (!FindEquippedItemID(TargetSlot).IsNone())
+		{
+			UE_LOG(LogPP, Warning, TEXT("[Inventory] 读档跳过槽位重复的装备：%s（槽位=%d）"),
+				*Entry.ItemID.ToString(), static_cast<int32>(TargetSlot));
+			continue;
+		}
+
+		FPP_EquippedItem NewEquip;
+		NewEquip.ItemID = Entry.ItemID;
+		NewEquip.Slot = TargetSlot;
+		NewEquip.EffectHandle = ApplyEquipEffect(*ItemInfo);
+		EquippedItems.Add(NewEquip);
+	}
+
+	// 5. 服务端不会触发 OnRep：手动广播并逐槽位通知，客户端外观/技能靠这些事件与后续复制刷新
+	BroadcastInventoryUpdatedEvent();
+	BroadcastEquipmentUpdatedEvent();
+	BroadcastGoldUpdatedEvent(Gold);
+
+	for (const FPP_EquippedItem& Old : OldEquipped)
+	{
+		const FName NewItemID = FindEquippedItemID(Old.Slot);
+		if (NewItemID != Old.ItemID)
+		{
+			NotifyEquipmentUser(Old.Slot, NewItemID);
+		}
+	}
+	for (const FPP_EquippedItem& NewItem : EquippedItems)
+	{
+		const bool bSameAsOld = OldEquipped.ContainsByPredicate([&NewItem](const FPP_EquippedItem& Old)
+		{
+			return Old.Slot == NewItem.Slot && Old.ItemID == NewItem.ItemID;
+		});
+		if (!bSameAsOld)
+		{
+			NotifyEquipmentUser(NewItem.Slot, NewItem.ItemID);
+		}
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[Inventory] 读档恢复完成：物品=%d 装备=%d 金币=%d"),
+		Items.Num(), EquippedItems.Num(), Gold);
+	return true;
+}
+
 void UPP_InventoryComponent::NotifyEquipmentUser(EPP_EquipSlot Slot, FName NewItemID)
 {
 	AActor* NotifyTarget = GetEquipmentUserActor();

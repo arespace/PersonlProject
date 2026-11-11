@@ -45,6 +45,8 @@ public:
 
 	UPROPERTY() FPP_SaveCharacterData Character;
 
+	UPROPERTY() FPP_SaveInventoryData Inventory;
+
 	// ===== 读写入口（服务端调用） =====
 
 	/** 读取存档；无档返回 nullptr 且 Error 为空；损坏时尝试 .bak，仍失败时 Error 给出原因 */

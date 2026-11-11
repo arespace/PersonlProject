@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/PP_ItemData.h"
 #include "PP_SaveTypes.generated.h"
 
 /**
@@ -38,4 +39,20 @@ struct FPP_SaveCharacterData
 
 	/** 九项属性的 base 值 */
 	UPROPERTY() FPP_SaveAttributeData BaseAttributes;
+};
+
+/**
+ * 背包与装备存档。
+ * 装备只存 ItemID + Slot：EffectHandle 是运行时句柄，读档时按 DT_Items.EquipEffectClass 重新施加并重建。
+ */
+USTRUCT()
+struct FPP_SaveInventoryData
+{
+	GENERATED_BODY()
+
+	UPROPERTY() TArray<FPP_ItemInstance> Items;
+
+	UPROPERTY() TArray<FPP_EquippedItem> Equipped;
+
+	UPROPERTY() int32 Gold = 0;
 };

@@ -9,6 +9,7 @@
 #include "GameplayEffectTypes.h"
 #include "Data/PP_ItemData.h"
 #include "Data/PP_ItemTypes.h"
+#include "Save/PP_SaveTypes.h"
 #include "Query/PP_InventoryQuery.h"
 #include "Query/PP_InventoryActions.h"
 #include "PP_InventoryComponent.generated.h"
@@ -125,6 +126,17 @@ public:
 	/** 获取所有已装备物品的副本，UI 渲染用 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
 	TArray<FPP_EquippedItem> GetEquippedItems() const { return EquippedItems; }
+
+	/**
+	 * 从存档恢复背包 / 金币 / 装备（服务端，读档时调用一次）
+	 *
+	 * 规则：
+	 *   - 先清除当前装备 GE，再整体替换，避免与旧效果叠加
+	 *   - 装备只按 ItemID + Slot 还原，EquipEffectClass 从 DT_Items 重新解析并施加，句柄重建
+	 *   - 行名找不到 / 数量非法 / 槽位冲突的条目逐条跳过并告警，不影响其余数据
+	 *   - 恢复完成后广播背包、装备、金币事件，并按槽位通知外观与技能
+	 */
+	bool RestoreFromSave(const FPP_SaveInventoryData& InData);
 
 	// ===== 消耗品接口 =====
 
