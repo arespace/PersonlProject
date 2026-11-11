@@ -85,9 +85,6 @@ void APP_EnemyCharacter::BeginPlay()
 	SpawnLocation = GetActorLocation();
 	SpawnRotation = GetActorRotation();
 
-	// 先把 DT_Enemies 的数值灌进来，后续索敌/攻击 GA 读到的就是表里的值
-	ApplyEnemyDataConfig();
-
 	// 蓝图未给 AIController 挂感知组件时运行时补建，避免敌人彻底失去索敌能力
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
 	{
@@ -101,6 +98,9 @@ void APP_EnemyCharacter::BeginPlay()
 				*GetName());
 		}
 	}
+
+	// 感知组件就位后再灌 DT_Enemies 的数值，后续索敌/攻击 GA 读到的就是表里的值
+	ApplyEnemyDataConfig();
 
 	if (!IsValid(GetAbilitySystemComponent())) return;
 
@@ -161,6 +161,18 @@ void APP_EnemyCharacter::ApplyEnemyDataConfig()
 	DropItemID = Row->DropItemID;
 	DropItemCount = Row->DropItemCount;
 	bShouldRespawn = Row->bShouldRespawn;
+
+	// 感知参数挂在 AIController 的组件上，需要主动推送过去
+	if (UPP_AIPerceptionComponent* PerceptionComponent = GetAIPerceptionComponent())
+	{
+		PerceptionComponent->ApplySearchConfig(Row->PerceptionSearchRadius, Row->PerceptionLeashRange,
+			Row->PerceptionMaxHeightDiff, Row->PerceptionTargetLostGraceTime, Row->PerceptionSearchInterval);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[Enemy] %s 命中 DT_Enemies 行 %s，但未找到 UPP_AIPerceptionComponent，感知参数未应用"),
+			*GetName(), *EnemyID.ToString());
+	}
 
 	ApplyEnemyExtraData(*Row);
 

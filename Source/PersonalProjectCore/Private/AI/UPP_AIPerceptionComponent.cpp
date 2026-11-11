@@ -44,6 +44,19 @@ void UPP_AIPerceptionComponent::StartSearching()
 		true);
 }
 
+void UPP_AIPerceptionComponent::ApplySearchConfig(float InSearchRadius, float InLeashRange, float InMaxHeightDiff,
+	float InTargetLostGraceTime, float InSearchInterval)
+{
+	SearchRadius = InSearchRadius;
+	LeashRange = InLeashRange;
+	MaxHeightDiff = InMaxHeightDiff;
+	TargetLostGraceTime = InTargetLostGraceTime;
+	SearchInterval = InSearchInterval;
+
+	// 定时器按旧间隔在跑，改了间隔必须重启才生效
+	StartSearching();
+}
+
 void UPP_AIPerceptionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorld()->GetTimerManager().ClearTimer(SearchTimerHandle);

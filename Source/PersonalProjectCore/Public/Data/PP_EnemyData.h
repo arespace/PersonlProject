@@ -46,6 +46,28 @@ struct FPP_EnemyInfo : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|AI", meta = (ClampMin = "0.0"))
 	float AttackCooldownMax{2.5f};
 
+	// ===== AI 感知组件参数（UPP_AIPerceptionComponent，随敌人推送到 AIController 上的组件） =====
+
+	/** 感知搜索半径（cm） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Perception", meta = (ClampMin = "0.0"))
+	float PerceptionSearchRadius{1500.f};
+
+	/** 脱战 leash 距离（cm） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Perception", meta = (ClampMin = "0.0"))
+	float PerceptionLeashRange{3500.f};
+
+	/** 高度差容忍（cm） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Perception", meta = (ClampMin = "0.0"))
+	float PerceptionMaxHeightDiff{500.f};
+
+	/** 仇恨粘性窗口（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Perception", meta = (ClampMin = "0.0"))
+	float PerceptionTargetLostGraceTime{0.5f};
+
+	/** 感知搜索间隔（秒） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Perception", meta = (ClampMin = "0.05"))
+	float PerceptionSearchInterval{0.15f};
+
 	// ===== 死亡与掉落 =====
 
 	/** 死亡时直接发放给击杀者的金币数量（Boss 行填 500，再乘 BossGoldMultiplier） */

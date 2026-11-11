@@ -25,6 +25,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PP|AI|Perception")
 	void StartSearching();
 
+	/** 用敌人数据行覆盖感知参数并重启搜索定时器；不调用则保留组件/蓝图上的原值 */
+	void ApplySearchConfig(float InSearchRadius, float InLeashRange, float InMaxHeightDiff,
+		float InTargetLostGraceTime, float InSearchInterval);
+
 	/** 搜索半径（cm）：超过这个距离不考虑 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PP|AI|Perception")
 	float SearchRadius{1500.f};
