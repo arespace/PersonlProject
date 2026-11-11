@@ -4,6 +4,7 @@
 #include "HUD/PP_HUD.h"
 #include "Framework/PP_GameFlowRequest.h"
 #include "Framework/PP_UIManager.h"
+#include "Save/PP_SaveActions.h"
 #include "Session/PP_SessionManager.h"
 #include "GameFramework/GameModeBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -26,6 +27,10 @@ void UPP_PauseMenuWidget::NativeOnInitialized()
 	if (ResumeButton)
 	{
 		ResumeButton->OnClicked.AddDynamic(this, &UPP_PauseMenuWidget::OnResumeClicked);
+	}
+	if (SaveButton)
+	{
+		SaveButton->OnClicked.AddDynamic(this, &UPP_PauseMenuWidget::OnSaveClicked);
 	}
 	if (QuitButton)
 	{
@@ -54,6 +59,24 @@ void UPP_PauseMenuWidget::ResumeGame()
 void UPP_PauseMenuWidget::OnResumeClicked()
 {
 	ResumeGame();
+}
+
+void UPP_PauseMenuWidget::OnSaveClicked()
+{
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+	{
+		return;
+	}
+
+	// UI 不直接认识主玩法 PlayerController：只经 Core 接口请求，存/读由 PC 在服务端执行
+	if (!PC->GetClass()->ImplementsInterface(UPP_SaveActions::StaticClass()))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PauseMenu] OnSaveClicked - 当前 PlayerController 未实现 IPP_SaveActions，忽略保存请求"));
+		return;
+	}
+
+	IPP_SaveActions::Execute_RequestSaveGame(PC);
 }
 
 void UPP_PauseMenuWidget::OnReturnToLoginClicked()

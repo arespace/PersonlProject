@@ -29,6 +29,10 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> ResumeButton;
 
+	/** 蓝图绑定 - 保存游戏按钮（可选）：WBP_PauseMenu 中需有名为 "SaveButton" 的 Button */
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> SaveButton;
+
 	/** 蓝图绑定 - 退出游戏按钮 */
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> QuitButton;
@@ -49,6 +53,10 @@ private:
 	/** 继续游戏按钮点击回调 */
 	UFUNCTION()
 	void OnResumeClicked();
+
+	/** 保存游戏按钮点击回调 */
+	UFUNCTION()
+	void OnSaveClicked();
 
 	/** 退出游戏按钮点击回调 */
 	UFUNCTION()

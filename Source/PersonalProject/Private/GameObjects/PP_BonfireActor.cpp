@@ -1,5 +1,6 @@
 
 #include "GameObjects/PP_BonfireActor.h"
+#include "Game/Save/PP_SaveSubsystem.h"
 
 #include "Characters/PP_BaseCharacter.h"
 #include "Components/CapsuleComponent.h"
@@ -162,6 +163,20 @@ void APP_BonfireActor::Rest(APlayerController* Interactor)
 			{
 				UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 休息触发敌人重置：未找到 UPP_EnemyRespawnManager（APP_CrashGameMode 构造函数会自动创建；自定义 GameMode 需自行 Add Component）"));
 			}
+		}
+	}
+
+	// === 休息成功 → 自动保存（服务端写档；同一帧内重复触发由 SaveSubsystem 去重）===
+	if (UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this))
+	{
+		FString SaveError;
+		if (SaveSubsystem->SaveLocalPlayer(SaveError))
+		{
+			UE_LOG(LogPP, Log, TEXT("[PP_Bonfire] 篝火自动保存完成"));
+		}
+		else
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 篝火自动保存失败：%s"), *SaveError);
 		}
 	}
 }

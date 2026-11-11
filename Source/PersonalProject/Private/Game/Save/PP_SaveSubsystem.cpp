@@ -6,6 +6,7 @@
 #include "Characters/PP_PlayerCharacter.h"
 #include "EngineUtils.h"
 #include "Framework/PP_Log.h"
+#include "Engine/World.h"
 #include "Game/PP_CrashGameMode.h"
 #include "Game/PP_EnemyRespawnManager.h"
 #include "GameFramework/PlayerController.h"
@@ -288,11 +289,25 @@ bool UPP_SaveSubsystem::SavePlayer(APlayerController* PC, FString& OutError)
 		return false;
 	}
 
+	// 存档只认房主/单人：客户端发来的保存请求在这里拒绝，避免用客户端数据覆盖单槽存档
+	if (!PC->IsLocalController())
+	{
+		OutError = TEXT("只有房主可以保存");
+		return false;
+	}
+
 	APP_PlayerState* PS = PC->GetPlayerState<APP_PlayerState>();
 	if (!PS)
 	{
 		OutError = TEXT("未找到 PlayerState");
 		return false;
+	}
+
+	// 同一帧内多个时机（篝火 + 返回大厅/退出）触发时只写一次
+	if (LastSaveFrame == GFrameCounter)
+	{
+		UE_LOG(LogPP, Verbose, TEXT("[PP_Save] 同一帧内重复保存已忽略"));
+		return true;
 	}
 
 	UPP_SaveGame* SaveData = Cast<UPP_SaveGame>(UGameplayStatics::CreateSaveGameObject(UPP_SaveGame::StaticClass()));
@@ -346,7 +361,36 @@ bool UPP_SaveSubsystem::SavePlayer(APlayerController* PC, FString& OutError)
 		SaveData->World.Gatherables.Num(), SaveData->World.Bosses.Num(), SaveData->World.Souls.Num(),
 		SaveData->Checkpoint.bHasCheckpoint ? 1 : 0);
 
-	return UPP_SaveGame::Save(SaveData, OutError);
+	const bool bSaved = UPP_SaveGame::Save(SaveData, OutError);
+	if (bSaved)
+	{
+		LastSaveFrame = GFrameCounter;
+	}
+	return bSaved;
+}
+
+bool UPP_SaveSubsystem::SaveLocalPlayer(FString& OutError)
+{
+	OutError.Reset();
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		OutError = TEXT("当前没有有效世界");
+		return false;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (PC && PC->IsLocalController())
+		{
+			return SavePlayer(PC, OutError);
+		}
+	}
+
+	OutError = TEXT("未找到本机玩家控制器");
+	return false;
 }
 
 bool UPP_SaveSubsystem::LoadFromDisk(FString& OutError)

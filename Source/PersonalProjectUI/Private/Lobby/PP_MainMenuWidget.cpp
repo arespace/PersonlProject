@@ -3,6 +3,7 @@
 #include "Lobby/PP_LobbyHUD.h"
 #include "Framework/PP_UIStyle.h"
 #include "Save/PP_LocalSaveGame.h"
+#include "Save/PP_SaveActions.h"
 #include "GameFramework/PlayerController.h"
 #include "Session/PP_SessionManager.h"
 #include "Components/TextBlock.h"
@@ -14,6 +15,7 @@ void UPP_MainMenuWidget::NativeOnInitialized()
 	Super::NativeOnInitialized();
 
 	// 原有按钮绑定
+	if (ContinueButton) ContinueButton->OnClicked.AddDynamic(this, &UPP_MainMenuWidget::OnContinueClicked);
 	if (HostButton) HostButton->OnClicked.AddDynamic(this, &UPP_MainMenuWidget::OnHostClicked);
 	if (JoinButton) JoinButton->OnClicked.AddDynamic(this, &UPP_MainMenuWidget::OnJoinClicked);
 	if (SettingsButton) SettingsButton->OnClicked.AddDynamic(this, &UPP_MainMenuWidget::OnSettingsClicked);
@@ -58,6 +60,13 @@ void UPP_MainMenuWidget::NativeOnInitialized()
 			}
 		}
 	}
+}
+
+void UPP_MainMenuWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	RefreshContinueButton();
 }
 
 void UPP_MainMenuWidget::NativeDestruct()
@@ -167,6 +176,62 @@ void UPP_MainMenuWidget::OnQuitClicked()
 {
 	APlayerController* PC = GetOwningPlayer();
 	if (PC) PC->ConsoleCommand(TEXT("Quit"));
+}
+
+void UPP_MainMenuWidget::RefreshContinueButton()
+{
+	if (!ContinueButton)
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	APlayerController* PC = GetOwningPlayer();
+	const APP_LobbyHUD* LobbyHUD = GetLobbyHUD();
+
+	// 只有房主/单机能在自己的存档上继续；客户端与房间内一律置灰
+	const bool bIsClient = World && World->GetNetMode() == NM_Client;
+	const bool bInRoom = LobbyHUD && LobbyHUD->IsInRoom();
+	const bool bHasSave = PC && PC->GetClass()->ImplementsInterface(UPP_SaveActions::StaticClass())
+		&& IPP_SaveActions::Execute_HasSaveGame(PC);
+
+	ContinueButton->SetIsEnabled(!bIsClient && !bInRoom && bHasSave);
+}
+
+void UPP_MainMenuWidget::OnContinueClicked()
+{
+	APlayerController* PC = GetOwningPlayer();
+	UWorld* World = GetWorld();
+	if (!PC || !World)
+	{
+		return;
+	}
+
+	if (World->GetNetMode() == NM_Client)
+	{
+		SetStatusMessage(TEXT("只有房主可以从存档继续游戏"), true);
+		return;
+	}
+
+	if (APP_LobbyHUD* LobbyHUD = GetLobbyHUD())
+	{
+		if (LobbyHUD->IsInRoom())
+		{
+			SetStatusMessage(TEXT("请先离开房间再继续游戏"), true);
+			return;
+		}
+	}
+
+	if (!PC->GetClass()->ImplementsInterface(UPP_SaveActions::StaticClass()))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[MainMenu] OnContinueClicked - 当前 PlayerController 未实现 IPP_SaveActions"));
+		SetStatusMessage(TEXT("当前控制器不支持读档"), true);
+		return;
+	}
+
+	// PC 侧会校验存档地图、加载 PendingSave 并 ServerTravel；进入新图后由 GameMode 在 Pawn 生成后应用
+	SetStatusMessage(TEXT("正在读取存档…"), false);
+	IPP_SaveActions::Execute_RequestLoadGame(PC);
 }
 
 void UPP_MainMenuWidget::RefreshRoomList()

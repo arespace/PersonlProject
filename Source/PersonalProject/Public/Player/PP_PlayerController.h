@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Save/PP_SaveActions.h"
 #include "Session/PP_LobbyActions.h"
 #include "Dialogue/PP_DialogueRequester.h"
 #include "Player/PP_UICombatGateway.h"
@@ -41,7 +42,7 @@ enum class EPP_InputContext : uint8
 };
 
 UCLASS()
-class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester, public IPP_LobbyActions
+class PERSONALPROJECT_API APP_PlayerController : public APlayerController, public IPP_DialogueRequester, public IPP_LobbyActions, public IPP_SaveActions
 {
 	GENERATED_BODY()
 
@@ -58,6 +59,11 @@ public:
 	virtual void RequestSendChatMessage_Implementation(const FString& Message) override;
 	virtual void RequestUpdateRoomSettings_Implementation(const FRoomSettings& Settings) override;
 	virtual void RequestSelectCharacter_Implementation(FName CharacterId) override;
+
+	// ===== IPP_SaveActions 接口实现（主菜单/暂停菜单 Widget 经 Execute_ 调用）=====
+	virtual void RequestSaveGame_Implementation() override;
+	virtual void RequestLoadGame_Implementation() override;
+	virtual bool HasSaveGame_Implementation() const override;
 
 protected:
 	virtual void SetupInputComponent() override;
@@ -257,6 +263,10 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerPP_LoadGame();
+
+	/** 主菜单"继续游戏"：校验存档地图后 ServerTravel（仅房主/单机） */
+	UFUNCTION(Server, Reliable)
+	void ServerPP_ContinueGame();
 
 	/** 按上下文重算项目 IMC：Gameplay/Overlay 全开（priority=1），Modal/FrontEnd 仅 UI（priority=2） */
 	void ApplyProjectInputContexts(EPP_InputContext Context);

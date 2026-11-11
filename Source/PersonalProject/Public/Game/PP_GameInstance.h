@@ -18,4 +18,7 @@ class PERSONALPROJECT_API UPP_GameInstance : public UGameInstance
 public:
 	/** 便捷静态方法：从 World 获取 GameInstance 实例 */
 	static UPP_GameInstance* Get(const UWorld* World);
+
+	/** 退出游戏时保存进度（PIE / 专用服务器跳过；仅战斗地图且没有待应用读档时写盘） */
+	virtual void Shutdown() override;
 };

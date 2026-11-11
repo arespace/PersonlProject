@@ -12,6 +12,21 @@ namespace
 	{
 		return FMath::IsFinite(Value) && Value >= 0.f;
 	}
+
+	bool IsFiniteVector(const FVector& Value)
+	{
+		return FMath::IsFinite(Value.X) && FMath::IsFinite(Value.Y) && FMath::IsFinite(Value.Z);
+	}
+
+	/**
+	 * 版本迁移步骤表：下标 = 源版本号，值为「把源版本迁到源版本 + 1」的函数。
+	 * 新增版本时只在末尾追加一步，不要改已有步骤：
+	 *   CurrentVersion 1 → 2 时，填入 Steps[1] = Migrate_V1_To_V2；
+	 *   步骤内部负责补齐新字段，并把 SaveVersion 设为 2。
+	 */
+	using FPP_SaveMigrationStep = bool (*)(UPP_SaveGame&, FString&);
+
+	const FPP_SaveMigrationStep GMigrationSteps[] = { nullptr }; // 下标 0 不使用
 }
 
 UPP_SaveGame* UPP_SaveGame::Load(FString& OutError)
@@ -106,6 +121,23 @@ bool UPP_SaveGame::Validate(FString& OutError) const
 		return false;
 	}
 
+	// 没有地图名的存档无法确定"继续游戏"该去哪个关卡
+	if (MapName.IsNone())
+	{
+		OutError = TEXT("存档缺少地图名");
+		return false;
+	}
+
+	// 检查点只在 bHasCheckpoint 时生效；坐标/缩放必须是有限值，
+	// 否则 RestartPlayer 会拿 NaN 做 TeleportTo
+	if (Checkpoint.bHasCheckpoint
+		&& (!IsFiniteVector(Checkpoint.Transform.GetLocation())
+			|| !IsFiniteVector(Checkpoint.Transform.GetScale3D())))
+	{
+		OutError = TEXT("检查点坐标非法");
+		return false;
+	}
+
 	const FPP_SaveAttributeData& A = Character.BaseAttributes;
 	const TPair<const TCHAR*, float> Attributes[] = {
 		{ TEXT("Health"), A.Health },
@@ -162,9 +194,10 @@ bool UPP_SaveGame::Validate(FString& OutError) const
 
 bool UPP_SaveGame::MigrateToCurrent(FString& OutError)
 {
-	if (SaveVersion == PPSave::CurrentVersion)
+	if (SaveVersion <= 0)
 	{
-		return true;
+		OutError = TEXT("存档版本号非法");
+		return false;
 	}
 
 	if (SaveVersion > PPSave::CurrentVersion)
@@ -173,10 +206,32 @@ bool UPP_SaveGame::MigrateToCurrent(FString& OutError)
 		return false;
 	}
 
-	// 逐级迁移：每新增一版加一步 Migrate_Vn_To_Vm，迁移完成后 SaveVersion 递增。
-	// v1 是初始版本，暂无迁移步骤。新增字段只要给了默认值，旧档读出来就是默认值，无需迁移。
-	OutError = FString::Printf(TEXT("缺少从版本 %d 到 %d 的迁移步骤"), SaveVersion, PPSave::CurrentVersion);
-	return false;
+	// 逐级迁移：每一步只负责把版本 +1，并自行补齐该版本新增字段的默认值。
+	// 迁移表为空时（v1）循环不会进入；新增版本时在 GMigrationSteps 末尾追加一步即可。
+	while (SaveVersion < PPSave::CurrentVersion)
+	{
+		const int32 FromVersion = SaveVersion;
+		if (FromVersion < 0 || FromVersion >= static_cast<int32>(UE_ARRAY_COUNT(GMigrationSteps))
+			|| GMigrationSteps[FromVersion] == nullptr)
+		{
+			OutError = FString::Printf(TEXT("缺少从版本 %d 到 %d 的迁移步骤"), FromVersion, FromVersion + 1);
+			return false;
+		}
+
+		if (!GMigrationSteps[FromVersion](*this, OutError))
+		{
+			return false;
+		}
+
+		// 迁移步骤必须推进版本号，否则下面的循环会死循环
+		if (SaveVersion <= FromVersion)
+		{
+			OutError = FString::Printf(TEXT("版本 %d 的迁移步骤未推进版本号"), FromVersion);
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void UPP_SaveGame::BackupExisting()

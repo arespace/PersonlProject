@@ -80,12 +80,22 @@ void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
 
 	// 从 SessionManager 恢复大厅选择的角色ID
 	FName CharId = NAME_None;
-	if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
+
+	// 优先用 PlayerController 上跨图携带的选择（大厅选人 / 读档恢复都会写这里）
+	if (const APP_PlayerController* PC = Cast<APP_PlayerController>(NewPlayer))
 	{
-		CharId = SM->GetPlayerCharacterSelection(PS->GetPlayerName());
-		if (CharId.IsNone())
+		CharId = PC->GetPendingCharacterId();
+	}
+
+	if (CharId.IsNone())
+	{
+		if (UPP_SessionManager* SM = UPP_SessionManager::Get(GetWorld()))
 		{
-			CharId = SM->GetLastCharacterSelection();
+			CharId = SM->GetPlayerCharacterSelection(PS->GetPlayerName());
+			if (CharId.IsNone())
+			{
+				CharId = SM->GetLastCharacterSelection();
+			}
 		}
 	}
 
@@ -111,6 +121,26 @@ void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
 	if (APP_PlayerCharacter* PlayerChar = Cast<APP_PlayerCharacter>(NewPlayer->GetPawn()))
 	{
 		PlayerChar->ApplyCharacterAppearance(PS->GetSelectedCharacterId());
+	}
+
+	// 主菜单"继续游戏"：存档在 travel 前已缓存，这里在 Pawn/属性初始化完成之后一次性应用
+	if (NewPlayer->IsLocalController())
+	{
+		if (UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this))
+		{
+			if (SaveSubsystem->HasPendingLoad())
+			{
+				FString Error;
+				if (SaveSubsystem->ApplyPendingToPlayer(NewPlayer, Error))
+				{
+					UE_LOG(LogPP, Log, TEXT("[CrashGameMode] PostLogin - 已应用待读档存档"));
+				}
+				else
+				{
+					UE_LOG(LogPP, Error, TEXT("[CrashGameMode] PostLogin - 应用读档失败：%s"), *Error);
+				}
+			}
+		}
 	}
 }
 
@@ -252,6 +282,16 @@ void APP_CrashGameMode::GrantAbilitiesForCharacter(APP_PlayerState* PS)
 void APP_CrashGameMode::ReturnToLobby()
 {
 	UE_LOG(LogPP, Verbose, TEXT("[CrashGameMode] ReturnToLobby - ServerTravel to LobbyMap"));
+
+	// 回大厅前自动保存一次（服务端写档；与同帧其它时机去重由 SaveSubsystem 负责）
+	if (UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this))
+	{
+		FString SaveError;
+		if (!SaveSubsystem->SaveLocalPlayer(SaveError))
+		{
+			UE_LOG(LogPP, Warning, TEXT("[CrashGameMode] 返回大厅前保存失败：%s"), *SaveError);
+		}
+	}
 
 	// 使用 ProcessServerTravel 将所有玩家带回大厅（与 StartGame 保持一致）
 	FString TravelURL = TEXT("/Game/PersonalProject/Maps/LobbyMap?Listen");

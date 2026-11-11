@@ -29,7 +29,11 @@
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_CrashGameMode.h"
 #include "Game/Save/PP_SaveSubsystem.h"
+#include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+#include "Misc/PackageName.h"
 #include "Player/PP_PlayerState.h"
+#include "Save/PP_SaveGame.h"
 #include "Framework/PP_Log.h"
 
 void APP_PlayerController::SetupInputComponent()
@@ -1048,4 +1052,119 @@ void APP_PlayerController::ServerPP_LoadGame_Implementation()
 	}
 
 	Client_NotifyMessage(Message);
+}
+
+// ===== IPP_SaveActions：UI 存档入口 =====
+
+void APP_PlayerController::RequestSaveGame_Implementation()
+{
+	if (HasAuthority())
+	{
+		ServerPP_SaveGame_Implementation();
+	}
+	else
+	{
+		ServerPP_SaveGame();
+	}
+}
+
+void APP_PlayerController::RequestLoadGame_Implementation()
+{
+	if (HasAuthority())
+	{
+		ServerPP_ContinueGame_Implementation();
+	}
+	else
+	{
+		ServerPP_ContinueGame();
+	}
+}
+
+bool APP_PlayerController::HasSaveGame_Implementation() const
+{
+	// 客户端看不到服务端存档；主菜单会在 NM_Client 下直接置灰，不会依赖这里的结果
+	return UPP_SaveGame::HasSave();
+}
+
+void APP_PlayerController::ServerPP_ContinueGame_Implementation()
+{
+	// 存档只认房主/单人：客户端 PC 的请求落到服务器时 IsLocalController() 为 false
+	if (!IsLocalController())
+	{
+		Client_NotifyMessage(TEXT("[存档] 只有房主可以继续游戏"));
+		return;
+	}
+
+	UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this);
+	if (!SaveSubsystem)
+	{
+		Client_NotifyMessage(TEXT("[存档] 存档子系统不可用"));
+		return;
+	}
+
+	// 防抖：按钮连点/重复请求时，已有待应用存档就不再重复读盘与 travel
+	if (SaveSubsystem->HasPendingLoad())
+	{
+		UE_LOG(LogPP, Verbose, TEXT("[PP_Save] 继续游戏请求被忽略：已有待应用存档"));
+		return;
+	}
+
+	FString Error;
+	if (!SaveSubsystem->LoadFromDisk(Error))
+	{
+		const FString Message = FString::Printf(TEXT("[存档] 读档失败：%s"), *Error);
+		UE_LOG(LogPP, Error, TEXT("%s"), *Message);
+		Client_NotifyMessage(Message);
+		return;
+	}
+
+	const UPP_SaveGame* Pending = SaveSubsystem->GetPendingSave();
+	if (!Pending)
+	{
+		SaveSubsystem->ClearPendingLoad();
+		Client_NotifyMessage(TEXT("[存档] 读档失败：没有可用的存档数据"));
+		return;
+	}
+
+	// 地图校验：必须有地图名、不能是当前地图（大厅）、且目标关卡在项目里真实存在
+	const FString SavedMap = Pending->MapName.ToString();
+	const FString CurrentMap = UGameplayStatics::GetCurrentLevelName(this, true);
+	if (SavedMap.IsEmpty() || SavedMap.Equals(CurrentMap, ESearchCase::IgnoreCase)
+		|| SavedMap.Equals(TEXT("LobbyMap"), ESearchCase::IgnoreCase))
+	{
+		SaveSubsystem->ClearPendingLoad();
+		const FString Message = FString::Printf(TEXT("[存档] 存档地图无效（%s），无法继续游戏"), *SavedMap);
+		UE_LOG(LogPP, Warning, TEXT("%s"), *Message);
+		Client_NotifyMessage(Message);
+		return;
+	}
+
+	const FString MapPackage = FString::Printf(TEXT("/Game/PersonalProject/Maps/%s"), *SavedMap);
+	if (!FPackageName::DoesPackageExist(MapPackage))
+	{
+		SaveSubsystem->ClearPendingLoad();
+		const FString Message = FString::Printf(TEXT("[存档] 目标关卡不存在：%s"), *MapPackage);
+		UE_LOG(LogPP, Error, TEXT("%s"), *Message);
+		Client_NotifyMessage(Message);
+		return;
+	}
+
+	// 让 PostLogin / RestartPlayer 使用存档里的角色，而不是大厅里的临时选择。
+	// 大厅里 PlayerState 是 APP_LobbyPlayerState（不是 APP_PlayerState），所以这里只用基类取玩家名。
+	const FName SavedCharacterId = Pending->Character.CharacterId;
+	if (!SavedCharacterId.IsNone())
+	{
+		const FString PlayerName = PlayerState ? PlayerState->GetPlayerName() : FString();
+		if (UPP_SessionManager* SessionManager = UPP_SessionManager::Get(GetWorld()))
+		{
+			SessionManager->SetPlayerCharacterSelection(PlayerName, SavedCharacterId);
+		}
+		SetPendingCharacterId(SavedCharacterId);
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[PP_Save] 继续游戏：%s → %s（存档待应用）"), *CurrentMap, *MapPackage);
+	Client_NotifyMessage(TEXT("[存档] 正在读取存档…"));
+
+	// PendingSave 存在 GameInstanceSubsystem 里，跨 ServerTravel 存活；进入新图后由 GameMode::PostLogin 应用
+	GetWorld()->ServerTravel(FString::Printf(TEXT("%s?Listen"), *MapPackage));
 }

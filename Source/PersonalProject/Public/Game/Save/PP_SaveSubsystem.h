@@ -20,8 +20,14 @@ public:
 	/** 从 WorldContext 取子系统 */
 	static UPP_SaveSubsystem* Get(const UObject* WorldContextObject);
 
-	/** 采集指定玩家当前进度并写盘（服务端） */
+	/** 采集指定玩家当前进度并写盘（服务端；同一帧内只写一次） */
 	bool SavePlayer(APlayerController* PC, FString& OutError);
+
+	/**
+	 * 保存本机（房主/单人）玩家进度：自动从当前世界找本机 PlayerController。
+	 * 用于篝火休息、返回大厅、退出游戏这类"手上没有 PC 引用"的时机。
+	 */
+	bool SaveLocalPlayer(FString& OutError);
 
 	/** 读盘并缓存为 PendingLoad；本方法不改任何运行时状态 */
 	bool LoadFromDisk(FString& OutError);
@@ -52,4 +58,7 @@ private:
 	/** 读档后首次生成落点（仅当应用时没有 Pawn）；RestartPlayer 消费一次 */
 	bool bHasPendingSpawnTransform = false;
 	FTransform PendingSpawnTransform = FTransform::Identity;
+
+	/** 上一次成功保存的帧号：同一帧内多个时机（篝火/返回大厅/退出）只写一次 */
+	uint64 LastSaveFrame = 0;
 };

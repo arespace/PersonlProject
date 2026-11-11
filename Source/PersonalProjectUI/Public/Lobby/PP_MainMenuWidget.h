@@ -28,9 +28,21 @@ public:
 	/** 显示一行状态提示；bIsError=true 用红色且停 5s，否则灰色停 30s */
 	void SetStatusMessage(const FString& Message, bool bIsError);
 
+	/**
+	 * 刷新「继续游戏」按钮状态：客户端 / 房间内 / 没有存档时置灰。
+	 * 主菜单每次显示时由 HUD 调用。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PP|Lobby")
+	void RefreshContinueButton();
+
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	/** 蓝图绑定 - 继续游戏按钮（可选）：WBP_MainMenu 中需有名为 "ContinueButton" 的 Button */
+	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
+	TObjectPtr<UButton> ContinueButton;
 
 	UPROPERTY(meta = (BindWidgetOptional), BlueprintReadOnly, Category = "PP|Lobby")
 	TObjectPtr<UButton> HostButton;
@@ -88,6 +100,9 @@ private:
 	UFUNCTION() void OnJoinClicked();
 	UFUNCTION() void OnSettingsClicked();
 	UFUNCTION() void OnQuitClicked();
+
+	/** 「继续游戏」点击 - 经 IPP_SaveActions 请求读档（仅房主/单机） */
+	UFUNCTION() void OnContinueClicked();
 
 	/** 刷新按钮点击 - 调用 SessionManager->FindSessions() */
 	UFUNCTION() void OnRefreshButtonClicked();

@@ -89,6 +89,8 @@ void APP_LobbyHUD::ShowMainMenu()
 	if (MainMenuWidget)
 	{
 		MainMenuWidget->RefreshRoomList();
+		// 存档可能在本局中途产生/变化，每次回到主菜单都重算「继续游戏」是否可用
+		MainMenuWidget->RefreshContinueButton();
 	}
 }
 
