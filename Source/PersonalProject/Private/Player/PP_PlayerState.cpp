@@ -66,7 +66,7 @@ void APP_PlayerState::AddDeath()
 	++Deaths;
 }
 
-void APP_PlayerState::SetCheckpoint(const FTransform& InTransform)
+void APP_PlayerState::SetCheckpoint(const FTransform& InTransform, FName BonfireName)
 {
 	if (!HasAuthority())
 	{
@@ -75,4 +75,17 @@ void APP_PlayerState::SetCheckpoint(const FTransform& InTransform)
 
 	CheckpointTransform = InTransform;
 	bHasCheckpoint = true;
+	CheckpointBonfireName = BonfireName;
+}
+
+void APP_PlayerState::ClearCheckpoint()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bHasCheckpoint = false;
+	CheckpointTransform = FTransform::Identity;
+	CheckpointBonfireName = NAME_None;
 }

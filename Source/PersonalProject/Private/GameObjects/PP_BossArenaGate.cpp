@@ -7,10 +7,12 @@
 #include "Events/PP_EventBus.h"
 #include "Events/PP_EventTypes.h"
 #include "Framework/PP_Log.h"
+#include "Net/UnrealNetwork.h"
 
 APP_BossArenaGate::APP_BossArenaGate()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	SetRootComponent(MeshComponent);
@@ -22,21 +24,72 @@ APP_BossArenaGate::APP_BossArenaGate()
 	CollisionComponent->SetGenerateOverlapEvents(false);
 }
 
+void APP_BossArenaGate::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(APP_BossArenaGate, bOpen);
+}
+
+void APP_BossArenaGate::SetLinkedBoss(APP_BossCharacter* InBoss)
+{
+	LinkedBoss = InBoss;
+	LinkedBossName = IsValid(InBoss) ? InBoss->GetBossName() : NAME_None;
+}
+
 void APP_BossArenaGate::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 初始开门（禁用碰撞），等 BossArenaTrigger 关闭
-	if (!bInitiallyClosed)
+	// 蓝图里直接指定的 Boss 也要记录名字快照
+	if (LinkedBoss && LinkedBossName.IsNone())
 	{
-		SetActorEnableCollision(false);
+		LinkedBossName = LinkedBoss->GetBossName();
 	}
+
+	// 初始化本地开门状态（客户端在收到复制前也按同一规则显示）
+	bOpen = !bInitiallyClosed;
+	ApplyOpenState(false);
 
 	// 订阅 Boss 死亡事件 → 开门
 	if (UPP_EventBus* Bus = UPP_EventBus::Get(this))
 	{
 		BossDeadHandle = Bus->Subscribe<FPP_BossDeadEvent>(
 			[this](const FPP_BossDeadEvent& Event) { HandleBossDead(Event); });
+	}
+}
+
+void APP_BossArenaGate::SetOpen(bool bInOpen)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bOpen == bInOpen)
+	{
+		return;
+	}
+
+	bOpen = bInOpen;
+	ApplyOpenState(bInOpen);
+	ForceNetUpdate();
+}
+
+void APP_BossArenaGate::OnRep_bOpen()
+{
+	// 客户端：同步碰撞与开门表现
+	ApplyOpenState(bOpen);
+}
+
+void APP_BossArenaGate::ApplyOpenState(bool bPlayAnim)
+{
+	// 门开 = 关闭阻挡碰撞
+	SetActorEnableCollision(!bOpen);
+
+	if (bOpen && bPlayAnim)
+	{
+		OnBossKilled();
 	}
 }
 
@@ -70,9 +123,6 @@ void APP_BossArenaGate::HandleBossDead(const FPP_BossDeadEvent& Event)
 			*GetName(), *Event.BossName.ToString());
 	}
 
-	// 解锁碰撞 → 开门
-	SetActorEnableCollision(false);
-
-	// 蓝图播放开门动画
-	OnBossKilled();
+	// 走统一入口：写 bOpen 并复制给客户端，客户端 OnRep 里同步碰撞与开门动画
+	SetOpen(true);
 }

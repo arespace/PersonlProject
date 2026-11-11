@@ -28,9 +28,17 @@ public:
 
 	/**
 	 * 把 PendingLoad 应用到指定玩家（服务端，一次性）。
-	 * 当前批次应用：角色 ID、九项属性 base 值。
+	 * 应用：角色 ID、背包/装备/金币、任务、九项属性 base 值、篝火检查点、世界状态（采集点/Boss/门/魂）。
+	 * 世界状态与检查点只在存档地图与当前地图一致时应用。
 	 */
 	bool ApplyPendingToPlayer(APlayerController* PC, FString& OutError);
+
+	/**
+	 * 取走"读档后首次生成落点"（一次性）。
+	 * 仅当应用存档时玩家还没有 Pawn（主菜单读档 → 进入地图）才会写入；
+	 * 由 GameMode::RestartPlayer 消费，死亡复活流程不会用到。
+	 */
+	bool ConsumePendingSpawnTransform(FTransform& OutTransform);
 
 	bool HasPendingLoad() const { return PendingSave != nullptr; }
 	const UPP_SaveGame* GetPendingSave() const { return PendingSave; }
@@ -40,4 +48,8 @@ private:
 	/** 待应用的读档结果（one-shot，应用成功即清除，避免重生/重连重复套用） */
 	UPROPERTY(Transient)
 	TObjectPtr<UPP_SaveGame> PendingSave;
+
+	/** 读档后首次生成落点（仅当应用时没有 Pawn）；RestartPlayer 消费一次 */
+	bool bHasPendingSpawnTransform = false;
+	FTransform PendingSpawnTransform = FTransform::Identity;
 };

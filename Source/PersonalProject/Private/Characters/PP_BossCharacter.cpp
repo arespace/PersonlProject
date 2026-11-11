@@ -34,6 +34,7 @@ void APP_BossCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(APP_BossCharacter, BossName);
 	DOREPLIFETIME(APP_BossCharacter, CurrentPhase);
 	DOREPLIFETIME(APP_BossCharacter, BossHealthPercent);
+	DOREPLIFETIME(APP_BossCharacter, bDefeated);
 }
 
 void APP_BossCharacter::BeginPlay()
@@ -187,8 +188,37 @@ void APP_BossCharacter::OnPhaseTransitionInvulnerableEnd()
 	}
 }
 
+void APP_BossCharacter::ApplySavedDefeatedState()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bDefeated = true;
+
+	if (GetWorld())
+	{
+		GetWorldTimerManager().ClearTimer(PhaseInvulnerableTimerHandle);
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		ASC->RemoveLooseGameplayTag(PPTags::Status::Boss);
+		ASC->RemoveLooseGameplayTag(PPTags::Status::BossPhaseTransition);
+	}
+
+	UE_LOG(LogPP, Log, TEXT("[Boss] 读档恢复已击败状态：%s（%s）直接移除，不发放奖励"),
+		*GetName(), *BossName.ToString());
+
+	// 不走 HandleDeath：避免金币/物品、BossDead 事件与任务击杀被重复结算
+	Destroy();
+}
+
 void APP_BossCharacter::HandleDeath()
 {
+	bDefeated = true;
+
 	// 先停掉阶段计时器
 	if (GetWorld())
 	{

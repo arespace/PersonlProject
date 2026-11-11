@@ -274,6 +274,61 @@ void APP_GatherableActor::CompleteGather(AActor* Gatherer)
 	}
 }
 
+void APP_GatherableActor::ApplySavedState(int32 InRemainingGatherTimes)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	RemainingGatherTimes = FMath::Clamp(InRemainingGatherTimes, 0, FMath::Max(0, MaxGatherTimes));
+	CurrentGatherer = nullptr;
+
+	// 恢复前先清掉旧的计时器：旧档可能把"已耗尽"覆盖成"可采"，或反过来
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RespawnTimerHandle);
+	}
+
+	if (RemainingGatherTimes <= 0)
+	{
+		// 走与正常耗尽一致的路径：隐藏 + 关闭交互 + 起重生计时
+		Deplete();
+	}
+	else
+	{
+		ApplyAvailabilityVisuals();
+	}
+
+	// 复制属性变化不保证立刻发包，读档后手动催一次
+	ForceNetUpdate();
+
+	UE_LOG(LogPP, Log, TEXT("[Gather] 读档恢复剩余次数：%s 剩余=%d/%d"),
+		*GetName(), RemainingGatherTimes, MaxGatherTimes);
+}
+
+void APP_GatherableActor::OnRep_RemainingGatherTimes()
+{
+	// 客户端：让可见性/交互范围与复制到的剩余次数保持一致
+	ApplyAvailabilityVisuals();
+}
+
+void APP_GatherableActor::ApplyAvailabilityVisuals()
+{
+	const bool bAvailable = RemainingGatherTimes > 0;
+
+	if (MeshComponent)
+	{
+		MeshComponent->SetVisibility(bAvailable);
+		MeshComponent->SetCollisionEnabled(bAvailable ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	}
+
+	if (InteractionRange)
+	{
+		InteractionRange->SetGenerateOverlapEvents(bAvailable);
+	}
+}
+
 void APP_GatherableActor::Deplete()
 {
 	UE_LOG(LogPP, Log, TEXT("[Gather] Deplete: actor=%s scheduling respawn in %.1fs"),

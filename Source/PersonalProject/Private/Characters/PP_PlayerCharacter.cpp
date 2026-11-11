@@ -514,6 +514,42 @@ void APP_PlayerCharacter::HandleDeath()
 	}
 }
 
+void APP_PlayerCharacter::RestoreSoul(int32 Amount, const FVector& Location)
+{
+	if (!HasAuthority() || Amount <= 0 || !GetWorld())
+	{
+		return;
+	}
+
+	APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();
+	if (!IsValid(PS))
+	{
+		return;
+	}
+
+	// 同一玩家只保留一份未拾回的魂：旧魂先清掉，避免读档后出现两团
+	if (ActiveSoul.IsValid())
+	{
+		ActiveSoul->Destroy();
+		ActiveSoul.Reset();
+	}
+
+	UClass* SoulClass = SoulPickupClass ? SoulPickupClass.Get() : APP_SoulPickupActor::StaticClass();
+	APP_SoulPickupActor* Soul = GetWorld()->SpawnActor<APP_SoulPickupActor>(
+		SoulClass, Location, FRotator::ZeroRotator);
+	if (!IsValid(Soul))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_SoulFlow] 读档恢复魂失败：SpawnActor 返回空 玩家=%s"), *GetNameSafe(PS));
+		return;
+	}
+
+	Soul->InitializeSoul(PS, Amount);
+	ActiveSoul = Soul;
+
+	UE_LOG(LogPP, Log, TEXT("[PP_SoulFlow] 读档恢复魂: 玩家=%s 金币=%d 位置=(%.0f, %.0f, %.0f)"),
+		*GetNameSafe(PS), Amount, Location.X, Location.Y, Location.Z);
+}
+
 void APP_PlayerCharacter::RestoreCharacterSelection()
 {
 	APP_PlayerState* PS = GetPlayerState<APP_PlayerState>();

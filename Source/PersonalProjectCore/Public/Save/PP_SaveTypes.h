@@ -71,3 +71,69 @@ struct FPP_SaveQuestData
 
 	UPROPERTY() TArray<FName> CompletedQuestIDs;
 };
+
+/** 篝火检查点存档：只决定读档后的首次生成位置，不参与复活流程 */
+USTRUCT()
+struct FPP_SaveCheckpointData
+{
+	GENERATED_BODY()
+
+	UPROPERTY() bool bHasCheckpoint = false;
+
+	UPROPERTY() FTransform Transform = FTransform::Identity;
+
+	/** 仅用于排查，加载时不依赖它 */
+	UPROPERTY() FName BonfireActorName;
+};
+
+/** 单个采集点的剩余次数（按关卡 Actor 名定位） */
+USTRUCT()
+struct FPP_SaveGatherableState
+{
+	GENERATED_BODY()
+
+	UPROPERTY() FName ActorName;
+
+	/** 仅用于排查 */
+	UPROPERTY() FName GatherableID;
+
+	UPROPERTY() int32 RemainingGatherTimes = 0;
+};
+
+/** Boss 击败标记：按 BossName 记录，Boss Actor 被销毁后仍能保留 */
+USTRUCT()
+struct FPP_SaveBossState
+{
+	GENERATED_BODY()
+
+	UPROPERTY() FName BossName;
+
+	/** 仅用于排查 */
+	UPROPERTY() FName ActorName;
+
+	UPROPERTY() bool bDefeated = false;
+};
+
+/** 玩家死亡掉落的魂 */
+USTRUCT()
+struct FPP_SaveSoulState
+{
+	GENERATED_BODY()
+
+	UPROPERTY() int32 Amount = 0;
+
+	UPROPERTY() FVector Location = FVector::ZeroVector;
+};
+
+/** 世界状态存档：只记录与默认状态不同的部分 */
+USTRUCT()
+struct FPP_SaveWorldData
+{
+	GENERATED_BODY()
+
+	UPROPERTY() TArray<FPP_SaveGatherableState> Gatherables;
+
+	UPROPERTY() TArray<FPP_SaveBossState> Bosses;
+
+	UPROPERTY() TArray<FPP_SaveSoulState> Souls;
+};

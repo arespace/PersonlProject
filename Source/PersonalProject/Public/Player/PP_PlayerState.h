@@ -39,8 +39,14 @@ public:
 
 	// ===== 篝火重生点 =====
 
-	/** 设置重生点（服务器在篝火休息时调用） */
-	void SetCheckpoint(const FTransform& InTransform);
+	/** 设置重生点（服务器在篝火休息时调用）；BonfireName 仅用于存档排查 */
+	void SetCheckpoint(const FTransform& InTransform, FName BonfireName = NAME_None);
+
+	/** 清空重生点（读档时存档没有检查点，或者存档来自别的关卡） */
+	void ClearCheckpoint();
+
+	/** 最近一次记录检查点的篝火名（仅存档排查用，不复制） */
+	FName GetCheckpointBonfireName() const { return CheckpointBonfireName; }
 
 	/** 是否已经记录过重生点 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Checkpoint")
@@ -97,6 +103,9 @@ private:
 	/** 篝火重生点（玩家死亡复活时传送到的位置） */
 	UPROPERTY(Replicated)
 	FTransform CheckpointTransform{FTransform::Identity};
+
+	/** 记录检查点的篝火名：仅用于存档排查，无需复制 */
+	FName CheckpointBonfireName;
 
 	/** 击杀数（计分板统计） */
 	UPROPERTY(Replicated)

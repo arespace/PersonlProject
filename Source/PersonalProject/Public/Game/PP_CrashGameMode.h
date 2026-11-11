@@ -54,6 +54,17 @@ public:
 	/** 根据角色ID授予对应的GameplayAbility和初始GameplayEffect */
 	void GrantAbilitiesForCharacter(class APP_PlayerState* PS);
 
+	// ===== Boss 击败记录（供存档使用） =====
+
+	/** 已击败的 Boss 名（Boss Actor 死亡后会被销毁，名字集合跨 Actor 生命周期保留） */
+	const TSet<FName>& GetDefeatedBossNames() const { return DefeatedBossNames; }
+
+	/** 读档时用存档里的集合整体替换 */
+	void SetDefeatedBossNames(const TSet<FName>& InNames);
+
+	/** 记录一个 Boss 已击败（正常击杀时由 EventBus 回调写入） */
+	void MarkBossDefeated(FName BossName);
+
 	// ===== 角色能力配置（可在蓝图中编辑） =====
 
 	/** 角色ID -> 该角色的GAS能力列表 */
@@ -81,6 +92,9 @@ public:
 	UPP_EnemyRespawnManager* GetEnemyRespawnManager() const { return EnemyRespawnManager; }
 
 protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	/** 任务事件桥接器组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Quest")
 	TObjectPtr<UPP_QuestEventBridge> QuestEventBridge;
@@ -88,4 +102,11 @@ protected:
 	/** 敌人重生管理器组件（C++ 默认创建，无需蓝图手动 Add Component） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PP|Game")
 	TObjectPtr<UPP_EnemyRespawnManager> EnemyRespawnManager;
+
+private:
+	/** 本局已击败的 Boss 名（Boss Actor 被销毁后仍能保留，用于存档与读档开门） */
+	TSet<FName> DefeatedBossNames;
+
+	/** EventBus 订阅句柄 */
+	FDelegateHandle BossDeadHandle;
 };

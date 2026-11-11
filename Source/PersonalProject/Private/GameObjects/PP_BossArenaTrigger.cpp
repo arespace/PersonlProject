@@ -147,10 +147,10 @@ void APP_BossArenaTrigger::OnOverlapBegin(UPrimitiveComponent* OverlappedCompone
 		}
 	}
 
-	// 关闭场地门（阻挡碰撞）
+	// 关闭场地门（走统一入口，bOpen 会复制给客户端）
 	if (GateRef)
 	{
-		GateRef->SetActorEnableCollision(true);
+		GateRef->SetOpen(false);
 	}
 
 	OnArenaEntered();

@@ -132,7 +132,7 @@ void APP_BonfireActor::Rest(APlayerController* Interactor)
 		UE_LOG(LogPP, Warning, TEXT("[PP_Bonfire] 重生点下方未找到地面，保持原始高度 %.0f"), CheckpointLocation.Z);
 	}
 
-	PlayerState->SetCheckpoint(CheckpointTransform);
+	PlayerState->SetCheckpoint(CheckpointTransform, GetFName());
 
 	// 回满生命/法力/耐力：ResetAttributes() 直接赋值，不走 GE（GE 只用于清理死亡相关状态）
 	Character->ResetAttributes();

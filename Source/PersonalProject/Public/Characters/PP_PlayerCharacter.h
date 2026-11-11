@@ -54,6 +54,9 @@ public:
 	/** 按角色行应用成长/手感数值：0 表示未配置，沿用组件与代码现值 */
 	void ApplyCharacterGrowth(const FCharacterDataRow& Row);
 
+	/** 读档恢复掉落的魂：按存档金额与位置重新生成，并记为本玩家当前未拾回的魂（服务端） */
+	void RestoreSoul(int32 Amount, const FVector& Location);
+
 	// ===== 调试命令（控制台：PPAddItem Longsword 1，需在服务器窗口执行） =====
 
 	/** 给本机玩家背包添加物品，用于测试装备/武器流程 */

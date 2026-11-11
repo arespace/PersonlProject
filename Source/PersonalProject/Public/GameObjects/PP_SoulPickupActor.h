@@ -31,6 +31,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Soul")
 	int32 GetAmount() const { return Amount; }
 
+	/** 魂的拥有者：存档时据此只收集当前玩家的魂 */
+	APP_PlayerState* GetOwnerState() const { return OwnerState; }
+
 protected:
 	virtual void BeginPlay() override;
 

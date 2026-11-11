@@ -149,6 +149,14 @@ bool UPP_SaveGame::Validate(FString& OutError) const
 		return false;
 	}
 
+	if (World.Gatherables.Num() > 500 || World.Bosses.Num() > 20 || World.Souls.Num() > 8)
+	{
+		OutError = FString::Printf(TEXT("世界状态条目数异常（采集点=%d Boss=%d 魂=%d）"),
+			World.Gatherables.Num(), World.Bosses.Num(), World.Souls.Num());
+		return false;
+	}
+
+	// 单条世界状态数据非法时不在这里整体失败：读取时逐条跳过并告警
 	return true;
 }
 

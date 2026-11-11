@@ -2,9 +2,16 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystem/PP_AttributeSet.h"
+#include "Characters/PP_BossCharacter.h"
 #include "Characters/PP_PlayerCharacter.h"
+#include "EngineUtils.h"
 #include "Framework/PP_Log.h"
+#include "Game/PP_CrashGameMode.h"
+#include "Game/PP_EnemyRespawnManager.h"
 #include "GameFramework/PlayerController.h"
+#include "GameObjects/PP_BossArenaGate.h"
+#include "GameObjects/PP_SoulPickupActor.h"
+#include "Gather/PP_GatherableActor.h"
 #include "Inventory/PP_InventoryComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/PP_PlayerState.h"
@@ -50,6 +57,218 @@ namespace
 		ASC->SetNumericAttributeBase(UPP_AttributeSet::GetHealthAttribute(), FMath::Clamp(In.Health, 0.f, In.MaxHealth));
 		ASC->SetNumericAttributeBase(UPP_AttributeSet::GetManaAttribute(), FMath::Clamp(In.Mana, 0.f, In.MaxMana));
 		ASC->SetNumericAttributeBase(UPP_AttributeSet::GetStaminaAttribute(), FMath::Clamp(In.Stamina, 0.f, In.MaxStamina));
+	}
+
+	/** 采集世界状态快照：只记录与默认状态不同的部分 */
+	void CaptureWorldState(UWorld* World, APP_PlayerState* PS, FPP_SaveWorldData& Out)
+	{
+		if (!World || !PS)
+		{
+			return;
+		}
+
+		// 采集点：满次即默认状态，不落盘
+		for (TActorIterator<APP_GatherableActor> It(World); It; ++It)
+		{
+			APP_GatherableActor* Gatherable = *It;
+			if (!IsValid(Gatherable))
+			{
+				continue;
+			}
+
+			const int32 Remaining = Gatherable->GetRemainingGatherTimes();
+			if (Remaining >= Gatherable->MaxGatherTimes)
+			{
+				continue;
+			}
+
+			FPP_SaveGatherableState State;
+			State.ActorName = Gatherable->GetFName();
+			State.GatherableID = Gatherable->GatherableID;
+			State.RemainingGatherTimes = FMath::Max(0, Remaining);
+			Out.Gatherables.Add(State);
+		}
+
+		// Boss：死亡后 Actor 会被销毁，只能从 GameMode 的名字集合里取
+		if (APP_CrashGameMode* GameMode = World->GetAuthGameMode<APP_CrashGameMode>())
+		{
+			for (const FName& BossName : GameMode->GetDefeatedBossNames())
+			{
+				FPP_SaveBossState State;
+				State.BossName = BossName;
+				State.bDefeated = true;
+				Out.Bosses.Add(State);
+			}
+		}
+
+		// 魂：只存当前玩家的
+		for (TActorIterator<APP_SoulPickupActor> It(World); It; ++It)
+		{
+			APP_SoulPickupActor* Soul = *It;
+			if (!IsValid(Soul) || Soul->GetOwnerState() != PS || Soul->GetAmount() <= 0)
+			{
+				continue;
+			}
+
+			FPP_SaveSoulState State;
+			State.Amount = Soul->GetAmount();
+			State.Location = Soul->GetActorLocation();
+			Out.Souls.Add(State);
+		}
+	}
+
+	/** 按关卡 Actor 名恢复采集点剩余次数；找不到就跳过并告警 */
+	void ApplyGatherableStates(UWorld* World, const TArray<FPP_SaveGatherableState>& States)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		for (const FPP_SaveGatherableState& State : States)
+		{
+			if (State.ActorName.IsNone())
+			{
+				continue;
+			}
+
+			APP_GatherableActor* Match = nullptr;
+			for (TActorIterator<APP_GatherableActor> It(World); It; ++It)
+			{
+				if (IsValid(*It) && It->GetFName() == State.ActorName)
+				{
+					Match = *It;
+					break;
+				}
+			}
+
+			if (!Match)
+			{
+				UE_LOG(LogPP, Warning, TEXT("[PP_Save] 采集点 %s 在当前关卡中不存在，已跳过"),
+					*State.ActorName.ToString());
+				continue;
+			}
+
+			Match->ApplySavedState(State.RemainingGatherTimes);
+		}
+	}
+
+	/** 恢复 Boss 击败状态：移除存活 Boss，并打开关联的场地门 */
+	void ApplyBossStates(UWorld* World, const TArray<FPP_SaveBossState>& States)
+	{
+		if (!World)
+		{
+			return;
+		}
+
+		TSet<FName> DefeatedNames;
+
+		for (const FPP_SaveBossState& State : States)
+		{
+			if (!State.bDefeated || State.BossName.IsNone())
+			{
+				continue;
+			}
+
+			DefeatedNames.Add(State.BossName);
+
+			// 先收集再处理，避免在 TActorIterator 里直接销毁 Actor
+			TArray<APP_BossCharacter*> Matches;
+			for (TActorIterator<APP_BossCharacter> It(World); It; ++It)
+			{
+				if (IsValid(*It) && It->GetBossName() == State.BossName)
+				{
+					Matches.Add(*It);
+				}
+			}
+
+			// 注销重生记录：否则篝火休息会把已击败的 Boss 重建出来
+			if (APP_CrashGameMode* GameMode = World->GetAuthGameMode<APP_CrashGameMode>())
+			{
+				if (UPP_EnemyRespawnManager* RespawnManager = GameMode->GetEnemyRespawnManager())
+				{
+					for (APP_BossCharacter* Boss : Matches)
+					{
+						RespawnManager->UnregisterEnemy(Boss);
+					}
+				}
+			}
+
+			for (APP_BossCharacter* Boss : Matches)
+			{
+				Boss->ApplySavedDefeatedState();
+			}
+
+			bool bGateFound = false;
+			for (TActorIterator<APP_BossArenaGate> It(World); It; ++It)
+			{
+				if (IsValid(*It) && It->GetLinkedBossName() == State.BossName)
+				{
+					It->SetOpen(true);
+					bGateFound = true;
+				}
+			}
+
+			if (Matches.Num() == 0 && !bGateFound)
+			{
+				UE_LOG(LogPP, Warning,
+					TEXT("[PP_Save] Boss %s 在当前关卡中既没有存活 Actor 也没有匹配的场地门，已跳过"),
+					*State.BossName.ToString());
+			}
+		}
+
+		// 整体替换本局记录，保证之后再存档写的还是读档时的状态
+		if (APP_CrashGameMode* GameMode = World->GetAuthGameMode<APP_CrashGameMode>())
+		{
+			GameMode->SetDefeatedBossNames(DefeatedNames);
+		}
+	}
+
+	/** 恢复掉落的魂：先清掉本会话该玩家的旧魂，再按存档重新生成 */
+	void ApplySoulStates(UWorld* World, APP_PlayerState* PS, APlayerController* PC,
+		const TArray<FPP_SaveSoulState>& States)
+	{
+		if (!World || !PS)
+		{
+			return;
+		}
+
+		TArray<APP_SoulPickupActor*> Existing;
+		for (TActorIterator<APP_SoulPickupActor> It(World); It; ++It)
+		{
+			if (IsValid(*It) && It->GetOwnerState() == PS)
+			{
+				Existing.Add(*It);
+			}
+		}
+		for (APP_SoulPickupActor* Soul : Existing)
+		{
+			Soul->Destroy();
+		}
+
+		if (States.Num() == 0)
+		{
+			return;
+		}
+
+		APP_PlayerCharacter* PlayerCharacter = PC ? Cast<APP_PlayerCharacter>(PC->GetPawn()) : nullptr;
+		if (!PlayerCharacter)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[PP_Save] 读档时没有 Pawn，%d 个掉落魂未恢复"), States.Num());
+			return;
+		}
+
+		for (const FPP_SaveSoulState& State : States)
+		{
+			if (State.Amount <= 0 || !FMath::IsFinite(State.Location.X)
+				|| !FMath::IsFinite(State.Location.Y) || !FMath::IsFinite(State.Location.Z))
+			{
+				UE_LOG(LogPP, Warning, TEXT("[PP_Save] 魂数据非法（金额=%d），已跳过"), State.Amount);
+				continue;
+			}
+
+			PlayerCharacter->RestoreSoul(State.Amount, State.Location);
+		}
 	}
 }
 
@@ -115,6 +334,18 @@ bool UPP_SaveSubsystem::SavePlayer(APlayerController* PC, FString& OutError)
 		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 保存时未找到 QuestComponent，任务进度未写入"));
 	}
 
+	// 篝火检查点：只记录玩家状态，不依赖篝火 Actor 是否还在
+	SaveData->Checkpoint.bHasCheckpoint = PS->HasCheckpoint();
+	SaveData->Checkpoint.Transform = PS->GetCheckpointTransform();
+	SaveData->Checkpoint.BonfireActorName = PS->GetCheckpointBonfireName();
+
+	// 世界状态：采集点剩余次数 / 已击败 Boss / 掉落的魂
+	CaptureWorldState(PC->GetWorld(), PS, SaveData->World);
+
+	UE_LOG(LogPP, Log, TEXT("[PP_Save] 世界状态快照：采集点=%d Boss=%d 魂=%d 检查点=%d"),
+		SaveData->World.Gatherables.Num(), SaveData->World.Bosses.Num(), SaveData->World.Souls.Num(),
+		SaveData->Checkpoint.bHasCheckpoint ? 1 : 0);
+
 	return UPP_SaveGame::Save(SaveData, OutError);
 }
 
@@ -159,6 +390,9 @@ bool UPP_SaveSubsystem::ApplyPendingToPlayer(APlayerController* PC, FString& Out
 		return false;
 	}
 
+	// 上一次应用残留的落点（理论上不会出现，防御性清掉，避免下次 RestartPlayer 误传送）
+	bHasPendingSpawnTransform = false;
+
 	const FPP_SaveCharacterData& Character = PendingSave->Character;
 
 	PS->SetSelectedCharacterId(Character.CharacterId);
@@ -190,6 +424,56 @@ bool UPP_SaveSubsystem::ApplyPendingToPlayer(APlayerController* PC, FString& Out
 
 	ApplyAttributes(PS->GetAbilitySystemComponent(), Character.BaseAttributes);
 
+	// ===== 篝火检查点 + 世界状态：只在存档地图与当前地图一致时应用 =====
+	// 地图级数据（关卡 Actor 名、世界坐标）换图后没有意义，套过来会把上一张图的状态带进来
+	UWorld* World = PC->GetWorld();
+	const FString SavedMapName = PendingSave->MapName.ToString();
+	const FString CurrentMapName = UGameplayStatics::GetCurrentLevelName(World, true);
+	const bool bSameMap = !SavedMapName.IsEmpty() && SavedMapName.Equals(CurrentMapName, ESearchCase::IgnoreCase);
+
+	if (bSameMap)
+	{
+		const FPP_SaveCheckpointData& Checkpoint = PendingSave->Checkpoint;
+		if (Checkpoint.bHasCheckpoint)
+		{
+			PS->SetCheckpoint(Checkpoint.Transform, Checkpoint.BonfireActorName);
+		}
+		else
+		{
+			PS->ClearCheckpoint();
+		}
+
+		ApplyGatherableStates(World, PendingSave->World.Gatherables);
+		ApplyBossStates(World, PendingSave->World.Bosses);
+		ApplySoulStates(World, PS, PC, PendingSave->World.Souls);
+
+		// 落点：已有存活 Pawn 时直接传送（控制台读档）；否则留给 RestartPlayer 一次性消费（主菜单读档）
+		if (Checkpoint.bHasCheckpoint)
+		{
+			if (APP_PlayerCharacter* PlayerCharacter = Cast<APP_PlayerCharacter>(PC->GetPawn()))
+			{
+				if (PlayerCharacter->IsAlive())
+				{
+					PlayerCharacter->TeleportTo(Checkpoint.Transform.GetLocation(), Checkpoint.Transform.Rotator(), false, true);
+					UE_LOG(LogPP, Log, TEXT("[PP_Save] 读档落点：传送到检查点 (%.0f, %.0f, %.0f)"),
+						Checkpoint.Transform.GetLocation().X, Checkpoint.Transform.GetLocation().Y,
+						Checkpoint.Transform.GetLocation().Z);
+				}
+			}
+			else
+			{
+				PendingSpawnTransform = Checkpoint.Transform;
+				bHasPendingSpawnTransform = true;
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning,
+			TEXT("[PP_Save] 检查点与世界状态未应用：存档地图=%s 当前地图=%s"),
+			SavedMapName.IsEmpty() ? TEXT("<空>") : *SavedMapName, *CurrentMapName);
+	}
+
 	UE_LOG(LogPP, Log, TEXT("[PP_Save] 已应用存档到 %s：角色=%s 生命=%.1f/%.1f 法力=%.1f/%.1f 耐力=%.1f/%.1f"),
 		*PS->GetPlayerName(), *Character.CharacterId.ToString(),
 		Character.BaseAttributes.Health, Character.BaseAttributes.MaxHealth,
@@ -198,5 +482,18 @@ bool UPP_SaveSubsystem::ApplyPendingToPlayer(APlayerController* PC, FString& Out
 
 	// one-shot：应用成功即清除，重生/重连/再次 Possess 不得重复套用
 	PendingSave = nullptr;
+	return true;
+}
+
+bool UPP_SaveSubsystem::ConsumePendingSpawnTransform(FTransform& OutTransform)
+{
+	if (!bHasPendingSpawnTransform)
+	{
+		return false;
+	}
+
+	OutTransform = PendingSpawnTransform;
+	bHasPendingSpawnTransform = false;
+	PendingSpawnTransform = FTransform::Identity;
 	return true;
 }

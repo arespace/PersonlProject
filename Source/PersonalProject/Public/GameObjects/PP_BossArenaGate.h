@@ -24,10 +24,21 @@ public:
 	APP_BossArenaGate();
 
 	/** 关联本场地的 Boss；绑定后只响应该 Boss 的死亡事件 */
-	void SetLinkedBoss(APP_BossCharacter* InBoss) { LinkedBoss = InBoss; }
+	void SetLinkedBoss(APP_BossCharacter* InBoss);
 
 	/** 当前关联的 Boss（未绑定时为 nullptr） */
 	APP_BossCharacter* GetLinkedBoss() const { return LinkedBoss; }
+
+	/** 关联 Boss 的名字：Boss Actor 被销毁后仍可用于存档匹配 */
+	FName GetLinkedBossName() const { return LinkedBossName; }
+
+	/** 门是否已开（服务器权威，复制到客户端） */
+	bool IsOpen() const { return bOpen; }
+
+	/** 服务端设置开门/关门：统一入口，负责复制与蓝图事件 */
+	void SetOpen(bool bInOpen);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -48,6 +59,20 @@ protected:
 	/** 本场地门关联的 Boss（通常由 BossArenaTrigger 自动绑定，也可在蓝图显式指定） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|BossGate")
 	TObjectPtr<APP_BossCharacter> LinkedBoss;
+
+	/** 关联 Boss 的名字快照：Boss 被销毁后 LinkedBoss 会失效，存档匹配改用这个名字 */
+	UPROPERTY()
+	FName LinkedBossName;
+
+	/** 门是否已开（复制）：客户端据此同步碰撞与开门表现 */
+	UPROPERTY(ReplicatedUsing = OnRep_bOpen)
+	bool bOpen{false};
+
+	UFUNCTION()
+	void OnRep_bOpen();
+
+	/** 应用当前开门状态；bPlayAnim 仅首次开门时为 true，避免 BeginPlay 误播开门动画 */
+	void ApplyOpenState(bool bPlayAnim);
 
 	/** Boss 死亡触发，蓝图覆盖播放开门动画 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "PP|BossGate")

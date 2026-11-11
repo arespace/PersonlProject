@@ -136,6 +136,17 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gather")
 	float GetGatherTime() const { return GatherTime; }
 
+	/** 当前剩余可采集次数 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Gather")
+	int32 GetRemainingGatherTimes() const { return RemainingGatherTimes; }
+
+	/**
+	 * 从存档恢复剩余采集次数（服务端）
+	 * 次数夹到 [0, MaxGatherTimes]；为 0 时走与正常耗尽一致的隐藏 + 重生计时，
+	 * 大于 0 时恢复可见与交互并取消待触发的重生，保证"显示可采"与"实际可采"一致。
+	 */
+	void ApplySavedState(int32 InRemainingGatherTimes);
+
 	// ===== 事件广播 =====
 
 	/**
@@ -163,8 +174,15 @@ private:
 	void ApplyGatherableConfig();
 
 	/** 剩余可采集次数 */
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_RemainingGatherTimes)
 	int32 RemainingGatherTimes;
+
+	/** 客户端按复制到的剩余次数同步可见性与交互（否则会出现"看起来能采但实际不可采"） */
+	UFUNCTION()
+	void OnRep_RemainingGatherTimes();
+
+	/** 按当前剩余次数应用可见性/碰撞/Overlap 状态 */
+	void ApplyAvailabilityVisuals();
 
 	/** 重生计时器句柄 */
 	FTimerHandle RespawnTimerHandle;

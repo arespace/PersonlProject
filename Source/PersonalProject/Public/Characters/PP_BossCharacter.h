@@ -42,6 +42,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Boss")
 	float GetBossGoldMultiplier() const { return BossGoldMultiplier; }
 
+	/** 是否已被击败（死亡后 Actor 会被销毁，跨存档由 GameMode 的名字集合承担） */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "PP|Boss")
+	bool IsDefeated() const { return bDefeated; }
+
+	/**
+	 * 读档恢复"已击败"：直接把 Boss 从场景移除。
+	 * 不走 HandleDeath，因此不发金币/物品、不广播 BossDead、不计任务击杀。
+	 */
+	void ApplySavedDefeatedState();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void HandleDeath() override;
@@ -74,6 +84,10 @@ protected:
 	/** 当前血量百分比 0~1，HUD 直接读这个值来画血条 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "PP|Boss")
 	float BossHealthPercent{1.f};
+
+	/** 已击败标记（复制给客户端，便于客户端隐藏血条/尸体表现） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Replicated, Category = "PP|Boss")
+	bool bDefeated{false};
 
 	/** 阶段切换无敌时间（秒） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Boss", meta = (ClampMin = "0.0"))

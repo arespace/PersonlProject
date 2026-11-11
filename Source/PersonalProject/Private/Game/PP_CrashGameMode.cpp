@@ -6,6 +6,9 @@
 #include "Characters/PP_PlayerCharacter.h"
 #include "Player/PP_PlayerState.h"
 #include "AbilitySystemComponent.h"
+#include "Events/PP_EventBus.h"
+#include "Events/PP_EventTypes.h"
+#include "Game/Save/PP_SaveSubsystem.h"
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_EnemyRespawnManager.h"
 #include "Session/PP_SessionManager.h"
@@ -25,6 +28,47 @@ APP_CrashGameMode::APP_CrashGameMode()
 
 	// 敌人重生管理器（篝火休息时按半径重置敌人）
 	EnemyRespawnManager = CreateDefaultSubobject<UPP_EnemyRespawnManager>("EnemyRespawnManager");
+}
+
+void APP_CrashGameMode::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Boss 死亡事件只用于本局记录（不额外广播），Boss Actor 被销毁后仍能保存"已击败"
+	if (UPP_EventBus* Bus = UPP_EventBus::Get(this))
+	{
+		BossDeadHandle = Bus->Subscribe<FPP_BossDeadEvent>(
+			[this](const FPP_BossDeadEvent& Event) { MarkBossDefeated(Event.BossName); });
+	}
+}
+
+void APP_CrashGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UPP_EventBus* Bus = UPP_EventBus::Get(this))
+	{
+		Bus->Unsubscribe(BossDeadHandle);
+		BossDeadHandle.Reset();
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void APP_CrashGameMode::MarkBossDefeated(FName BossName)
+{
+	if (BossName.IsNone() || DefeatedBossNames.Contains(BossName))
+	{
+		return;
+	}
+
+	DefeatedBossNames.Add(BossName);
+	UE_LOG(LogPP, Log, TEXT("[CrashGameMode] 记录已击败 Boss：%s（本局共 %d 个）"),
+		*BossName.ToString(), DefeatedBossNames.Num());
+}
+
+void APP_CrashGameMode::SetDefeatedBossNames(const TSet<FName>& InNames)
+{
+	DefeatedBossNames = InNames;
+	UE_LOG(LogPP, Log, TEXT("[CrashGameMode] 读档替换已击败 Boss 集合：%d 个"), DefeatedBossNames.Num());
 }
 
 void APP_CrashGameMode::PostLogin(APlayerController* NewPlayer)
@@ -138,6 +182,18 @@ void APP_CrashGameMode::RestartPlayer(AController* NewPlayer)
 	else
 	{
 		UE_LOG(LogPP, Warning, TEXT("[CrashGameMode] RestartPlayer - No character selection found!"));
+	}
+
+	// 读档后的首次生成：落点改用存档里的篝火检查点（一次性消费，不影响死亡复活流程）
+	if (UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this))
+	{
+		FTransform SpawnTransform;
+		if (SaveSubsystem->ConsumePendingSpawnTransform(SpawnTransform))
+		{
+			PlayerChar->TeleportTo(SpawnTransform.GetLocation(), SpawnTransform.Rotator(), false, true);
+			UE_LOG(LogPP, Log, TEXT("[CrashGameMode] 读档首次生成落在检查点：(%.0f, %.0f, %.0f)"),
+				SpawnTransform.GetLocation().X, SpawnTransform.GetLocation().Y, SpawnTransform.GetLocation().Z);
+		}
 	}
 }
 
