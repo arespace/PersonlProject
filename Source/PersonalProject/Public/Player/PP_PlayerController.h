@@ -81,6 +81,16 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerInteractBonfire(APP_BonfireActor* Bonfire);
 
+	// ===== 存档调试入口（控制台） =====
+
+	/** 保存当前玩家进度：PP_SaveGame（客户端窗口执行会自动转发到服务器） */
+	UFUNCTION(Exec)
+	void PP_SaveGame();
+
+	/** 读取存档并应用到当前玩家：PP_LoadGame（客户端窗口执行会自动转发到服务器） */
+	UFUNCTION(Exec)
+	void PP_LoadGame();
+
 	/** 服务器发送聊天消息 */
 	UFUNCTION(Server, Reliable)
 	void Server_SendChatMessage(const FString& Message);
@@ -240,6 +250,13 @@ private:
 	/** 已加入 LocalPlayer 子系统、由本类负责增删的项目 IMC */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UInputMappingContext>> ActiveProjectInputContexts;
+
+	/** 存档调试 RPC：Exec 在客户端窗口执行时转发到服务器 */
+	UFUNCTION(Server, Reliable)
+	void ServerPP_SaveGame();
+
+	UFUNCTION(Server, Reliable)
+	void ServerPP_LoadGame();
 
 	/** 按上下文重算项目 IMC：Gameplay/Overlay 全开（priority=1），Modal/FrontEnd 仅 UI（priority=2） */
 	void ApplyProjectInputContexts(EPP_InputContext Context);

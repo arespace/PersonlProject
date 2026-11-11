@@ -28,6 +28,7 @@
 #include "Quest/PP_QuestComponent.h"
 #include "Quest/PP_QuestEventBridge.h"
 #include "Game/PP_CrashGameMode.h"
+#include "Game/Save/PP_SaveSubsystem.h"
 #include "Player/PP_PlayerState.h"
 #include "Framework/PP_Log.h"
 
@@ -976,4 +977,75 @@ void APP_PlayerController::ToggleQuestLog()
 void APP_PlayerController::ToggleInventory()
 {
 	ForwardToUI<IPP_UICombatGateway>(&IPP_UICombatGateway::Execute_RequestToggleInventory);
+}
+
+void APP_PlayerController::PP_SaveGame()
+{
+	if (HasAuthority())
+	{
+		ServerPP_SaveGame_Implementation();
+		return;
+	}
+
+	ServerPP_SaveGame();
+}
+
+void APP_PlayerController::PP_LoadGame()
+{
+	if (HasAuthority())
+	{
+		ServerPP_LoadGame_Implementation();
+		return;
+	}
+
+	ServerPP_LoadGame();
+}
+
+void APP_PlayerController::ServerPP_SaveGame_Implementation()
+{
+	FString Error;
+	UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this);
+	const bool bSaved = SaveSubsystem && SaveSubsystem->SavePlayer(this, Error);
+
+	const FString Message = bSaved
+		? TEXT("[存档] 已保存")
+		: FString::Printf(TEXT("[存档] 保存失败：%s"), *Error);
+
+	if (bSaved)
+	{
+		UE_LOG(LogPP, Log, TEXT("%s"), *Message);
+	}
+	else
+	{
+		UE_LOG(LogPP, Error, TEXT("%s"), *Message);
+	}
+
+	Client_NotifyMessage(Message);
+}
+
+void APP_PlayerController::ServerPP_LoadGame_Implementation()
+{
+	FString Error;
+	UPP_SaveSubsystem* SaveSubsystem = UPP_SaveSubsystem::Get(this);
+	bool bLoaded = SaveSubsystem && SaveSubsystem->LoadFromDisk(Error);
+
+	if (bLoaded)
+	{
+		bLoaded = SaveSubsystem->ApplyPendingToPlayer(this, Error);
+	}
+
+	const FString Message = bLoaded
+		? TEXT("[存档] 读档完成")
+		: FString::Printf(TEXT("[存档] 读档失败：%s"), *Error);
+
+	if (bLoaded)
+	{
+		UE_LOG(LogPP, Log, TEXT("%s"), *Message);
+	}
+	else
+	{
+		UE_LOG(LogPP, Error, TEXT("%s"), *Message);
+	}
+
+	Client_NotifyMessage(Message);
 }
