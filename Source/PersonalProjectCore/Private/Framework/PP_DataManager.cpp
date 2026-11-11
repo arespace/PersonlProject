@@ -12,8 +12,9 @@ void UPP_DataManager::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	// Config 属性由引擎在 CDO 加载时自动从 DefaultGame.ini 读取，此处仅打印状态便于排查配置缺失
-	UE_LOG(LogPP, Log, TEXT("[DataManager] Subsystem Initialized - Item=%s, Quest=%s, Character=%s"),
-		*ItemDataTable.ToString(), *QuestDataTable.ToString(), *CharacterDataTable.ToString());
+	UE_LOG(LogPP, Log, TEXT("[DataManager] Subsystem Initialized - Item=%s, Quest=%s, Character=%s, Enemy=%s"),
+		*ItemDataTable.ToString(), *QuestDataTable.ToString(), *CharacterDataTable.ToString(),
+		*EnemyDataTable.ToString());
 }
 
 void UPP_DataManager::Deinitialize()
@@ -22,6 +23,7 @@ void UPP_DataManager::Deinitialize()
 	LoadedItemTable = nullptr;
 	LoadedQuestTable = nullptr;
 	LoadedCharacterTable = nullptr;
+	LoadedEnemyTable = nullptr;
 	Super::Deinitialize();
 }
 
@@ -92,6 +94,13 @@ const FCharacterDataRow* UPP_DataManager::GetCharacterData(FName CharacterId)
 {
 	return FindRowFromTable<FCharacterDataRow>(CharacterDataTable, LoadedCharacterTable, TEXT("CharacterDataTable"),
 		CharacterId, TEXT("DataManager.GetCharacterData"), true);
+}
+
+const FPP_EnemyInfo* UPP_DataManager::GetEnemyInfo(FName EnemyID)
+{
+	// 敌人表允许稀疏：未配行的敌人沿用蓝图配置，缺行由调用方决定是否告警
+	return FindRowFromTable<FPP_EnemyInfo>(EnemyDataTable, LoadedEnemyTable, TEXT("EnemyDataTable"),
+		EnemyID, TEXT("DataManager.GetEnemyInfo"), false);
 }
 
 TArray<FName> UPP_DataManager::GetCharacterRowNames()

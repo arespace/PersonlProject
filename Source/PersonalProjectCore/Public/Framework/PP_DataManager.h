@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Characters/PP_CharacterData.h"
+#include "Data/PP_EnemyData.h"
 #include "Data/PP_ItemData.h"
 #include "Data/PP_QuestData.h"
 #include "PP_DataManager.generated.h"
@@ -13,7 +14,7 @@ class UDataTable;
 /**
  * UPP_DataManager - 全局 DataTable 统一管理器 (GameInstanceSubsystem)
  *
- * 统一持有项目 3 张全局数据表（物品 / 任务 / 角色），
+ * 统一持有项目 4 张全局数据表（物品 / 任务 / 角色 / 敌人），
  * 各组件不再各自持有 UDataTable，一律通过本子系统查询。
  *
  * !!! 新代码禁止直接持有 DataTable，一律走 DataManager !!!
@@ -54,6 +55,9 @@ public:
 
 	/** 按 CharacterId（= 行名）查找角色外观配置 */
 	const FCharacterDataRow* GetCharacterData(FName CharacterId);
+
+	/** 按 EnemyID（= 行名）查找敌人 / Boss 配置，行缺失告警 */
+	const FPP_EnemyInfo* GetEnemyInfo(FName EnemyID);
 
 	/** 获取角色表全部行名（角色选择界面动态填充角色列表用） */
 	TArray<FName> GetCharacterRowNames();
@@ -111,6 +115,10 @@ private:
 	UPROPERTY(Config, EditAnywhere, Category = "Data")
 	TSoftObjectPtr<UDataTable> CharacterDataTable;
 
+	/** 敌人数据表资产路径（FPP_EnemyInfo 行结构） */
+	UPROPERTY(Config, EditAnywhere, Category = "Data")
+	TSoftObjectPtr<UDataTable> EnemyDataTable;
+
 	// ===== 已加载表缓存 =====
 
 	UPROPERTY()
@@ -121,4 +129,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UDataTable> LoadedCharacterTable;
+
+	UPROPERTY()
+	TObjectPtr<UDataTable> LoadedEnemyTable;
 };
