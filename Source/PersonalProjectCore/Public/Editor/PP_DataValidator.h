@@ -31,12 +31,18 @@ struct FPP_DataValidationReport
  *   - `pp.ValidateData`          按 Config 路径校验 DT_Items 与遗留 DT_WeaponData
  *   - `pp.ValidateData.SelfTest` 用内存中故意写错的行验证「报错可见」链路（不读写任何资产）
  *
- * 校验项：
+ * 校验项（DT_Items）：
  *   1. RowName 与 ItemID 一致；
  *   2. ItemID 非空且全表唯一；
  *   3. 武器行（配置了 WeaponConfig 的行）EquipSlot 必须是 MainHand / OffHand；
  *   4. EquipEffectClass 非空时 ItemType 必须是 Equipment；
  *   5. 非 Equipment 行不得配置 EquipSlot。
+ *
+ * 校验项（DT_Enemies）：
+ *   1. RowName 与 EnemyID 一致且非空、全表唯一；
+ *   2. DropItemID 非空时必须存在于 DT_Items；
+ *   3. 攻击距离/延迟/冷却/掉落数量等数值范围合法；
+ *   4. Boss 阶段阈值必须落在 0~1。
  *
  * 说明：DT_WeaponData 已在武器装备改造中并入 DT_Items.WeaponConfig，
  *      现行工程内不应存在该资产；校验器只在资产仍存在时给出提示，不存在则跳过。
@@ -49,6 +55,10 @@ public:
 
 	/** 检查遗留武器表是否仍存在（已并入 DT_Items，存在即提示） */
 	static FPP_DataValidationReport ValidateLegacyWeaponTable();
+
+	/** 校验敌人表；ItemTable 用于校验 DropItemID 外键，为空时按 Config 路径懒加载 */
+	static FPP_DataValidationReport ValidateEnemyTable(UDataTable* EnemyTable, UDataTable* ItemTable = nullptr,
+		const FString& TableLabel = FString());
 
 	/** 按 Config/DefaultGame.ini 的表路径校验全部目标表，返回错误总数 */
 	static int32 ValidateAll();

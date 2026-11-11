@@ -12,6 +12,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
 
+#include "Data/PP_EnemyData.h"
 #include "Data/PP_ItemData.h"
 #include "Framework/PP_DataManager.h"
 #include "Framework/PP_Log.h"
@@ -184,6 +185,129 @@ FPP_DataValidationReport FPP_DataValidator::ValidateItemTable(UDataTable* ItemTa
 	return Report;
 }
 
+FPP_DataValidationReport FPP_DataValidator::ValidateEnemyTable(UDataTable* EnemyTable, UDataTable* ItemTable, const FString& TableLabel)
+{
+	FPP_DataValidationReport Report;
+	const FString Label = !TableLabel.IsEmpty()
+		? TableLabel
+		: (EnemyTable ? EnemyTable->GetName() : FString(TEXT("<未加载>")));
+
+	if (!EnemyTable)
+	{
+		Report.AddError(TEXT("数据表未加载（配置路径为空或资产不存在），无法校验"));
+		Report.Log(Label);
+		return Report;
+	}
+
+	if (EnemyTable->GetRowStruct() != FPP_EnemyInfo::StaticStruct())
+	{
+		Report.AddError(FString::Printf(TEXT("行结构不是 FPP_EnemyInfo（当前：%s），无法按敌人表校验"),
+			EnemyTable->GetRowStruct() ? *EnemyTable->GetRowStruct()->GetName() : TEXT("None")));
+		Report.Log(Label);
+		return Report;
+	}
+
+	const TArray<FName> RowNames = EnemyTable->GetRowNames();
+	Report.RowCount = RowNames.Num();
+	if (RowNames.IsEmpty())
+	{
+		Report.AddWarning(TEXT("表内没有任何行：所有敌人仍按蓝图上的原值运行"));
+	}
+
+	TMap<FName, FName> EnemyIDOwner;
+
+	for (const FName& RowName : RowNames)
+	{
+		const FPP_EnemyInfo* Row = EnemyTable->FindRow<FPP_EnemyInfo>(RowName, TEXT("PP_DataValidator"), false);
+		if (!Row)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s' 无法按 FPP_EnemyInfo 解析（行数据损坏或行结构不匹配）"), *RowName.ToString()));
+			continue;
+		}
+
+		// 1. EnemyID 非空且与行名一致
+		if (Row->EnemyID.IsNone())
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：EnemyID 为空（必须与 RowName 一致且非空）"), *RowName.ToString()));
+		}
+		else
+		{
+			if (Row->EnemyID != RowName)
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：RowName 与 EnemyID 不一致（RowName='%s'，EnemyID='%s'）"),
+					*RowName.ToString(), *RowName.ToString(), *Row->EnemyID.ToString()));
+			}
+
+			// 2. EnemyID 全表唯一
+			if (const FName* FirstRow = EnemyIDOwner.Find(Row->EnemyID))
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：EnemyID '%s' 重复（已在行 '%s' 使用）"),
+					*RowName.ToString(), *Row->EnemyID.ToString(), *FirstRow->ToString()));
+			}
+			else
+			{
+				EnemyIDOwner.Add(Row->EnemyID, RowName);
+			}
+		}
+
+		// 3. 数值范围
+		if (Row->AcceptanceRadius <= 0.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：AcceptanceRadius 必须大于 0（当前 %.1f）"),
+				*RowName.ToString(), Row->AcceptanceRadius));
+		}
+		if (Row->MinAttackDelay > Row->MaxAttackDelay)
+		{
+			Report.AddWarning(FString::Printf(TEXT("行 '%s'：MinAttackDelay(%.2f) 大于 MaxAttackDelay(%.2f)，随机区间为空"),
+				*RowName.ToString(), Row->MinAttackDelay, Row->MaxAttackDelay));
+		}
+		if (Row->AttackCooldownMin > Row->AttackCooldownMax)
+		{
+			Report.AddWarning(FString::Printf(TEXT("行 '%s'：AttackCooldownMin(%.2f) 大于 AttackCooldownMax(%.2f)，随机区间为空"),
+				*RowName.ToString(), Row->AttackCooldownMin, Row->AttackCooldownMax));
+		}
+		if (Row->GoldDropAmount < 0 || Row->DropItemCount < 0)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：GoldDropAmount(%d) / DropItemCount(%d) 不能为负"),
+				*RowName.ToString(), Row->GoldDropAmount, Row->DropItemCount));
+		}
+
+		// 4. DropItemID 外键必须命中 DT_Items
+		if (!Row->DropItemID.IsNone())
+		{
+			if (Row->DropItemCount <= 0)
+			{
+				Report.AddWarning(FString::Printf(TEXT("行 '%s'：配置了 DropItemID '%s' 但 DropItemCount 为 %d，实际不会发放"),
+					*RowName.ToString(), *Row->DropItemID.ToString(), Row->DropItemCount));
+			}
+
+			if (!ItemTable)
+			{
+				Report.AddWarning(FString::Printf(TEXT("行 '%s'：DropItemID '%s' 无法校验（DT_Items 未加载）"),
+					*RowName.ToString(), *Row->DropItemID.ToString()));
+			}
+			else if (!ItemTable->FindRow<FPP_ItemInfo>(Row->DropItemID, TEXT("PP_DataValidator"), false))
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：DropItemID '%s' 在 DT_Items 中不存在"),
+					*RowName.ToString(), *Row->DropItemID.ToString()));
+			}
+		}
+
+		// 5. Boss 阶段阈值必须在 0~1
+		for (const float Threshold : Row->BossPhaseThresholds)
+		{
+			if (Threshold <= 0.f || Threshold > 1.f)
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：BossPhaseThresholds 含非法阈值 %.2f（必须在 0~1 之间）"),
+					*RowName.ToString(), Threshold));
+			}
+		}
+	}
+
+	Report.Log(Label);
+	return Report;
+}
+
 FPP_DataValidationReport FPP_DataValidator::ValidateLegacyWeaponTable()
 {
 	FPP_DataValidationReport Report;
@@ -219,6 +343,7 @@ int32 FPP_DataValidator::ValidateAll()
 	int32 TotalWarnings = 0;
 
 	// DT_Items
+	UDataTable* LoadedItemTable = nullptr;
 	const FString ItemPath = ReadDataManagerTablePath(TEXT("ItemDataTable"));
 	if (ItemPath.IsEmpty())
 	{
@@ -228,15 +353,42 @@ int32 FPP_DataValidator::ValidateAll()
 	}
 	else
 	{
-		UDataTable* ItemTable = LoadObject<UDataTable>(nullptr, *ItemPath);
-		if (!ItemTable)
+		LoadedItemTable = LoadObject<UDataTable>(nullptr, *ItemPath);
+		if (!LoadedItemTable)
 		{
 			UE_LOG(LogPP, Error, TEXT("[DataValidator] DT_Items 加载失败：%s"), *ItemPath);
 			++TotalErrors;
 		}
 		else
 		{
-			const FPP_DataValidationReport Report = ValidateItemTable(ItemTable, FString::Printf(TEXT("DT_Items(%s)"), *ItemPath));
+			const FPP_DataValidationReport Report = ValidateItemTable(LoadedItemTable, FString::Printf(TEXT("DT_Items(%s)"), *ItemPath));
+			TotalErrors += Report.ErrorCount;
+			TotalWarnings += Report.WarningCount;
+		}
+	}
+
+	// DT_Enemies（可缺省：资产不存在时只提示，不计错误，便于分批落地）
+	const FString EnemyPath = ReadDataManagerTablePath(TEXT("EnemyDataTable"));
+	if (EnemyPath.IsEmpty())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[DataValidator] DT_Enemies 路径未配置，跳过敌人表校验"));
+	}
+	else if (!FPackageName::DoesPackageExist(FPackageName::ObjectPathToPackageName(EnemyPath)))
+	{
+		UE_LOG(LogPP, Warning, TEXT("[DataValidator] DT_Enemies 资产不存在（%s），敌人仍走蓝图配置，跳过校验"), *EnemyPath);
+	}
+	else
+	{
+		UDataTable* EnemyTable = LoadObject<UDataTable>(nullptr, *EnemyPath);
+		if (!EnemyTable)
+		{
+			UE_LOG(LogPP, Error, TEXT("[DataValidator] DT_Enemies 加载失败：%s"), *EnemyPath);
+			++TotalErrors;
+		}
+		else
+		{
+			const FPP_DataValidationReport Report = ValidateEnemyTable(EnemyTable, LoadedItemTable,
+				FString::Printf(TEXT("DT_Enemies(%s)"), *EnemyPath));
 			TotalErrors += Report.ErrorCount;
 			TotalWarnings += Report.WarningCount;
 		}
@@ -300,7 +452,7 @@ int32 FPP_DataValidator::RunSelfTest()
 
 static FAutoConsoleCommand GPPValidateDataCommand(
 	TEXT("pp.ValidateData"),
-	TEXT("校验 DT_Items 与遗留 DT_WeaponData 的数据配置（只读，不修改数据）"),
+	TEXT("校验 DT_Items、DT_Enemies 与遗留 DT_WeaponData 的数据配置（只读，不修改数据）"),
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		FPP_DataValidator::ValidateAll();
