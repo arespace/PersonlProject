@@ -46,6 +46,10 @@ struct FPP_EnemyInfo : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|AI", meta = (ClampMin = "0.0"))
 	float AttackCooldownMax{2.5f};
 
+	/** FindClosestActorWithTag 的搜索半径（cm），由敌人索敌/远程攻击 GA 读取 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|AI", meta = (ClampMin = "0.0"))
+	float SearchRange{1000.f};
+
 	// ===== AI 感知组件参数（UPP_AIPerceptionComponent，随敌人推送到 AIController 上的组件） =====
 
 	/** 感知搜索半径（cm） */

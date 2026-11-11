@@ -157,6 +157,7 @@ void APP_EnemyCharacter::ApplyEnemyDataConfig()
 	MaxAttackDelay = Row->MaxAttackDelay;
 	AttackCooldownMin = Row->AttackCooldownMin;
 	AttackCooldownMax = Row->AttackCooldownMax;
+	SearchRange = Row->SearchRange;
 	GoldDropAmount = Row->GoldDropAmount;
 	DropItemID = Row->DropItemID;
 	DropItemCount = Row->DropItemCount;
