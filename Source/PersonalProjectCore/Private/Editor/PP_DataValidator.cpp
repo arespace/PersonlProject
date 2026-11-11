@@ -12,6 +12,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
 
+#include "Characters/PP_CharacterData.h"
 #include "Data/PP_EnemyData.h"
 #include "Data/PP_GatherableData.h"
 #include "Data/PP_ItemData.h"
@@ -441,6 +442,85 @@ FPP_DataValidationReport FPP_DataValidator::ValidateGatherableTable(UDataTable* 
 	return Report;
 }
 
+FPP_DataValidationReport FPP_DataValidator::ValidateCharacterTable(UDataTable* CharacterTable, const FString& TableLabel)
+{
+	FPP_DataValidationReport Report;
+	const FString Label = !TableLabel.IsEmpty()
+		? TableLabel
+		: (CharacterTable ? CharacterTable->GetName() : FString(TEXT("<未加载>")));
+
+	if (!CharacterTable)
+	{
+		Report.AddError(TEXT("数据表未加载（配置路径为空或资产不存在），无法校验"));
+		Report.Log(Label);
+		return Report;
+	}
+
+	if (CharacterTable->GetRowStruct() != FCharacterDataRow::StaticStruct())
+	{
+		Report.AddError(FString::Printf(TEXT("行结构不是 FCharacterDataRow（当前：%s），无法按角色表校验"),
+			CharacterTable->GetRowStruct() ? *CharacterTable->GetRowStruct()->GetName() : TEXT("None")));
+		Report.Log(Label);
+		return Report;
+	}
+
+	const TArray<FName> RowNames = CharacterTable->GetRowNames();
+	Report.RowCount = RowNames.Num();
+	if (RowNames.IsEmpty())
+	{
+		Report.AddWarning(TEXT("表内没有任何行：角色外观与成长数值均回落到代码/组件现值"));
+	}
+
+	for (const FName& RowName : RowNames)
+	{
+		const FCharacterDataRow* Row = CharacterTable->FindRow<FCharacterDataRow>(RowName, TEXT("PP_DataValidator"), false);
+		if (!Row)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s' 无法按 FCharacterDataRow 解析（行数据损坏或行结构不匹配）"), *RowName.ToString()));
+			continue;
+		}
+
+		if (Row->DisplayName.IsEmpty())
+		{
+			Report.AddWarning(FString::Printf(TEXT("行 '%s'：DisplayName 为空（角色选择界面会回退显示角色ID）"), *RowName.ToString()));
+		}
+
+		// 成长 / 手感：负值非法；0 表示沿用组件/代码现值
+		const auto CheckNonNegative = [&Report, &RowName](float Value, const TCHAR* FieldName)
+		{
+			if (Value < 0.f)
+			{
+				Report.AddError(FString::Printf(TEXT("行 '%s'：%s(%.2f) 不能为负（0 表示沿用组件/代码现值）"),
+					*RowName.ToString(), FieldName, Value));
+			}
+		};
+		CheckNonNegative(Row->RollPlayRate, TEXT("RollPlayRate"));
+		CheckNonNegative(Row->RollStaminaCost, TEXT("RollStaminaCost"));
+		CheckNonNegative(Row->LockOnSearchRadius, TEXT("LockOnSearchRadius"));
+		CheckNonNegative(Row->LockOnBreakDistance, TEXT("LockOnBreakDistance"));
+		CheckNonNegative(Row->LockOnMaxScreenAngle, TEXT("LockOnMaxScreenAngle"));
+		CheckNonNegative(Row->LockOnCameraInterpolationSpeed, TEXT("LockOnCameraInterpolationSpeed"));
+		CheckNonNegative(Row->LockOnFocusHeight, TEXT("LockOnFocusHeight"));
+
+		if (Row->LockOnMaxScreenAngle > 180.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：LockOnMaxScreenAngle(%.1f) 超过 180 度（组件 ClampMax=180）"),
+				*RowName.ToString(), Row->LockOnMaxScreenAngle));
+		}
+
+		if (Row->LockOnSearchRadius > 0.f && Row->LockOnBreakDistance > 0.f
+			&& Row->LockOnBreakDistance <= Row->LockOnSearchRadius)
+		{
+			Report.AddWarning(FString::Printf(
+				TEXT("行 '%s'：LockOnBreakDistance(%.0f) 不大于 LockOnSearchRadius(%.0f)，锁定会立刻解除（缺少滞回）"),
+				*RowName.ToString(), Row->LockOnBreakDistance, Row->LockOnSearchRadius));
+		}
+	}
+
+	Report.Log(Label);
+	return Report;
+}
+
 FPP_DataValidationReport FPP_DataValidator::ValidateLegacyWeaponTable()
 {
 	FPP_DataValidationReport Report;
@@ -554,6 +634,31 @@ int32 FPP_DataValidator::ValidateAll()
 		}
 	}
 
+	// DT_Characters（角色外观 + 成长/手感，必需）
+	const FString CharacterPath = ReadDataManagerTablePath(TEXT("CharacterDataTable"));
+	if (CharacterPath.IsEmpty())
+	{
+		UE_LOG(LogPP, Error, TEXT("[DataValidator] DT_Characters 路径为空：请检查 Config/DefaultGame.ini 的 [%s] 段 CharacterDataTable"),
+			*UPP_DataManager::StaticClass()->GetPathName());
+		++TotalErrors;
+	}
+	else
+	{
+		UDataTable* CharacterTable = LoadObject<UDataTable>(nullptr, *CharacterPath);
+		if (!CharacterTable)
+		{
+			UE_LOG(LogPP, Error, TEXT("[DataValidator] DT_Characters 加载失败：%s"), *CharacterPath);
+			++TotalErrors;
+		}
+		else
+		{
+			const FPP_DataValidationReport Report = ValidateCharacterTable(CharacterTable,
+				FString::Printf(TEXT("DT_Characters(%s)"), *CharacterPath));
+			TotalErrors += Report.ErrorCount;
+			TotalWarnings += Report.WarningCount;
+		}
+	}
+
 	// 遗留 DT_WeaponData（已并入 DT_Items）
 	{
 		const FPP_DataValidationReport Report = ValidateLegacyWeaponTable();
@@ -612,7 +717,7 @@ int32 FPP_DataValidator::RunSelfTest()
 
 static FAutoConsoleCommand GPPValidateDataCommand(
 	TEXT("pp.ValidateData"),
-	TEXT("校验 DT_Items、DT_Enemies、DT_Gatherables 与遗留 DT_WeaponData 的数据配置（只读，不修改数据）"),
+	TEXT("校验 DT_Items、DT_Characters、DT_Enemies、DT_Gatherables 与遗留 DT_WeaponData 的数据配置（只读，不修改数据）"),
 	FConsoleCommandDelegate::CreateLambda([]()
 	{
 		FPP_DataValidator::ValidateAll();

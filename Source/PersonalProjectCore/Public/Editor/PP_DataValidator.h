@@ -49,6 +49,11 @@ struct FPP_DataValidationReport
  *   2. ItemID 非空时必须存在于 DT_Items；
  *   3. 采集数量/耗时/次数/重生时间/交互半径等数值范围合法（0 表示沿用蓝图现值）。
  *
+ * 校验项（DT_Characters）：
+ *   1. 行结构必须是 FCharacterDataRow；
+ *   2. 成长/手感字段不能为负（0 表示沿用组件/代码现值）；
+ *   3. 锁定搜索角不得超过 180 度；解除距离需大于搜索半径（否则没有滞回）。
+ *
  * 说明：DT_WeaponData 已在武器装备改造中并入 DT_Items.WeaponConfig，
  *      现行工程内不应存在该资产；校验器只在资产仍存在时给出提示，不存在则跳过。
  */
@@ -68,6 +73,9 @@ public:
 	/** 校验采集点表；ItemTable 用于校验 ItemID 外键 */
 	static FPP_DataValidationReport ValidateGatherableTable(UDataTable* GatherableTable, UDataTable* ItemTable = nullptr,
 		const FString& TableLabel = FString());
+
+	/** 校验角色表（行结构与成长/手感数值范围） */
+	static FPP_DataValidationReport ValidateCharacterTable(UDataTable* CharacterTable, const FString& TableLabel = FString());
 
 	/** 按 Config/DefaultGame.ini 的表路径校验全部目标表，返回错误总数 */
 	static int32 ValidateAll();

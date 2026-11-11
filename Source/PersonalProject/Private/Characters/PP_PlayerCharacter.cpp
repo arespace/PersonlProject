@@ -576,6 +576,9 @@ void APP_PlayerCharacter::ApplyCharacterAppearance(FName CharacterId)
 	const FCharacterDataRow* Row = DataManager->GetCharacterData(CharacterId);
 	if (!Row) return;
 
+	// 成长 / 手感数值：与外观同源（DT_Characters 同一行），0 表示未配置、沿用现值
+	ApplyCharacterGrowth(*Row);
+
 	// 外观完全由 DT_Characters 决定：每个角色配自己的网格 + 该角色专属的 ALS 重定向动画蓝图。
 	// 数据表留空时回落到 ALS 默认资产（曼尼昆 + AB_Als），保证未配置的角色仍可运行。
 	USkeletalMesh* LoadedMesh = Row->CharacterMesh.LoadSynchronous();
@@ -625,6 +628,53 @@ void APP_PlayerCharacter::ApplyCharacterAppearance(FName CharacterId)
 			TEXT("[Appearance] %s 的动画蓝图 %s 不是 UAlsAnimationInstance 子类，ALS 移动/相机会失效"),
 			*GetNameSafe(this), *GetNameSafe(LoadedAnimClass));
 	}
+}
+
+void APP_PlayerCharacter::ApplyCharacterGrowth(const FCharacterDataRow& Row)
+{
+	// 表内为 0 的字段视为未配置，保留组件 / 代码现值（与 P5 其它表的缺省口径一致）
+	if (Row.RollPlayRate > 0.f)
+	{
+		RollPlayRate = Row.RollPlayRate;
+	}
+
+	if (StaminaComponent && Row.RollStaminaCost > 0.f)
+	{
+		StaminaComponent->RollStaminaCost = Row.RollStaminaCost;
+	}
+
+	if (LockOnComponent)
+	{
+		if (Row.LockOnSearchRadius > 0.f)
+		{
+			LockOnComponent->LockOnSearchRadius = Row.LockOnSearchRadius;
+		}
+		if (Row.LockOnBreakDistance > 0.f)
+		{
+			LockOnComponent->LockOnBreakDistance = Row.LockOnBreakDistance;
+		}
+		if (Row.LockOnMaxScreenAngle > 0.f)
+		{
+			LockOnComponent->LockOnMaxScreenAngle = Row.LockOnMaxScreenAngle;
+		}
+		if (Row.LockOnCameraInterpolationSpeed > 0.f)
+		{
+			LockOnComponent->LockOnCameraInterpolationSpeed = Row.LockOnCameraInterpolationSpeed;
+		}
+		if (Row.LockOnFocusHeight > 0.f)
+		{
+			LockOnComponent->LockOnFocusHeight = Row.LockOnFocusHeight;
+		}
+	}
+
+	UE_LOG(LogPP, Log,
+		TEXT("[Growth] 应用角色成长配置：RollPlayRate=%.2f RollStaminaCost=%.1f LockOn=(Search=%.0f Break=%.0f Angle=%.0f Interp=%.1f Focus=%.0f)"),
+		RollPlayRate, StaminaComponent ? StaminaComponent->RollStaminaCost : 0.f,
+		LockOnComponent ? LockOnComponent->LockOnSearchRadius : 0.f,
+		LockOnComponent ? LockOnComponent->LockOnBreakDistance : 0.f,
+		LockOnComponent ? LockOnComponent->LockOnMaxScreenAngle : 0.f,
+		LockOnComponent ? LockOnComponent->LockOnCameraInterpolationSpeed : 0.f,
+		LockOnComponent ? LockOnComponent->LockOnFocusHeight : 0.f);
 }
 
 // ===== ALS 相机（移植自 AAlsCharacterExample） =====
@@ -927,15 +977,13 @@ void APP_PlayerCharacter::Input_OnRagdoll()
 
 void APP_PlayerCharacter::Input_OnRoll()
 {
-	static constexpr auto PlayRate{1.3f};
-
 	// 体力不足以支付翻滚消耗时不翻滚（客户端用复制过来的体力值判断，服务端 Tick 里扣费）
 	if (StaminaComponent && !StaminaComponent->HasEnoughStamina(StaminaComponent->RollStaminaCost))
 	{
 		return;
 	}
 
-	StartRollingGrounded(PlayRate);
+	StartRollingGrounded(RollPlayRate);
 }
 
 UAnimMontage* APP_PlayerCharacter::SelectRollMontage_Implementation()

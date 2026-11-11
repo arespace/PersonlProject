@@ -48,8 +48,11 @@ public:
 	virtual bool GetRespawnTransform(FTransform& OutTransform) override;
 
 public:
-	/** 根据角色ID应用外观（模型+动画） */
+	/** 根据角色ID应用外观（模型+动画）与成长/手感数值 */
 	void ApplyCharacterAppearance(FName CharacterId);
+
+	/** 按角色行应用成长/手感数值：0 表示未配置，沿用组件与代码现值 */
+	void ApplyCharacterGrowth(const FCharacterDataRow& Row);
 
 	// ===== 调试命令（控制台：PPAddItem Longsword 1，需在服务器窗口执行） =====
 
@@ -206,6 +209,9 @@ private:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "PP|Roll")
 	TMap<TObjectPtr<USkeletalMesh>, TObjectPtr<UAnimMontage>> RollMontageByMesh;
+
+	/** 翻滚蒙太奇播放速率（默认 1.3；由 DT_Characters.RollPlayRate 覆盖，行为与原先的 C++ 字面量一致） */
+	float RollPlayRate{1.3f};
 
 	// ===== 锁定系统 =====
 
