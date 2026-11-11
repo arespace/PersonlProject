@@ -30,6 +30,10 @@ struct FPP_EnemyInfo : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Attributes", meta = (ClampMin = "0.0"))
 	float MaxHealth{0.f};
 
+	/** 每次攻击的伤害；<= 0 表示未配置，沿用 GA / 飞行物蓝图里配的数值 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PP|Enemy|Attributes", meta = (ClampMin = "0.0"))
+	float Damage{0.f};
+
 	// ===== AI 战斗参数 =====
 
 	/** MoveTo 接受半径（cm）：走到距目标该距离内即视为到位 */

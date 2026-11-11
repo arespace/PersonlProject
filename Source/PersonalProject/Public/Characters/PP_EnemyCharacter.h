@@ -73,6 +73,9 @@ public:
 	/** 访问 AIController 上挂的感知组件（可能 nullptr 若蓝图没挂） */
 	UFUNCTION(BlueprintCallable, Category = "PP|AI")
 	UPP_AIPerceptionComponent* GetAIPerceptionComponent() const;
+
+	/** DT_Enemies 行的伤害覆盖值；<= 0 表示未配置，调用方应沿用原有伤害 */
+	float GetTableDamage() const { return TableDamageOverride; }
 	
 	void StopMovementUntilLanded();
 
@@ -99,6 +102,9 @@ protected:
 
 	/** DT_Enemies 行的生命上限，<=0 表示未配置 */
 	float TableMaxHealthOverride{0.f};
+
+	/** DT_Enemies 行的伤害，<=0 表示未配置 */
+	float TableDamageOverride{0.f};
 
 private:
 	

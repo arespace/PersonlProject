@@ -165,6 +165,8 @@ void APP_EnemyCharacter::ApplyEnemyDataConfig()
 	bShouldRespawn = Row->bShouldRespawn;
 	// 生命上限要等 InitializeAttributes 之后才能置值，这里先记下来
 	TableMaxHealthOverride = Row->MaxHealth;
+	// 伤害在命中时由 UPP_BlueprintLibrary::SendDamageEventToPlayer 取用
+	TableDamageOverride = Row->Damage;
 
 	// 感知参数挂在 AIController 的组件上，需要主动推送过去
 	if (UPP_AIPerceptionComponent* PerceptionComponent = GetAIPerceptionComponent())

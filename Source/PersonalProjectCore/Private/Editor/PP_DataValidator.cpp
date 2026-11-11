@@ -276,6 +276,11 @@ FPP_DataValidationReport FPP_DataValidator::ValidateEnemyTable(UDataTable* Enemy
 			Report.AddError(FString::Printf(TEXT("行 '%s'：MaxHealth(%.1f) 不能为负（0 表示沿用 GE 初始化值）"),
 				*RowName.ToString(), Row->MaxHealth));
 		}
+		if (Row->Damage < 0.f)
+		{
+			Report.AddError(FString::Printf(TEXT("行 '%s'：Damage(%.1f) 不能为负（0 表示沿用 GA/蓝图原值）"),
+				*RowName.ToString(), Row->Damage));
+		}
 
 		// 4. DropItemID 外键必须命中 DT_Items
 		if (!Row->DropItemID.IsNone())

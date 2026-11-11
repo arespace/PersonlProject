@@ -10,6 +10,7 @@
 #include "Components/ActorComponent.h"
 #include "Engine/OverlapResult.h"
 #include "GameplayTags/PPTags.h"
+#include "Framework/PP_Log.h"
 #include "Kismet/GameplayStatics.h"
 
 EHitDirection UPP_BlueprintLibrary::GetHitDirection(const FVector& TargetForward, const FVector& ToInstigator)
@@ -86,7 +87,21 @@ void UPP_BlueprintLibrary::SendDamageEventToPlayer(AActor* Target, const TSubcla
 	APP_BaseCharacter* PlayerCharacter = Cast<APP_BaseCharacter>(Target);
 	if (!IsValid(PlayerCharacter)) return;
 	if (!PlayerCharacter->IsAlive()) return;
-	
+
+	// 敌人伤害按 DT_Enemies 行覆盖。Payload.Instigator 就是发起攻击的敌人：
+	// 近战由 UPP_MeleeAttack 通知写入，远程由 APP_Projectile 把自己的 Owner 写入，
+	// 两者最终都走到这里，所以只需在这一个入口替换数值，GE 链路保持不变。
+	float EffectiveDamage = Damage;
+	if (const APP_EnemyCharacter* EnemyInstigator = Cast<APP_EnemyCharacter>(Payload.Instigator))
+	{
+		if (EnemyInstigator->GetTableDamage() > 0.f)
+		{
+			EffectiveDamage = EnemyInstigator->GetTableDamage();
+			UE_LOG(LogPP, Verbose, TEXT("[Damage] %s 使用 DT_Enemies 伤害 %.1f（GE 原值 %.1f）"),
+				*EnemyInstigator->GetName(), EffectiveDamage, Damage);
+		}
+	}
+
 	FGameplayTag EventTag;
 	if (!EventTagOverride.MatchesTagExact(PPTags::None))
 	{
@@ -97,7 +112,7 @@ void UPP_BlueprintLibrary::SendDamageEventToPlayer(AActor* Target, const TSubcla
 		UPP_AttributeSet* AttributeSet = Cast<UPP_AttributeSet>(PlayerCharacter->GetAttributeSet());
 		if (!IsValid(AttributeSet)) return;
 
-		const bool bLethal = AttributeSet->GetHealth() - Damage <= 0.f;
+		const bool bLethal = AttributeSet->GetHealth() - EffectiveDamage <= 0.f;
 		EventTag = bLethal ? PPTags::Events::Player::Death : PPTags::Events::Player::HitReact;
 	}
 	
@@ -116,7 +131,7 @@ void UPP_BlueprintLibrary::SendDamageEventToPlayer(AActor* Target, const TSubcla
 	}
 	FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(DamageEffect, 1.f	, ContextHandle);
 
-	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle,DataTag,-Damage);
+	UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle,DataTag,-EffectiveDamage);
 
 	TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 
