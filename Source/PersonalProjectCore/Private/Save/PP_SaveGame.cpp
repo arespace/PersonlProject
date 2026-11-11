@@ -142,6 +142,13 @@ bool UPP_SaveGame::Validate(FString& OutError) const
 		return false;
 	}
 
+	if (Quests.ActiveQuests.Num() > 50 || Quests.CompletedQuestIDs.Num() > 200)
+	{
+		OutError = FString::Printf(TEXT("任务条目数异常（活跃=%d 已完成=%d）"),
+			Quests.ActiveQuests.Num(), Quests.CompletedQuestIDs.Num());
+		return false;
+	}
+
 	return true;
 }
 

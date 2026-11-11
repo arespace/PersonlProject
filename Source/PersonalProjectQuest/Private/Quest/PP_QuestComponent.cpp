@@ -306,6 +306,115 @@ bool UPP_QuestComponent::CanAcceptQuest(FName QuestID) const
 	return true;
 }
 
+bool UPP_QuestComponent::RestoreFromSave(const FPP_SaveQuestData& InData)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogPP, Warning, TEXT("[QuestComponent] RestoreFromSave 只能在服务端执行"));
+		return false;
+	}
+
+	ActiveQuests.Reset();
+	CompletedQuestIDs.Reset();
+
+	// 1. 已完成列表：去重 + 表行校验，未知行逐条跳过
+	for (const FName& QuestID : InData.CompletedQuestIDs)
+	{
+		if (QuestID.IsNone() || CompletedQuestIDs.Contains(QuestID))
+		{
+			continue;
+		}
+
+		if (!FindQuestInfo(QuestID))
+		{
+			UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档跳过未知的已完成任务：%s（DT_Task 无此行）"), *QuestID.ToString());
+			continue;
+		}
+
+		CompletedQuestIDs.Add(QuestID);
+	}
+
+	// 2. 活跃任务：结构以 DT_Task 为准，存档只提供进度
+	for (const FPP_ActiveQuest& SavedQuest : InData.ActiveQuests)
+	{
+		if (SavedQuest.QuestID.IsNone())
+		{
+			continue;
+		}
+
+		const FPP_QuestInfo* QuestInfo = FindQuestInfo(SavedQuest.QuestID);
+		if (!QuestInfo)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档跳过未知任务：%s（DT_Task 无此行）"), *SavedQuest.QuestID.ToString());
+			continue;
+		}
+
+		if (CompletedQuestIDs.Contains(SavedQuest.QuestID))
+		{
+			UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档跳过状态冲突的任务：%s（既活跃又已完成，按已完成处理）"), *SavedQuest.QuestID.ToString());
+			continue;
+		}
+
+		const bool bDuplicated = ActiveQuests.ContainsByPredicate([&SavedQuest](const FPP_ActiveQuest& Existing)
+		{
+			return Existing.QuestID == SavedQuest.QuestID;
+		});
+		if (bDuplicated)
+		{
+			UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档跳过重复任务：%s"), *SavedQuest.QuestID.ToString());
+			continue;
+		}
+
+		FPP_ActiveQuest NewActive;
+		NewActive.QuestID = SavedQuest.QuestID;
+		NewActive.Objectives = QuestInfo->Objectives; // 类型/描述/目标 ID/需求数量一律用表里的值
+
+		if (SavedQuest.Objectives.Num() != NewActive.Objectives.Num())
+		{
+			UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档任务 %s 目标数不一致：存档=%d 表=%d，按表结构补齐/丢弃多余进度"),
+				*SavedQuest.QuestID.ToString(), SavedQuest.Objectives.Num(), NewActive.Objectives.Num());
+		}
+
+		const int32 MergeCount = FMath::Min(SavedQuest.Objectives.Num(), NewActive.Objectives.Num());
+		for (int32 Index = 0; Index < MergeCount; ++Index)
+		{
+			const FPP_QuestObjective& SavedObjective = SavedQuest.Objectives[Index];
+			FPP_QuestObjective& NewObjective = NewActive.Objectives[Index];
+
+			// 目标配置已变化：不继承旧进度，保持表里的默认值
+			if (SavedObjective.Type != NewObjective.Type || SavedObjective.TargetID != NewObjective.TargetID)
+			{
+				UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档任务 %s 目标 #%d 配置已变化（%d/%s → %d/%s），进度不继承"),
+					*SavedQuest.QuestID.ToString(), Index,
+					static_cast<int32>(SavedObjective.Type), *SavedObjective.TargetID.ToString(),
+					static_cast<int32>(NewObjective.Type), *NewObjective.TargetID.ToString());
+				continue;
+			}
+
+			NewObjective.CurrentCount = FMath::Clamp(SavedObjective.CurrentCount, 0, NewObjective.RequiredCount);
+
+			// 状态不自洽：标记已完成但计数不足，按已完成补齐，避免任务永远无法提交
+			if (SavedObjective.bCompleted && NewObjective.CurrentCount < NewObjective.RequiredCount)
+			{
+				UE_LOG(LogPP, Warning, TEXT("[QuestComponent] 读档任务 %s 目标 #%d 状态不自洽（已完成但计数 %d/%d），按已完成补齐"),
+					*SavedQuest.QuestID.ToString(), Index, NewObjective.CurrentCount, NewObjective.RequiredCount);
+				NewObjective.CurrentCount = NewObjective.RequiredCount;
+			}
+
+			NewObjective.bCompleted = NewObjective.CurrentCount >= NewObjective.RequiredCount;
+		}
+
+		ActiveQuests.Add(NewActive);
+	}
+
+	// 3. 服务端不会触发 OnRep：主动广播一次，保证 UI 与服务端数据一致
+	BroadcastQuestsUpdatedEvent();
+
+	UE_LOG(LogPP, Log, TEXT("[QuestComponent] 读档恢复完成：活跃=%d 已完成=%d"),
+		ActiveQuests.Num(), CompletedQuestIDs.Num());
+	return true;
+}
+
 const FPP_QuestInfo* UPP_QuestComponent::FindQuestInfo(FName QuestID) const
 {
 	// 统一走 DataManager 全局任务表
@@ -320,6 +429,13 @@ void UPP_QuestComponent::OnRep_ActiveQuests()
 {
 	// 客户端收到活跃任务列表更新后广播，通知 UI 刷新
 	UE_LOG(LogPP, Log, TEXT("[QuestComponent] OnRep_ActiveQuests - %d active quests"), ActiveQuests.Num());
+	BroadcastQuestsUpdatedEvent();
+}
+
+void UPP_QuestComponent::OnRep_CompletedQuests()
+{
+	// 已完成列表单独复制：仅当它变化时也要刷新 UI（例如读档只恢复已完成列表）
+	UE_LOG(LogPP, Log, TEXT("[QuestComponent] OnRep_CompletedQuests - %d completed quests"), CompletedQuestIDs.Num());
 	BroadcastQuestsUpdatedEvent();
 }
 

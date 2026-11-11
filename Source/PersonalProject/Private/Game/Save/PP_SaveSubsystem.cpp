@@ -8,6 +8,7 @@
 #include "Inventory/PP_InventoryComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Player/PP_PlayerState.h"
+#include "Quest/PP_QuestComponent.h"
 #include "Save/PP_SaveGame.h"
 
 namespace
@@ -104,6 +105,16 @@ bool UPP_SaveSubsystem::SavePlayer(APlayerController* PC, FString& OutError)
 		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 保存时未找到 InventoryComponent，背包数据未写入"));
 	}
 
+	if (const UPP_QuestComponent* QuestComponent = PS->GetQuestComponent())
+	{
+		SaveData->Quests.ActiveQuests = QuestComponent->GetActiveQuests();
+		SaveData->Quests.CompletedQuestIDs = QuestComponent->GetCompletedQuests();
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 保存时未找到 QuestComponent，任务进度未写入"));
+	}
+
 	return UPP_SaveGame::Save(SaveData, OutError);
 }
 
@@ -165,6 +176,16 @@ bool UPP_SaveSubsystem::ApplyPendingToPlayer(APlayerController* PC, FString& Out
 	else
 	{
 		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 读档时未找到 InventoryComponent，背包数据未应用"));
+	}
+
+	// 任务进度：结构以 DT_Task 校正，恢复后广播一次任务更新事件
+	if (UPP_QuestComponent* QuestComponent = PS->GetQuestComponent())
+	{
+		QuestComponent->RestoreFromSave(PendingSave->Quests);
+	}
+	else
+	{
+		UE_LOG(LogPP, Warning, TEXT("[PP_Save] 读档时未找到 QuestComponent，任务进度未应用"));
 	}
 
 	ApplyAttributes(PS->GetAbilitySystemComponent(), Character.BaseAttributes);

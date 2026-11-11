@@ -7,6 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "Data/PP_QuestData.h"
 #include "Query/PP_QuestQuery.h"
+#include "Save/PP_SaveTypes.h"
 #include "PP_QuestComponent.generated.h"
 
 class UPP_InventoryComponent;
@@ -81,6 +82,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quest")
 	void Server_BroadcastTeamProgress(EPP_QuestObjectiveType Type, FName TargetID, int32 Count);
 
+	/**
+	 * 从存档恢复任务进度（服务端，读档时调用一次）
+	 *
+	 * 以 DT_Task 为准校正：目标类型/描述/需求数量用表里的值，进度按目标索引合并。
+	 * 表里已不存在的任务、目标配置已变化的条目、状态自洽性检查失败的条目逐条跳过或夹紧并告警，
+	 * 不整份失败。恢复完成后广播一次任务更新事件，保证服务端与客户端 UI 状态一致。
+	 */
+	bool RestoreFromSave(const FPP_SaveQuestData& InData);
+
 	// ===== 查询接口 =====
 
 	/** 获取当前活跃任务列表 */
@@ -112,6 +122,9 @@ protected:
 	UFUNCTION()
 	void OnRep_ActiveQuests();
 
+	UFUNCTION()
+	void OnRep_CompletedQuests();
+
 	// ===== 复制属性 =====
 
 	/** 活跃任务列表（服务器权威） */
@@ -119,7 +132,7 @@ protected:
 	TArray<FPP_ActiveQuest> ActiveQuests;
 
 	/** 已完成任务ID列表（服务器权威） */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Quest")
+	UPROPERTY(ReplicatedUsing = OnRep_CompletedQuests, BlueprintReadOnly, Category = "Quest")
 	TArray<FName> CompletedQuestIDs;
 
 private:

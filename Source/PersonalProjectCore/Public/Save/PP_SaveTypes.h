@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Data/PP_ItemData.h"
+#include "Data/PP_QuestData.h"
 #include "PP_SaveTypes.generated.h"
 
 /**
@@ -55,4 +56,18 @@ struct FPP_SaveInventoryData
 	UPROPERTY() TArray<FPP_EquippedItem> Equipped;
 
 	UPROPERTY() int32 Gold = 0;
+};
+
+/**
+ * 任务进度存档。
+ * 只存任务 ID 与运行时计数，目标结构（类型/描述/需求数量）读档时以 DT_Task 为准重新校正。
+ */
+USTRUCT()
+struct FPP_SaveQuestData
+{
+	GENERATED_BODY()
+
+	UPROPERTY() TArray<FPP_ActiveQuest> ActiveQuests;
+
+	UPROPERTY() TArray<FName> CompletedQuestIDs;
 };
